@@ -1,7 +1,6 @@
 // Copyright 2023 Signal Messenger, LLC
 // SPDX-License-Identifier: AGPL-3.0-only
-
-import React, { useEffect, useRef } from 'react';
+import React, { memo, useEffect, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { ChatsTab } from '../../components/ChatsTab';
 import { SmartConversationView } from './ConversationView';
@@ -12,17 +11,21 @@ import { useGlobalModalActions } from '../ducks/globalModals';
 import { getIntl } from '../selectors/user';
 import { usePrevious } from '../../hooks/usePrevious';
 import { TargetedMessageSource } from '../ducks/conversationsEnums';
-import type { ConversationsStateType } from '../ducks/conversations';
 import { useConversationsActions } from '../ducks/conversations';
-import type { StateType } from '../reducer';
+import { useToastActions } from '../ducks/toast';
 import { strictAssert } from '../../util/assert';
-import { showToast } from '../../util/showToast';
-import { ToastStickerPackInstallFailed } from '../../components/ToastStickerPackInstallFailed';
+import { isStagingServer } from '../../util/isStagingServer';
+import { ToastType } from '../../types/Toast';
 import { getNavTabsCollapsed } from '../selectors/items';
 import { useItemsActions } from '../ducks/items';
 import { getHasAnyFailedStorySends } from '../selectors/stories';
 import { getHasPendingUpdate } from '../selectors/updates';
 import { getOtherTabsUnreadStats } from '../selectors/nav';
+import {
+  getSelectedConversationId,
+  getTargetedMessage,
+  getTargetedMessageSource,
+} from '../selectors/conversations';
 
 function renderConversationView() {
   return <SmartConversationView />;
@@ -36,17 +39,15 @@ function renderMiniPlayer(options: { shouldFlow: boolean }) {
   return <SmartMiniPlayer {...options} />;
 }
 
-export function SmartChatsTab(): JSX.Element {
+export const SmartChatsTab = memo(function SmartChatsTab() {
   const i18n = useSelector(getIntl);
   const navTabsCollapsed = useSelector(getNavTabsCollapsed);
   const hasFailedStorySends = useSelector(getHasAnyFailedStorySends);
   const hasPendingUpdate = useSelector(getHasPendingUpdate);
   const otherTabsUnreadStats = useSelector(getOtherTabsUnreadStats);
-
-  const { selectedConversationId, targetedMessage, targetedMessageSource } =
-    useSelector<StateType, ConversationsStateType>(
-      state => state.conversations
-    );
+  const selectedConversationId = useSelector(getSelectedConversationId);
+  const targetedMessageId = useSelector(getTargetedMessage)?.id;
+  const targetedMessageSource = useSelector(getTargetedMessageSource);
 
   const {
     onConversationClosed,
@@ -56,6 +57,7 @@ export function SmartChatsTab(): JSX.Element {
   } = useConversationsActions();
   const { showWhatsNewModal } = useGlobalModalActions();
   const { toggleNavTabsCollapse } = useItemsActions();
+  const { showToast } = useToastActions();
 
   const lastOpenedConversationId = useRef<string | undefined>();
 
@@ -63,20 +65,20 @@ export function SmartChatsTab(): JSX.Element {
     if (selectedConversationId !== lastOpenedConversationId.current) {
       lastOpenedConversationId.current = selectedConversationId;
       if (selectedConversationId) {
-        onConversationOpened(selectedConversationId, targetedMessage);
+        onConversationOpened(selectedConversationId, targetedMessageId);
       }
     } else if (
       selectedConversationId &&
-      targetedMessage &&
+      targetedMessageId &&
       targetedMessageSource !== TargetedMessageSource.Focus
     ) {
-      scrollToMessage(selectedConversationId, targetedMessage);
+      scrollToMessage(selectedConversationId, targetedMessageId);
     }
   }, [
     onConversationOpened,
     selectedConversationId,
     scrollToMessage,
-    targetedMessage,
+    targetedMessageId,
     targetedMessageSource,
   ]);
 
@@ -121,7 +123,7 @@ export function SmartChatsTab(): JSX.Element {
     }
 
     function packInstallFailed() {
-      showToast(ToastStickerPackInstallFailed);
+      showToast({ toastType: ToastType.StickerPackInstallFailed });
     }
 
     window.Whisper.events.on('pack-install-failed', packInstallFailed);
@@ -133,7 +135,7 @@ export function SmartChatsTab(): JSX.Element {
       window.Whisper.events.off('refreshConversation', refreshConversation);
       window.Whisper.events.off('setupAsNewDevice', unload);
     };
-  }, [onConversationClosed, prevConversationId, showConversation]);
+  }, [onConversationClosed, prevConversationId, showConversation, showToast]);
 
   useEffect(() => {
     if (!selectedConversationId) {
@@ -145,11 +147,11 @@ export function SmartChatsTab(): JSX.Element {
     <ChatsTab
       otherTabsUnreadStats={otherTabsUnreadStats}
       i18n={i18n}
+      isStaging={isStagingServer()}
       hasFailedStorySends={hasFailedStorySends}
       hasPendingUpdate={hasPendingUpdate}
       navTabsCollapsed={navTabsCollapsed}
       onToggleNavTabsCollapse={toggleNavTabsCollapse}
-      prevConversationId={prevConversationId}
       renderConversationView={renderConversationView}
       renderLeftPane={renderLeftPane}
       renderMiniPlayer={renderMiniPlayer}
@@ -157,4 +159,4 @@ export function SmartChatsTab(): JSX.Element {
       showWhatsNewModal={showWhatsNewModal}
     />
   );
-}
+});

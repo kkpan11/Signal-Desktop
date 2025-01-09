@@ -3,8 +3,11 @@
 
 import type { WebAPIType } from '../textsecure/WebAPI';
 import { drop } from '../util/drop';
+import { CallLinkFinalizeDeleteManager } from './CallLinkFinalizeDeleteManager';
 
+import { callLinkRefreshJobQueue } from './callLinkRefreshJobQueue';
 import { conversationJobQueue } from './conversationJobQueue';
+import { groupAvatarJobQueue } from './groupAvatarJobQueue';
 import { readSyncJobQueue } from './readSyncJobQueue';
 import { removeStorageKeyJobQueue } from './removeStorageKeyJobQueue';
 import { reportSpamJobQueue } from './reportSpamJobQueue';
@@ -25,6 +28,9 @@ export function initializeAllJobQueues({
   // General conversation send queue
   drop(conversationJobQueue.streamJobs());
 
+  // Group avatar download after backup import
+  drop(groupAvatarJobQueue.streamJobs());
+
   // Single proto send queue, used for a variety of one-off simple messages
   drop(singleProtoJobQueue.streamJobs());
 
@@ -36,16 +42,21 @@ export function initializeAllJobQueues({
   // Other queues
   drop(removeStorageKeyJobQueue.streamJobs());
   drop(reportSpamJobQueue.streamJobs());
+  drop(callLinkRefreshJobQueue.streamJobs());
+  drop(CallLinkFinalizeDeleteManager.start());
 }
 
 export async function shutdownAllJobQueues(): Promise<void> {
   await Promise.allSettled([
+    callLinkRefreshJobQueue.shutdown(),
     conversationJobQueue.shutdown(),
+    groupAvatarJobQueue.shutdown(),
     singleProtoJobQueue.shutdown(),
     readSyncJobQueue.shutdown(),
     viewSyncJobQueue.shutdown(),
     viewOnceOpenJobQueue.shutdown(),
     removeStorageKeyJobQueue.shutdown(),
     reportSpamJobQueue.shutdown(),
+    CallLinkFinalizeDeleteManager.stop(),
   ]);
 }

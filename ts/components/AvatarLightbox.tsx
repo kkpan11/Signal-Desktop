@@ -11,19 +11,21 @@ import type { LocalizerType } from '../types/Util';
 
 export type PropsType = {
   avatarColor?: AvatarColorType;
-  avatarPath?: string;
+  avatarUrl?: string;
   conversationTitle?: string;
   i18n: LocalizerType;
   isGroup?: boolean;
+  noteToSelf?: boolean;
   onClose: () => unknown;
 };
 
 export function AvatarLightbox({
   avatarColor,
-  avatarPath,
+  avatarUrl,
   conversationTitle,
   i18n,
   isGroup,
+  noteToSelf,
   onClose,
 }: PropsType): JSX.Element {
   return (
@@ -32,6 +34,7 @@ export function AvatarLightbox({
       i18n={i18n}
       isViewOnce
       media={[]}
+      playbackDisabled={false}
       saveAttachment={noop}
       toggleForwardMessagesModal={noop}
       onMediaPlaybackStart={noop}
@@ -42,16 +45,18 @@ export function AvatarLightbox({
     >
       <AvatarPreview
         avatarColor={avatarColor}
-        avatarPath={avatarPath}
+        avatarUrl={avatarUrl}
         conversationTitle={conversationTitle}
         i18n={i18n}
         isGroup={isGroup}
+        noteToSelf={noteToSelf}
         style={{
           fontSize: '16em',
-          height: '2em',
-          maxHeight: 512,
-          maxWidth: 512,
-          width: '2em',
+          width: 'auto',
+          minHeight: '64px',
+          height: '100%',
+          maxHeight: `min(${512}px, 100%)`,
+          aspectRatio: '1 / 1',
         }}
       />
     </Lightbox>

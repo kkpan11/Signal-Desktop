@@ -5,7 +5,6 @@ import { last } from 'lodash';
 import type { ReactChild } from 'react';
 import React from 'react';
 
-import { Intl } from '../Intl';
 import type { ToFindType } from './LeftPaneHelper';
 import type {
   ConversationType,
@@ -15,6 +14,7 @@ import { LeftPaneHelper } from './LeftPaneHelper';
 import { getConversationInDirection } from './getConversationInDirection';
 import type { Row } from '../ConversationList';
 import { RowType } from '../ConversationList';
+import { NavSidebarEmpty } from '../NavSidebar';
 import type { PropsData as ConversationListItemPropsType } from '../conversationList/ConversationListItem';
 import type { LocalizerType } from '../../types/Util';
 import { handleKeydownForSearch } from './handleKeydownForSearch';
@@ -25,10 +25,12 @@ export type LeftPaneInboxPropsType = {
   archivedConversations: ReadonlyArray<ConversationListItemPropsType>;
   pinnedConversations: ReadonlyArray<ConversationListItemPropsType>;
   isAboutToSearch: boolean;
+  isSearchingGlobally: boolean;
   startSearchCounter: number;
   searchDisabled: boolean;
   searchTerm: string;
   searchConversation: undefined | ConversationType;
+  filterByUnread: boolean;
 };
 
 export class LeftPaneInboxHelper extends LeftPaneHelper<LeftPaneInboxPropsType> {
@@ -40,6 +42,8 @@ export class LeftPaneInboxHelper extends LeftPaneHelper<LeftPaneInboxPropsType> 
 
   private readonly isAboutToSearch: boolean;
 
+  private readonly isSearchingGlobally: boolean;
+
   private readonly startSearchCounter: number;
 
   private readonly searchDisabled: boolean;
@@ -48,15 +52,19 @@ export class LeftPaneInboxHelper extends LeftPaneHelper<LeftPaneInboxPropsType> 
 
   private readonly searchConversation: undefined | ConversationType;
 
+  private readonly filterByUnread: boolean;
+
   constructor({
     conversations,
     archivedConversations,
     pinnedConversations,
     isAboutToSearch,
+    isSearchingGlobally,
     startSearchCounter,
     searchDisabled,
     searchTerm,
     searchConversation,
+    filterByUnread,
   }: Readonly<LeftPaneInboxPropsType>) {
     super();
 
@@ -64,10 +72,12 @@ export class LeftPaneInboxHelper extends LeftPaneHelper<LeftPaneInboxPropsType> 
     this.archivedConversations = archivedConversations;
     this.pinnedConversations = pinnedConversations;
     this.isAboutToSearch = isAboutToSearch;
+    this.isSearchingGlobally = isSearchingGlobally;
     this.startSearchCounter = startSearchCounter;
     this.searchDisabled = searchDisabled;
     this.searchTerm = searchTerm;
     this.searchConversation = searchConversation;
+    this.filterByUnread = filterByUnread;
   }
 
   getRowCount(): number {
@@ -83,57 +93,55 @@ export class LeftPaneInboxHelper extends LeftPaneHelper<LeftPaneInboxPropsType> 
 
   override getSearchInput({
     clearConversationSearch,
-    clearSearch,
+    clearSearchQuery,
+    endConversationSearch,
+    endSearch,
     i18n,
     showConversation,
     updateSearchTerm,
+    updateFilterByUnread,
   }: Readonly<{
     clearConversationSearch: () => unknown;
-    clearSearch: () => unknown;
+    clearSearchQuery: () => unknown;
+    endConversationSearch: () => unknown;
+    endSearch: () => unknown;
     i18n: LocalizerType;
     showConversation: ShowConversationType;
     updateSearchTerm: (searchTerm: string) => unknown;
+    updateFilterByUnread: (filterByUnread: boolean) => void;
   }>): ReactChild {
     return (
       <LeftPaneSearchInput
         clearConversationSearch={clearConversationSearch}
-        clearSearch={clearSearch}
+        clearSearchQuery={clearSearchQuery}
+        endConversationSearch={endConversationSearch}
+        endSearch={endSearch}
         disabled={this.searchDisabled}
         i18n={i18n}
+        isSearchingGlobally={this.isSearchingGlobally}
         searchConversation={this.searchConversation}
         searchTerm={this.searchTerm}
         showConversation={showConversation}
         startSearchCounter={this.startSearchCounter}
         updateSearchTerm={updateSearchTerm}
+        onFilterClick={updateFilterByUnread}
+        filterButtonEnabled={!this.searchConversation}
+        filterPressed={this.filterByUnread}
       />
     );
   }
 
-  override getPreRowsNode({
+  override getBackgroundNode({
     i18n,
   }: Readonly<{
     i18n: LocalizerType;
   }>): ReactChild | null {
     if (this.getRowCount() === 0) {
       return (
-        <div className="module-left-pane__empty">
-          <div>
-            <Intl
-              i18n={i18n}
-              id="icu:emptyInboxMessage"
-              components={{
-                composeIcon: (
-                  <span>
-                    <strong>{i18n('icu:composeIcon')}</strong>
-                    <span className="module-left-pane__empty--composer_icon">
-                      <i className="module-left-pane__empty--composer_icon--icon" />
-                    </span>
-                  </span>
-                ),
-              }}
-            />
-          </div>
-        </div>
+        <NavSidebarEmpty
+          title={i18n('icu:emptyInbox__title')}
+          subtitle={i18n('icu:emptyInbox__subtitle')}
+        />
       );
     }
 

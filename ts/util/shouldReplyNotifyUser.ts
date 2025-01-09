@@ -2,22 +2,25 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import type { ConversationModel } from '../models/conversations';
-import type { MessageModel } from '../models/messages';
+import type { ReadonlyMessageAttributesType } from '../model-types.d';
 import * as log from '../logging/log';
-import dataInterface from '../sql/Client';
+import { DataReader } from '../sql/Client';
 import { isGroup } from './whatTypeOfConversation';
 import { isMessageUnread } from './isMessageUnread';
 
 export async function shouldReplyNotifyUser(
-  message: MessageModel,
+  messageAttributes: Pick<
+    ReadonlyMessageAttributesType,
+    'readStatus' | 'storyId'
+  >,
   conversation: ConversationModel
 ): Promise<boolean> {
   // Don't notify if the message has already been read
-  if (!isMessageUnread(message.attributes)) {
+  if (!isMessageUnread(messageAttributes)) {
     return false;
   }
 
-  const storyId = message.get('storyId');
+  const { storyId } = messageAttributes;
 
   // If this is not a reply to a story, always notify.
   if (storyId == null) {
@@ -54,7 +57,7 @@ export async function shouldReplyNotifyUser(
   // If the story is from a different user, only notify if the user has
   // replied or reacted to the story
 
-  const replies = await dataInterface.getOlderMessagesByConversation({
+  const replies = await DataReader.getOlderMessagesByConversation({
     conversationId: conversation.id,
     limit: 9000,
     storyId,

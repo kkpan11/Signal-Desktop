@@ -17,9 +17,10 @@ import type { WebAPIType } from '../textsecure/WebAPI';
 import { SignalService as Proto } from '../protobuf';
 
 import SenderCertificate = Proto.SenderCertificate;
+import { safeParseUnknown } from '../util/schemas';
 
 function isWellFormed(data: unknown): data is SerializedCertificateType {
-  return serializedCertificateSchema.safeParse(data).success;
+  return safeParseUnknown(serializedCertificateSchema, data).success;
 }
 
 // In case your clock is different from the server's, we "fake" expire certificates early.
@@ -34,28 +35,23 @@ export class SenderCertificateService {
     Promise<undefined | SerializedCertificateType>
   > = new Map();
 
-  private navigator?: { onLine: boolean };
-
-  private onlineEventTarget?: EventTarget;
+  private events?: Pick<typeof window.Whisper.events, 'on' | 'off'>;
 
   private storage?: StorageInterface;
 
   initialize({
     server,
-    navigator,
-    onlineEventTarget,
+    events,
     storage,
   }: {
     server: WebAPIType;
-    navigator: Readonly<{ onLine: boolean }>;
-    onlineEventTarget: EventTarget;
+    events?: Pick<typeof window.Whisper.events, 'on' | 'off'>;
     storage: StorageInterface;
   }): void {
     log.info('Sender certificate service initialized');
 
     this.server = server;
-    this.navigator = navigator;
-    this.onlineEventTarget = onlineEventTarget;
+    this.events = events;
     this.storage = storage;
   }
 
@@ -150,9 +146,9 @@ export class SenderCertificateService {
   private async fetchAndSaveCertificate(
     mode: SenderCertificateMode
   ): Promise<undefined | SerializedCertificateType> {
-    const { storage, navigator, onlineEventTarget } = this;
+    const { storage, server, events } = this;
     assertDev(
-      storage && navigator && onlineEventTarget,
+      storage && server && events,
       'Sender certificate service method was called before it was initialized'
     );
 
@@ -162,7 +158,7 @@ export class SenderCertificateService {
       )} certificate`
     );
 
-    await waitForOnline(navigator, onlineEventTarget);
+    await waitForOnline({ server, events });
 
     let certificateString: string;
     try {

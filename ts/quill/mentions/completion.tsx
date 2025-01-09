@@ -10,7 +10,6 @@ import React from 'react';
 import { Popper } from 'react-popper';
 import classNames from 'classnames';
 import { createPortal } from 'react-dom';
-import type { ConversationType } from '../../state/ducks/conversations';
 import { Avatar, AvatarSize } from '../../components/Avatar';
 import type { LocalizerType, ThemeType } from '../../types/Util';
 import type { MemberType, MemberRepository } from '../memberRepository';
@@ -26,7 +25,7 @@ export type MentionCompletionOptions = {
   i18n: LocalizerType;
   memberRepositoryRef: RefObject<MemberRepository>;
   setMentionPickerElement: (element: JSX.Element | null) => void;
-  me?: ConversationType;
+  ourConversationId: string | undefined;
   theme: ThemeType;
 };
 
@@ -128,10 +127,15 @@ export class MentionCompletion {
 
         if (memberRepository) {
           if (leftTokenText === '') {
-            results = memberRepository.getMembers(this.options.me);
+            results = memberRepository.getMembers(
+              this.options.ourConversationId
+            );
           } else {
             const fullMentionText = leftTokenText;
-            results = memberRepository.search(fullMentionText, this.options.me);
+            results = memberRepository.search(
+              fullMentionText,
+              this.options.ourConversationId
+            );
           }
         }
 
@@ -284,7 +288,7 @@ export class MentionCompletion {
                 >
                   <Avatar
                     acceptedMessageRequest={member.acceptedMessageRequest}
-                    avatarPath={member.avatarPath}
+                    avatarUrl={member.avatarUrl}
                     badge={getPreferredBadge(member.badges)}
                     conversationType="direct"
                     i18n={this.options.i18n}
@@ -293,7 +297,7 @@ export class MentionCompletion {
                     size={AvatarSize.TWENTY_EIGHT}
                     theme={theme}
                     title={member.title}
-                    unblurredAvatarPath={member.unblurredAvatarPath}
+                    unblurredAvatarUrl={member.unblurredAvatarUrl}
                   />
                   <div className="module-composition-input__suggestions__title">
                     <UserText text={member.title} />

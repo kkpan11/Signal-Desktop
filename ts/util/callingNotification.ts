@@ -2,17 +2,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import type { LocalizerType } from '../types/Util';
-import { CallMode } from '../types/Calling';
-import { missingCaseError } from './missingCaseError';
-import type { CallStatus } from '../types/CallDisposition';
 import {
+  CallMode,
   CallDirection,
   DirectCallStatus,
   type CallHistoryDetails,
   CallType,
+  GroupCallStatus,
 } from '../types/CallDisposition';
+import { missingCaseError } from './missingCaseError';
+import type { CallStatus } from '../types/CallDisposition';
 import type { ConversationType } from '../state/ducks/conversations';
 import { strictAssert } from './assert';
+import { isMoreRecentThan } from './timestamp';
+import { MINUTE } from './durations';
 
 export type CallingNotificationType = Readonly<{
   // In some older calls, we don't have a call id, this hardens against that.
@@ -22,15 +25,20 @@ export type CallingNotificationType = Readonly<{
   groupCallEnded: boolean | null;
   deviceCount: number;
   maxDevices: number;
+  isSelectMode: boolean;
+  isTargeted: boolean;
 }>;
 
-function getDirectCallNotificationText(
+export function getDirectCallNotificationText(
   callDirection: CallDirection,
   callType: CallType,
   callStatus: DirectCallStatus,
   i18n: LocalizerType
 ): string {
-  if (callStatus === DirectCallStatus.Pending) {
+  if (
+    callStatus === DirectCallStatus.Pending ||
+    callStatus === DirectCallStatus.Unknown
+  ) {
     if (callDirection === CallDirection.Incoming) {
       return callType === CallType.Video
         ? i18n('icu:incomingVideoCall')
@@ -63,7 +71,10 @@ function getDirectCallNotificationText(
       : i18n('icu:missedOrDeclinedOutgoingAudioCall');
   }
 
-  if (callStatus === DirectCallStatus.Missed) {
+  if (
+    callStatus === DirectCallStatus.Missed ||
+    callStatus === DirectCallStatus.MissedNotificationProfile
+  ) {
     if (callDirection === CallDirection.Incoming) {
       return callType === CallType.Video
         ? i18n('icu:missedIncomingVideoCall')
@@ -83,14 +94,41 @@ function getDirectCallNotificationText(
   throw missingCaseError(callStatus);
 }
 
-function getGroupCallNotificationText(
-  groupCallEnded: boolean,
-  creator: ConversationType | null,
-  i18n: LocalizerType
-): string {
+function getGroupCallNotificationText({
+  groupCallEnded,
+  creator,
+  callHistory,
+  i18n,
+}: {
+  groupCallEnded: boolean;
+  creator: ConversationType | null;
+  callHistory: CallHistoryDetails;
+  i18n: LocalizerType;
+}): string {
   if (groupCallEnded) {
-    return i18n('icu:calling__call-notification__ended');
+    const { direction, status, timestamp } = callHistory;
+    if (direction === CallDirection.Incoming) {
+      if (status === GroupCallStatus.Declined) {
+        return i18n('icu:CallHistory__DescriptionVideoCall--Declined');
+      }
+      if (status === GroupCallStatus.Missed) {
+        return i18n('icu:CallHistory__DescriptionVideoCall--Missed');
+      }
+      if (isMoreRecentThan(timestamp, 5 * MINUTE)) {
+        return i18n('icu:calling__call-notification__ended');
+      }
+      return i18n('icu:acceptedIncomingVideoCall');
+    }
+
+    // Outgoing ended group calls
+    if (isMoreRecentThan(timestamp, 5 * MINUTE)) {
+      return i18n('icu:calling__call-notification__ended');
+    }
+    return i18n('icu:acceptedOutgoingVideoCall');
   }
+
+  // TODO: Active call with participants DESKTOP-7439
+
   if (creator == null) {
     return i18n('icu:calling__call-notification__started-by-someone');
   }
@@ -106,7 +144,11 @@ export function getCallingNotificationText(
   callingNotification: CallingNotificationType,
   i18n: LocalizerType
 ): string | null {
-  const { callHistory, callCreator, groupCallEnded } = callingNotification;
+  const {
+    callHistory,
+    callCreator: creator,
+    groupCallEnded,
+  } = callingNotification;
   if (callHistory == null) {
     return null;
   }
@@ -124,7 +166,15 @@ export function getCallingNotificationText(
       groupCallEnded != null,
       'getCallingNotificationText: groupCallEnded shouldnt be null for a group call'
     );
-    return getGroupCallNotificationText(groupCallEnded, callCreator, i18n);
+    return getGroupCallNotificationText({
+      groupCallEnded,
+      creator,
+      callHistory,
+      i18n,
+    });
+  }
+  if (callHistory.mode === CallMode.Adhoc) {
+    return null;
   }
   throw missingCaseError(callHistory.mode);
 }
@@ -172,7 +222,10 @@ export function getCallingIcon(
     }
     return 'video';
   }
-  if (callType === CallType.Group) {
+  if (callType === CallType.Group || callType === CallType.Adhoc) {
+    return 'video';
+  }
+  if (callType === CallType.Unknown) {
     return 'video';
   }
   throw missingCaseError(callType);

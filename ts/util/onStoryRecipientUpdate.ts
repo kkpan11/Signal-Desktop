@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import { isEqual } from 'lodash';
+import { DataReader } from '../sql/Client';
 import type { StoryRecipientUpdateEvent } from '../textsecure/messageReceiverEvents';
 import { normalizeServiceId } from '../types/ServiceId';
 import { normalizeStoryDistributionId } from '../types/StoryDistributionId';
@@ -90,7 +91,7 @@ export async function onStoryRecipientUpdate(
         window.ConversationController.getOurConversationIdOrThrow();
       const now = Date.now();
 
-      const messages = await window.Signal.Data.getMessagesBySentAt(timestamp);
+      const messages = await DataReader.getMessagesBySentAt(timestamp);
 
       // Now we figure out who needs to be added and who needs to removed
       const handledMessages = messages.filter(item => {
@@ -161,7 +162,11 @@ export async function onStoryRecipientUpdate(
           return true;
         }
 
-        const message = window.MessageController.register(item.id, item);
+        const message = window.MessageCache.__DEPRECATED$register(
+          item.id,
+          item,
+          'onStoryRecipientUpdate'
+        );
 
         const sendStateConversationIds = new Set(
           Object.keys(nextSendStateByConversationId)

@@ -10,12 +10,13 @@ import type {
   QuotedMessageType,
 } from '../model-types.d';
 import * as log from '../logging/log';
+import { DataReader, DataWriter } from '../sql/Client';
 import type { AttachmentType } from '../types/Attachment';
 import { ErrorWithToast } from '../types/ErrorWithToast';
 import { SendStatus } from '../messages/MessageSendState';
 import { ToastType } from '../types/Toast';
 import type { AciString } from '../types/ServiceId';
-import { canEditMessage } from './canEditMessage';
+import { canEditMessage, isWithinMaxEdits } from './canEditMessage';
 import {
   conversationJobQueue,
   conversationQueueJobEnum,
@@ -23,7 +24,7 @@ import {
 import { concat, filter, map, repeat, zipObject, find } from './iterables';
 import { getConversationIdForLogging } from './idForLogging';
 import { isQuoteAMatch } from '../messages/helpers';
-import { getMessageById } from '../messages/getMessageById';
+import { __DEPRECATED$getMessageById } from '../messages/getMessageById';
 import { handleEditMessage } from './handleEditMessage';
 import { incrementMessageCounter } from './incrementMessageCounter';
 import { isGroupV1 } from './whatTypeOfConversation';
@@ -64,7 +65,10 @@ export async function sendEditedMessage(
     conversation.attributes
   )})`;
 
-  const targetMessage = await getMessageById(targetMessageId);
+  const targetMessage = await __DEPRECATED$getMessageById(
+    targetMessageId,
+    'sendEditedMessage'
+  );
   strictAssert(targetMessage, 'could not find message to edit');
 
   if (isGroupV1(conversation.attributes)) {
@@ -77,7 +81,10 @@ export async function sendEditedMessage(
     return;
   }
 
-  if (!canEditMessage(targetMessage.attributes)) {
+  if (
+    !canEditMessage(targetMessage.attributes) ||
+    !isWithinMaxEdits(targetMessage.attributes)
+  ) {
     throw new ErrorWithToast(
       `${idLog}: cannot edit`,
       ToastType.CannotEditMessage
@@ -126,9 +133,7 @@ export async function sendEditedMessage(
     if (quoteSentAt === existingQuote?.id) {
       quote = existingQuote;
     } else {
-      const messages = await window.Signal.Data.getMessagesBySentAt(
-        quoteSentAt
-      );
+      const messages = await DataReader.getMessagesBySentAt(quoteSentAt);
       const matchingMessage = find(messages, item =>
         isQuoteAMatch(item, conversationId, {
           id: quoteSentAt,
@@ -215,13 +220,13 @@ export async function sendEditedMessage(
           conversationId,
           messageId: targetMessageId,
           revision: conversation.get('revision'),
-          editedMessageTimestamp: targetSentTimestamp,
+          editedMessageTimestamp: timestamp,
         },
         async jobToInsert => {
           log.info(
             `${idLog}: saving message ${targetMessageId} and job ${jobToInsert.id}`
           );
-          await window.Signal.Data.saveMessage(targetMessage.attributes, {
+          await DataWriter.saveMessage(targetMessage.attributes, {
             jobToInsert,
             ourAci: window.textsecure.storage.user.getCheckedAci(),
           });
@@ -237,14 +242,14 @@ export async function sendEditedMessage(
     SEND_REPORT_THRESHOLD_MS,
     async () => {
       conversation.beforeMessageSend({
-        message: targetMessage,
+        message: targetMessage.attributes,
         dontClearDraft: false,
         dontAddMessage: true,
         now: timestamp,
       });
     },
-    duration => `${idLog}: batchDisptach took ${duration}ms`
+    duration => `${idLog}: batchDispatch took ${duration}ms`
   );
 
-  window.Signal.Data.updateConversation(conversation.attributes);
+  await DataWriter.updateConversation(conversation.attributes);
 }

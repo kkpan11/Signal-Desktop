@@ -3,7 +3,7 @@
 
 import type { Key } from 'react';
 import React from 'react';
-import { Tabs, TabList, Tab, TabPanels, TabPanel } from 'react-aria-components';
+import { Tabs, TabList, Tab, TabPanel } from 'react-aria-components';
 import classNames from 'classnames';
 import { Avatar, AvatarSize } from './Avatar';
 import type { LocalizerType, ThemeType } from '../types/Util';
@@ -232,8 +232,14 @@ export function NavTabs({
   const isRTL = i18n.getLocaleDirection() === 'rtl';
 
   return (
-    <Tabs orientation="vertical" className="NavTabs__Container">
+    <Tabs
+      orientation="vertical"
+      className="NavTabs__Container"
+      selectedKey={selectedNavTab}
+      onSelectionChange={handleSelectionChange}
+    >
       <nav
+        data-supertab
         className={classNames('NavTabs', {
           'NavTabs--collapsed': navTabsCollapsed,
         })}
@@ -247,22 +253,18 @@ export function NavTabs({
           hasPendingUpdate={false}
           otherTabsUnreadStats={null}
         />
-        <TabList
-          className="NavTabs__TabList"
-          selectedKey={selectedNavTab}
-          onSelectionChange={handleSelectionChange}
-        >
+        <TabList className="NavTabs__TabList">
           <NavTabsItem
             i18n={i18n}
             id={NavTab.Chats}
-            label="Chats"
+            label={i18n('icu:NavTabs__ItemLabel--Chats')}
             iconClassName="NavTabs__ItemIcon--Chats"
             unreadStats={unreadConversationsStats}
           />
           <NavTabsItem
             i18n={i18n}
             id={NavTab.Calls}
-            label="Calls"
+            label={i18n('icu:NavTabs__ItemLabel--Calls')}
             iconClassName="NavTabs__ItemIcon--Calls"
             unreadStats={{
               unreadCount: unreadCallsCount,
@@ -274,7 +276,7 @@ export function NavTabs({
             <NavTabsItem
               i18n={i18n}
               id={NavTab.Stories}
-              label="Stories"
+              label={i18n('icu:NavTabs__ItemLabel--Stories')}
               iconClassName="NavTabs__ItemIcon--Stories"
               hasError={hasFailedStorySends}
               unreadStats={{
@@ -306,7 +308,7 @@ export function NavTabs({
             }}
             portalToRoot
           >
-            {({ openMenu, onKeyDown, ref }) => {
+            {({ onClick, onKeyDown, ref }) => {
               return (
                 <button
                   type="button"
@@ -318,7 +320,7 @@ export function NavTabs({
                   }}
                   onClick={event => {
                     if (hasPendingUpdate) {
-                      openMenu(event);
+                      onClick(event);
                     } else {
                       onShowSettings();
                     }
@@ -356,7 +358,6 @@ export function NavTabs({
           <button
             type="button"
             className="NavTabs__Item NavTabs__Item--Profile"
-            data-supertab
             onClick={() => {
               onToggleProfileEditor();
             }}
@@ -372,7 +373,7 @@ export function NavTabs({
                 <span className="NavTabs__ItemContent">
                   <Avatar
                     acceptedMessageRequest
-                    avatarPath={me.avatarPath}
+                    avatarUrl={me.avatarUrl}
                     badge={badge}
                     className="module-main-header__avatar"
                     color={me.color}
@@ -394,17 +395,15 @@ export function NavTabs({
           </button>
         </div>
       </nav>
-      <TabPanels>
-        <TabPanel id={NavTab.Chats} className="NavTabs__TabPanel">
-          {renderChatsTab}
-        </TabPanel>
-        <TabPanel id={NavTab.Calls} className="NavTabs__TabPanel">
-          {renderCallsTab}
-        </TabPanel>
-        <TabPanel id={NavTab.Stories} className="NavTabs__TabPanel">
-          {renderStoriesTab}
-        </TabPanel>
-      </TabPanels>
+      <TabPanel id={NavTab.Chats} className="NavTabs__TabPanel">
+        {renderChatsTab}
+      </TabPanel>
+      <TabPanel id={NavTab.Calls} className="NavTabs__TabPanel">
+        {renderCallsTab}
+      </TabPanel>
+      <TabPanel id={NavTab.Stories} className="NavTabs__TabPanel">
+        {renderStoriesTab}
+      </TabPanel>
     </Tabs>
   );
 }

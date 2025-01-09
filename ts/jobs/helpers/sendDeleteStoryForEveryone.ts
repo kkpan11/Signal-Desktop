@@ -10,6 +10,7 @@ import {
   maybeExpandErrors,
 } from './handleMultipleSendErrors';
 import { ourProfileKeyService } from '../../services/ourProfileKey';
+import { DataWriter } from '../../sql/Client';
 
 import type { ConversationModel } from '../../models/conversations';
 import type {
@@ -20,7 +21,7 @@ import { getUntrustedConversationServiceIds } from './getUntrustedConversationSe
 import { handleMessageSend } from '../../util/handleMessageSend';
 import { isConversationAccepted } from '../../util/isConversationAccepted';
 import { isConversationUnregistered } from '../../util/isConversationUnregistered';
-import { getMessageById } from '../../messages/getMessageById';
+import { __DEPRECATED$getMessageById } from '../../messages/getMessageById';
 import { isNotNil } from '../../util/isNotNil';
 import type { CallbackResultType } from '../../textsecure/Types.d';
 import type { MessageModel } from '../../models/messages';
@@ -45,7 +46,10 @@ export async function sendDeleteStoryForEveryone(
 
   const logId = `sendDeleteStoryForEveryone(${storyId})`;
 
-  const message = await getMessageById(storyId);
+  const message = await __DEPRECATED$getMessageById(
+    storyId,
+    'sendDeleteStoryForEveryone'
+  );
   if (!message) {
     log.error(`${logId}: Failed to fetch message. Failing job.`);
     return;
@@ -182,6 +186,7 @@ export async function sendDeleteStoryForEveryone(
                 deletedForEveryoneTimestamp: targetTimestamp,
                 timestamp,
                 expireTimer: undefined,
+                expireTimerVersion: undefined,
                 contentHint,
                 groupId: undefined,
                 profileKey: conversation.get('profileSharing')
@@ -277,7 +282,7 @@ async function updateMessageWithSuccessfulSends(
       deletedForEveryoneSendStatus: {},
       deletedForEveryoneFailed: undefined,
     });
-    await window.Signal.Data.saveMessage(message.attributes, {
+    await DataWriter.saveMessage(message.attributes, {
       ourAci: window.textsecure.storage.user.getCheckedAci(),
     });
 
@@ -300,7 +305,7 @@ async function updateMessageWithSuccessfulSends(
     deletedForEveryoneSendStatus,
     deletedForEveryoneFailed: undefined,
   });
-  await window.Signal.Data.saveMessage(message.attributes, {
+  await DataWriter.saveMessage(message.attributes, {
     ourAci: window.textsecure.storage.user.getCheckedAci(),
   });
 }
@@ -316,7 +321,7 @@ async function updateMessageWithFailure(
   );
 
   message.set({ deletedForEveryoneFailed: true });
-  await window.Signal.Data.saveMessage(message.attributes, {
+  await DataWriter.saveMessage(message.attributes, {
     ourAci: window.textsecure.storage.user.getCheckedAci(),
   });
 }

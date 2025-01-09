@@ -56,6 +56,7 @@ import { Theme } from '../util/theme';
 import { ThemeType } from '../types/Util';
 import { arrow } from '../util/keyboard';
 import { canvasToBytes } from '../util/canvasToBytes';
+import { loadImage } from '../util/loadImage';
 import { getConversationSelector } from '../state/selectors/conversations';
 import { hydrateRanges } from '../types/BodyRange';
 import { useConfirmDiscard } from '../hooks/useConfirmDiscard';
@@ -86,14 +87,13 @@ export type PropsType = {
     | 'draftBodyRanges'
     | 'getPreferredBadge'
     | 'isFormattingEnabled'
-    | 'isFormattingFlagEnabled'
-    | 'isFormattingSpoilersFlagEnabled'
     | 'onPickEmoji'
     | 'onTextTooLong'
+    | 'ourConversationId'
     | 'platform'
     | 'sortedGroupMembers'
   > &
-  EmojiPickerProps;
+  Omit<EmojiPickerProps, 'wasInvokedFromKeyboard'>;
 
 const INITIAL_IMAGE_STATE: ImageStateType = {
   angle: 0,
@@ -156,10 +156,9 @@ export function MediaEditor({
   draftBodyRanges,
   getPreferredBadge,
   isFormattingEnabled,
-  isFormattingFlagEnabled,
-  isFormattingSpoilersFlagEnabled,
   onPickEmoji,
   onTextTooLong,
+  ourConversationId,
   platform,
   sortedGroupMembers,
 
@@ -180,13 +179,12 @@ export function MediaEditor({
   const [isEmojiPopperOpen, setEmojiPopperOpen] = useState<boolean>(false);
 
   const [caption, setCaption] = useState(draftText ?? '');
-  const [captionBodyRanges, setCaptionBodyRanges] = useState<
-    DraftBodyRanges | undefined
-  >(draftBodyRanges);
+  const [captionBodyRanges, setCaptionBodyRanges] =
+    useState<DraftBodyRanges | null>(draftBodyRanges);
 
   const conversationSelector = useSelector(getConversationSelector);
   const hydratedBodyRanges = useMemo(
-    () => hydrateRanges(captionBodyRanges, conversationSelector),
+    () => hydrateRanges(captionBodyRanges ?? undefined, conversationSelector),
     [captionBodyRanges, conversationSelector]
   );
 
@@ -325,7 +323,7 @@ export function MediaEditor({
     const objectShortcuts: Array<
       [
         (ev: KeyboardEvent) => boolean,
-        (obj: fabric.Object, ev: KeyboardEvent) => unknown
+        (obj: fabric.Object, ev: KeyboardEvent) => unknown,
       ]
     > = [
       [
@@ -916,7 +914,7 @@ export function MediaEditor({
             onClick={() => setCropPreset(CropPreset.Freeform)}
             type="button"
           >
-            Freeform
+            {i18n('icu:MediaEditor__crop-preset--freeform')}
           </button>
           <button
             className={classNames(
@@ -929,7 +927,7 @@ export function MediaEditor({
             onClick={() => setCropPreset(CropPreset.Square)}
             type="button"
           >
-            Square
+            {i18n('icu:MediaEditor__crop-preset--square')}
           </button>
           <button
             className={classNames(
@@ -942,7 +940,7 @@ export function MediaEditor({
             onClick={() => setCropPreset(CropPreset.Vertical)}
             type="button"
           >
-            9:16
+            {i18n('icu:MediaEditor__crop-preset--9-16')}
           </button>
         </div>
         <div className="MediaEditor__tools-row-2">
@@ -1218,17 +1216,19 @@ export function MediaEditor({
                 i18n={i18n}
                 installedPacks={installedPacks}
                 knownPacks={[]}
-                onPickSticker={(_packId, _stickerId, src: string) => {
+                onPickSticker={async (_packId, _stickerId, src: string) => {
                   if (!fabricCanvas) {
                     return;
                   }
+
+                  const img = await loadImage(src);
 
                   const STICKER_SIZE_RELATIVE_TO_CANVAS = 4;
                   const size =
                     Math.min(imageState.width, imageState.height) /
                     STICKER_SIZE_RELATIVE_TO_CANVAS;
 
-                  const sticker = new MediaEditorFabricSticker(src);
+                  const sticker = new MediaEditorFabricSticker(img);
                   sticker.scaleToHeight(size);
                   sticker.setPositionByOrigin(
                     new fabric.Point(
@@ -1301,29 +1301,39 @@ export function MediaEditor({
               <div className="MediaEditor__tools--input dark-theme">
                 <CompositionInput
                   draftText={caption}
-                  draftBodyRanges={hydratedBodyRanges}
+                  draftBodyRanges={hydratedBodyRanges ?? null}
                   getPreferredBadge={getPreferredBadge}
                   i18n={i18n}
                   inputApi={inputApiRef}
+                  isActive
                   isFormattingEnabled={isFormattingEnabled}
-                  isFormattingFlagEnabled={isFormattingFlagEnabled}
-                  isFormattingSpoilersFlagEnabled={
-                    isFormattingSpoilersFlagEnabled
-                  }
                   moduleClassName="StoryViewsNRepliesModal__input"
                   onCloseLinkPreview={noop}
                   onEditorStateChange={({ bodyRanges, messageText }) => {
                     setCaptionBodyRanges(bodyRanges);
                     setCaption(messageText);
                   }}
+                  skinTone={skinTone ?? null}
                   onPickEmoji={onPickEmoji}
                   onSubmit={noop}
                   onTextTooLong={onTextTooLong}
+                  ourConversationId={ourConversationId}
                   placeholder={i18n('icu:MediaEditor__input-placeholder')}
                   platform={platform}
+                  quotedMessageId={null}
                   sendCounter={0}
                   sortedGroupMembers={sortedGroupMembers}
                   theme={ThemeType.dark}
+                  // Only needed for state updates and we need to override those
+                  conversationId={null}
+                  // Cannot enter media editor while editing
+                  draftEditMessage={null}
+                  // We don't use the large editor mode
+                  large={null}
+                  // panels do not appear over the media editor
+                  shouldHidePopovers={null}
+                  // link previews not displayed with media
+                  linkPreviewResult={null}
                 >
                   <EmojiButton
                     className="StoryViewsNRepliesModal__emoji-button"
@@ -1350,9 +1360,8 @@ export function MediaEditor({
                   let data: Uint8Array;
                   let blurHash: string;
                   try {
-                    const renderFabricCanvas = await cloneFabricCanvas(
-                      fabricCanvas
-                    );
+                    const renderFabricCanvas =
+                      await cloneFabricCanvas(fabricCanvas);
 
                     renderFabricCanvas.remove(
                       ...renderFabricCanvas
@@ -1402,7 +1411,7 @@ export function MediaEditor({
                     contentType: IMAGE_PNG,
                     data,
                     caption: caption !== '' ? caption : undefined,
-                    captionBodyRanges,
+                    captionBodyRanges: captionBodyRanges ?? undefined,
                     blurHash,
                   });
                 }}

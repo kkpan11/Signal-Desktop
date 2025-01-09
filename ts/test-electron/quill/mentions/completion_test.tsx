@@ -74,7 +74,7 @@ describe('MentionCompletion', () => {
   };
   let mentionCompletion: MentionCompletion;
 
-  beforeEach(function beforeEach() {
+  beforeEach(() => {
     const memberRepositoryRef: MutableRefObject<MemberRepository> = {
       current: new MemberRepository(conversations),
     };
@@ -82,7 +82,7 @@ describe('MentionCompletion', () => {
     const options: MentionCompletionOptions = {
       getPreferredBadge: () => undefined,
       i18n: setupI18n('en', {}),
-      me,
+      ourConversationId: me.id,
       memberRepositoryRef,
       setMentionPickerElement: sinon.stub(),
       theme: ThemeType.dark,
@@ -234,7 +234,7 @@ describe('MentionCompletion', () => {
         const text = '@Sh';
         const index = text.length;
 
-        beforeEach(function beforeEach() {
+        beforeEach(() => {
           mockQuill.getSelection?.returns({ index });
 
           const blot = {

@@ -5,8 +5,7 @@ import * as React from 'react';
 import { isBoolean, noop } from 'lodash';
 
 import { action } from '@storybook/addon-actions';
-import { boolean, number, select, text } from '@storybook/addon-knobs';
-import type { Meta, Story } from '@storybook/react';
+import type { Meta, StoryFn } from '@storybook/react';
 
 import { SignalService } from '../../protobuf';
 import { ConversationColors } from '../../types/Colors';
@@ -68,19 +67,21 @@ export default {
   argTypes: {
     conversationType: {
       control: 'select',
-      defaultValue: 'direct',
       options: ['direct', 'group'],
     },
     quote: {
       control: 'select',
-      defaultValue: undefined,
       mapping: quoteOptions,
       options: Object.keys(quoteOptions),
     },
   },
-} as Meta;
+  args: {
+    conversationType: 'direct',
+    quote: undefined,
+  },
+} satisfies Meta<Props>;
 
-const Template: Story<Partial<Props>> = args => {
+const Template: StoryFn<Partial<Props>> = args => {
   return renderBothDirections({
     ...createProps(),
     conversationType: 'direct',
@@ -118,6 +119,7 @@ const renderEmojiPicker: Props['renderEmojiPicker'] = ({
     ref={ref}
     onClose={onClose}
     onPickEmoji={onPickEmoji}
+    wasInvokedFromKeyboard={false}
   />
 );
 
@@ -243,6 +245,7 @@ const renderAudioAttachment: Props['renderAudioAttachment'] = props => (
 
 const createProps = (overrideProps: Partial<Props> = {}): Props => ({
   attachments: overrideProps.attachments,
+  attachmentDroppedDueToSize: overrideProps.attachmentDroppedDueToSize || false,
   author: overrideProps.author || getDefaultConversation(),
   bodyRanges: overrideProps.bodyRanges,
   canCopy: true,
@@ -257,13 +260,9 @@ const createProps = (overrideProps: Partial<Props> = {}): Props => ({
   clearTargetedMessage: action('clearSelectedMessage'),
   containerElementRef: React.createRef<HTMLElement>(),
   containerWidthBreakpoint: WidthBreakpoint.Wide,
-  conversationColor:
-    overrideProps.conversationColor ||
-    select('conversationColor', ConversationColors, ConversationColors[0]),
-  conversationTitle:
-    overrideProps.conversationTitle ||
-    text('conversationTitle', 'Conversation Title'),
-  conversationId: text('conversationId', overrideProps.conversationId || ''),
+  conversationColor: overrideProps.conversationColor ?? ConversationColors[0],
+  conversationTitle: overrideProps.conversationTitle ?? 'Conversation Title',
+  conversationId: overrideProps.conversationId ?? '',
   conversationType: overrideProps.conversationType || 'direct',
   contact: overrideProps.contact,
   deletedForEveryone: overrideProps.deletedForEveryone,
@@ -272,17 +271,13 @@ const createProps = (overrideProps: Partial<Props> = {}): Props => ({
   direction: overrideProps.direction || 'incoming',
   showLightboxForViewOnceMedia: action('showLightboxForViewOnceMedia'),
   doubleCheckMissingQuoteReference: action('doubleCheckMissingQuoteReference'),
-  expirationLength:
-    number('expirationLength', overrideProps.expirationLength || 0) ||
-    undefined,
-  expirationTimestamp:
-    number('expirationTimestamp', overrideProps.expirationTimestamp || 0) ||
-    undefined,
+  expirationLength: overrideProps.expirationLength ?? 0,
+  expirationTimestamp: overrideProps.expirationTimestamp ?? 0,
   getPreferredBadge: overrideProps.getPreferredBadge || (() => undefined),
   giftBadge: overrideProps.giftBadge,
   i18n,
   platform: 'darwin',
-  id: text('id', overrideProps.id || 'random-message-id'),
+  id: overrideProps.id ?? 'random-message-id',
   // renderingContext: 'storybook',
   interactionMode: overrideProps.interactionMode || 'keyboard',
   isSticker: isBoolean(overrideProps.isSticker)
@@ -300,10 +295,12 @@ const createProps = (overrideProps: Partial<Props> = {}): Props => ({
   isSelectMode: isBoolean(overrideProps.isSelectMode)
     ? overrideProps.isSelectMode
     : false,
+  isSMS: isBoolean(overrideProps.isSMS) ? overrideProps.isSMS : false,
   isSpoilerExpanded: overrideProps.isSpoilerExpanded || {},
   isTapToView: overrideProps.isTapToView,
   isTapToViewError: overrideProps.isTapToViewError,
   isTapToViewExpired: overrideProps.isTapToViewExpired,
+  cancelAttachmentDownload: action('cancelAttachmentDownload'),
   kickOffAttachmentDownload: action('kickOffAttachmentDownload'),
   markAttachmentAsCorrupted: action('markAttachmentAsCorrupted'),
   messageExpanded: action('messageExpanded'),
@@ -321,6 +318,7 @@ const createProps = (overrideProps: Partial<Props> = {}): Props => ({
   renderReactionPicker,
   renderAudioAttachment,
   saveAttachment: action('saveAttachment'),
+  saveAttachments: action('saveAttachments'),
   setQuoteByMessageId: action('setQuoteByMessageId'),
   retryMessageSend: action('retryMessageSend'),
   copyMessageText: action('copyMessageText'),
@@ -344,6 +342,9 @@ const createProps = (overrideProps: Partial<Props> = {}): Props => ({
   showSpoiler: action('showSpoiler'),
   pushPanelForConversation: action('pushPanelForConversation'),
   showContactModal: action('showContactModal'),
+  showAttachmentDownloadStillInProgressToast: action(
+    'showAttachmentDownloadStillInProgressToast'
+  ),
   showExpiredIncomingTapToViewToast: action(
     'showExpiredIncomingTapToViewToast'
   ),
@@ -355,15 +356,15 @@ const createProps = (overrideProps: Partial<Props> = {}): Props => ({
   showLightbox: action('showLightbox'),
   startConversation: action('startConversation'),
   status: overrideProps.status || 'sent',
-  text: overrideProps.text || text('text', ''),
+  text: overrideProps.text ?? '',
   textDirection: overrideProps.textDirection || TextDirection.Default,
   textAttachment: overrideProps.textAttachment || {
     contentType: LONG_MESSAGE,
     size: 123,
-    pending: boolean('textPending', false),
+    pending: false,
   },
   theme: ThemeType.light,
-  timestamp: number('timestamp', overrideProps.timestamp || Date.now()),
+  timestamp: overrideProps.timestamp ?? Date.now(),
   viewStory: action('viewStory'),
 });
 
@@ -403,9 +404,6 @@ PlainRtlMessage.args = {
   text: 'الأسانسير، علشان القطط ماتاكلش منها. وننساها، ونعود الى أوراقنا موصدين الباب بإحكام. نتنحنح، ونقول: البتاع. كلمة تدلّ على لا شيء، وعلى كلّ شيء. وهي مركز أبحاث شعبية كثيرة، تتعجّب من غرابتها والقومية المصرية الخاصة التي تعكسها، الى جانب الشيء الكثير من العفوية وحلاوة الروح. نعم، نحن قرأنا وسمعنا وعرفنا كل هذا. لكنه محلّ اهتمامنا اليوم لأسباب غير تلك الأسباب. كذلك، فإننا لعاقدون عزمنا على أن نتجاوز قضية الفصحى والعامية، وثنائية النخبة والرعاع، التي كثيراً ما ينحو نحوها الحديث عن الكلمة المذكورة. وفوق هذا كله، لسنا بصدد تفسير معاني "البتاع" كما تأتي في قصيدة الحاج أحمد فؤاد نجم، ولا التحذلق والتفذلك في الألغاز والأسرار المكنونة. هذا البتاع - أم هذه البت',
   textDirection: TextDirection.RightToLeft,
 };
-PlainRtlMessage.story = {
-  name: 'Plain RTL Message',
-};
 
 export function EmojiMessages(): JSX.Element {
   return (
@@ -435,6 +433,7 @@ export function EmojiMessages(): JSX.Element {
                 width: 320,
               }),
               isStickerPack: false,
+              isCallLink: false,
               title: 'Signal',
               description:
                 'Say "hello" to a different messaging experience. An unexpected focus on privacy, combined with all of the features you expect.',
@@ -538,9 +537,6 @@ WillExpireButStillSending.args = {
   expirationLength: 30 * 1000,
   text: 'We always show the timer if a message has an expiration length, even if unread or still sending.',
 };
-WillExpireButStillSending.story = {
-  name: 'Will expire but still sending',
-};
 
 export const Pending = Template.bind({});
 Pending.args = {
@@ -563,9 +559,6 @@ LongBodyCanBeDownloaded.args = {
     digest: 'abc',
     key: 'def',
   },
-};
-LongBodyCanBeDownloaded.story = {
-  name: 'Long body can be downloaded',
 };
 
 export const Recent = Template.bind({});
@@ -658,9 +651,6 @@ ReactionsWiderMessage.args = {
     },
   ],
 };
-ReactionsWiderMessage.story = {
-  name: 'Reactions (wider message)',
-};
 
 const joyReactions = Array.from({ length: 52 }, () => getJoyReaction());
 
@@ -734,19 +724,12 @@ ReactionsShortMessage.args = {
   ],
 };
 
-ReactionsShortMessage.story = {
-  name: 'Reactions (short message)',
-};
-
 export const AvatarInGroup = Template.bind({});
 AvatarInGroup.args = {
-  author: getDefaultConversation({ avatarPath: pngUrl }),
+  author: getDefaultConversation({ avatarUrl: pngUrl }),
   conversationType: 'group',
   status: 'sent',
   text: 'Hello it is me, the saxophone.',
-};
-AvatarInGroup.story = {
-  name: 'Avatar in Group',
 };
 
 export const BadgeInGroup = Template.bind({});
@@ -755,9 +738,6 @@ BadgeInGroup.args = {
   getPreferredBadge: () => getFakeBadge(),
   status: 'sent',
   text: 'Hello it is me, the saxophone.',
-};
-BadgeInGroup.story = {
-  name: 'Badge in Group',
 };
 
 export const Sticker = Template.bind({});
@@ -829,9 +809,6 @@ DeletedWithExpireTimer.args = {
   expirationTimestamp: Date.now() + 3 * 60 * 1000,
   status: 'sent',
 };
-DeletedWithExpireTimer.story = {
-  name: 'Deleted with expireTimer',
-};
 
 export function DeletedWithError(): JSX.Element {
   const propsPartialError = createProps({
@@ -858,9 +835,6 @@ export function DeletedWithError(): JSX.Element {
     </>
   );
 }
-DeletedWithError.story = {
-  name: 'Deleted with error',
-};
 
 export const CanDeleteForEveryone = Template.bind({});
 CanDeleteForEveryone.args = {
@@ -869,9 +843,25 @@ CanDeleteForEveryone.args = {
   // canDeleteForEveryone: true,
   direction: 'outgoing',
 };
-CanDeleteForEveryone.story = {
-  name: 'Can delete for everyone',
-};
+
+export function AttachmentTooBig(): JSX.Element {
+  const propsSent = createProps({
+    conversationType: 'direct',
+    attachmentDroppedDueToSize: true,
+  });
+
+  return <>{renderBothDirections(propsSent)}</>;
+}
+
+export function AttachmentTooBigWithText(): JSX.Element {
+  const propsSent = createProps({
+    conversationType: 'direct',
+    attachmentDroppedDueToSize: true,
+    text: 'Check out this file!',
+  });
+
+  return <>{renderBothDirections(propsSent)}</>;
+}
 
 export const Error = Template.bind({});
 Error.args = {
@@ -912,6 +902,7 @@ LinkPreviewInGroup.args = {
         width: 320,
       }),
       isStickerPack: false,
+      isCallLink: false,
       title: 'Signal',
       description:
         'Say "hello" to a different messaging experience. An unexpected focus on privacy, combined with all of the features you expect.',
@@ -922,9 +913,6 @@ LinkPreviewInGroup.args = {
   status: 'sent',
   text: 'Be sure to look at https://www.signal.org',
   conversationType: 'group',
-};
-LinkPreviewInGroup.story = {
-  name: 'Link Preview in Group',
 };
 
 export const LinkPreviewWithQuote = Template.bind({});
@@ -952,6 +940,7 @@ LinkPreviewWithQuote.args = {
         width: 320,
       }),
       isStickerPack: false,
+      isCallLink: false,
       title: 'Signal',
       description:
         'Say "hello" to a different messaging experience. An unexpected focus on privacy, combined with all of the features you expect.',
@@ -962,9 +951,6 @@ LinkPreviewWithQuote.args = {
   status: 'sent',
   text: 'Be sure to look at https://www.signal.org',
   conversationType: 'group',
-};
-LinkPreviewWithQuote.story = {
-  name: 'Link Preview with Quote',
 };
 
 export const LinkPreviewWithSmallImage = Template.bind({});
@@ -980,6 +966,7 @@ LinkPreviewWithSmallImage.args = {
         width: 50,
       }),
       isStickerPack: false,
+      isCallLink: false,
       title: 'Signal',
       description:
         'Say "hello" to a different messaging experience. An unexpected focus on privacy, combined with all of the features you expect.',
@@ -989,9 +976,6 @@ LinkPreviewWithSmallImage.args = {
   ],
   status: 'sent',
   text: 'Be sure to look at https://www.signal.org',
-};
-LinkPreviewWithSmallImage.story = {
-  name: 'Link Preview with Small Image',
 };
 
 export const LinkPreviewWithoutImage = Template.bind({});
@@ -1000,6 +984,7 @@ LinkPreviewWithoutImage.args = {
     {
       domain: 'signal.org',
       isStickerPack: false,
+      isCallLink: false,
       title: 'Signal',
       description:
         'Say "hello" to a different messaging experience. An unexpected focus on privacy, combined with all of the features you expect.',
@@ -1010,9 +995,6 @@ LinkPreviewWithoutImage.args = {
   status: 'sent',
   text: 'Be sure to look at https://www.signal.org',
 };
-LinkPreviewWithoutImage.story = {
-  name: 'Link Preview without Image',
-};
 
 export const LinkPreviewWithNoDescription = Template.bind({});
 LinkPreviewWithNoDescription.args = {
@@ -1020,6 +1002,7 @@ LinkPreviewWithNoDescription.args = {
     {
       domain: 'signal.org',
       isStickerPack: false,
+      isCallLink: false,
       title: 'Signal',
       url: 'https://www.signal.org',
       date: Date.now(),
@@ -1028,9 +1011,6 @@ LinkPreviewWithNoDescription.args = {
   status: 'sent',
   text: 'Be sure to look at https://www.signal.org',
 };
-LinkPreviewWithNoDescription.story = {
-  name: 'Link Preview with no description',
-};
 
 export const LinkPreviewWithLongDescription = Template.bind({});
 LinkPreviewWithLongDescription.args = {
@@ -1038,6 +1018,7 @@ LinkPreviewWithLongDescription.args = {
     {
       domain: 'signal.org',
       isStickerPack: false,
+      isCallLink: false,
       title: 'Signal',
       description: Array(10)
         .fill(
@@ -1050,9 +1031,6 @@ LinkPreviewWithLongDescription.args = {
   ],
   status: 'sent',
   text: 'Be sure to look at https://www.signal.org',
-};
-LinkPreviewWithLongDescription.story = {
-  name: 'Link Preview with long description',
 };
 
 export const LinkPreviewWithSmallImageLongDescription = Template.bind({});
@@ -1068,6 +1046,7 @@ LinkPreviewWithSmallImageLongDescription.args = {
         width: 50,
       }),
       isStickerPack: false,
+      isCallLink: false,
       title: 'Signal',
       description: Array(10)
         .fill(
@@ -1080,9 +1059,6 @@ LinkPreviewWithSmallImageLongDescription.args = {
   ],
   status: 'sent',
   text: 'Be sure to look at https://www.signal.org',
-};
-LinkPreviewWithSmallImageLongDescription.story = {
-  name: 'Link Preview with small image, long description',
 };
 
 export const LinkPreviewWithNoDate = Template.bind({});
@@ -1098,6 +1074,7 @@ LinkPreviewWithNoDate.args = {
         width: 320,
       }),
       isStickerPack: false,
+      isCallLink: false,
       title: 'Signal',
       description:
         'Say "hello" to a different messaging experience. An unexpected focus on privacy, combined with all of the features you expect.',
@@ -1106,9 +1083,6 @@ LinkPreviewWithNoDate.args = {
   ],
   status: 'sent',
   text: 'Be sure to look at https://www.signal.org',
-};
-LinkPreviewWithNoDate.story = {
-  name: 'Link Preview with no date',
 };
 
 export const LinkPreviewWithTooNewADate = Template.bind({});
@@ -1124,6 +1098,7 @@ LinkPreviewWithTooNewADate.args = {
         width: 320,
       }),
       isStickerPack: false,
+      isCallLink: false,
       title: 'Signal',
       description:
         'Say "hello" to a different messaging experience. An unexpected focus on privacy, combined with all of the features you expect.',
@@ -1134,8 +1109,61 @@ LinkPreviewWithTooNewADate.args = {
   status: 'sent',
   text: 'Be sure to look at https://www.signal.org',
 };
-LinkPreviewWithTooNewADate.story = {
-  name: 'Link Preview with too new a date',
+
+export const LinkPreviewWithCallLink = Template.bind({});
+LinkPreviewWithCallLink.args = {
+  previews: [
+    {
+      url: 'https://signal.link/call/#key=hzcn-pcff-ctsc-bdbf-stcr-tzpc-bhqx-kghh',
+      title: 'Camping Prep',
+      description: 'Use this link to join a Signal call',
+      image: undefined,
+      date: undefined,
+      isCallLink: true,
+      isStickerPack: false,
+    },
+  ],
+  status: 'sent',
+  text: 'Use this link to join a Signal call: https://signal.link/call/#key=hzcn-pcff-ctsc-bdbf-stcr-tzpc-bhqx-kghh',
+};
+
+export const LinkPreviewWithCallLinkInAnotherCall = Template.bind({});
+LinkPreviewWithCallLinkInAnotherCall.args = {
+  previews: [
+    {
+      url: 'https://signal.link/call/#key=hzcn-pcff-ctsc-bdbf-stcr-tzpc-bhqx-kghh',
+      title: 'Camping Prep',
+      description: 'Use this link to join a Signal call',
+      image: undefined,
+      date: undefined,
+      isCallLink: true,
+      isStickerPack: false,
+    },
+  ],
+  status: 'sent',
+  activeCallConversationId: 'some-other-conversation',
+  text: 'Use this link to join a Signal call: https://signal.link/call/#key=hzcn-pcff-ctsc-bdbf-stcr-tzpc-bhqx-kghh',
+};
+
+export const LinkPreviewWithCallLinkInCurrentCall = Template.bind({});
+LinkPreviewWithCallLinkInCurrentCall.args = {
+  previews: [
+    {
+      url: 'https://signal.link/call/#key=hzcn-pcff-ctsc-bdbf-stcr-tzpc-bhqx-kghh',
+      domain: 'signal.link',
+      title: 'Camping Prep',
+      description: 'Use this link to join a Signal call',
+      image: undefined,
+      date: undefined,
+      isCallLink: true,
+      callLinkRoomId: 'room-id',
+      isStickerPack: false,
+    },
+  ],
+  conversationType: 'group',
+  status: 'sent',
+  activeCallConversationId: 'room-id',
+  text: 'Use this link to join a Signal call: https://signal.link/call/#key=hzcn-pcff-ctsc-bdbf-stcr-tzpc-bhqx-kghh',
 };
 
 export function Image(): JSX.Element {
@@ -1298,6 +1326,51 @@ MultipleImages5.args = {
   status: 'sent',
 };
 
+export const MultipleImagesWithOneTooBig = Template.bind({});
+MultipleImagesWithOneTooBig.args = {
+  attachments: [
+    fakeAttachment({
+      url: pngUrl,
+      fileName: 'the-sax.png',
+      contentType: IMAGE_PNG,
+      height: 240,
+      width: 320,
+    }),
+    fakeAttachment({
+      url: pngUrl,
+      fileName: 'the-sax.png',
+      contentType: IMAGE_PNG,
+      height: 240,
+      width: 320,
+    }),
+  ],
+  attachmentDroppedDueToSize: true,
+  status: 'sent',
+};
+
+export const MultipleImagesWithBodyTextOneTooBig = Template.bind({});
+MultipleImagesWithBodyTextOneTooBig.args = {
+  attachments: [
+    fakeAttachment({
+      url: pngUrl,
+      fileName: 'the-sax.png',
+      contentType: IMAGE_PNG,
+      height: 240,
+      width: 320,
+    }),
+    fakeAttachment({
+      url: pngUrl,
+      fileName: 'the-sax.png',
+      contentType: IMAGE_PNG,
+      height: 240,
+      width: 320,
+    }),
+  ],
+  attachmentDroppedDueToSize: true,
+  text: 'Hey, check out these images!',
+  status: 'sent',
+};
+
 export const ImageWithCaption = Template.bind({});
 ImageWithCaption.args = {
   attachments: [
@@ -1311,9 +1384,6 @@ ImageWithCaption.args = {
   ],
   status: 'sent',
   text: 'This is my home.',
-};
-ImageWithCaption.story = {
-  name: 'Image with Caption',
 };
 
 export const Gif = Template.bind({});
@@ -1330,8 +1400,21 @@ Gif.args = {
   ],
   status: 'sent',
 };
-Gif.story = {
-  name: 'GIF',
+
+export const GifReducedMotion = Template.bind({});
+GifReducedMotion.args = {
+  attachments: [
+    fakeAttachment({
+      contentType: VIDEO_MP4,
+      flags: SignalService.AttachmentPointer.Flags.GIF,
+      fileName: 'cat-gif.mp4',
+      url: '/fixtures/cat-gif.mp4',
+      width: 400,
+      height: 332,
+    }),
+  ],
+  status: 'sent',
+  _forceTapToPlay: true,
 };
 
 export const GifInAGroup = Template.bind({});
@@ -1349,9 +1432,6 @@ GifInAGroup.args = {
   conversationType: 'group',
   status: 'sent',
 };
-GifInAGroup.story = {
-  name: 'GIF in a group',
-};
 
 export const NotDownloadedGif = Template.bind({});
 NotDownloadedGif.args = {
@@ -1360,16 +1440,13 @@ NotDownloadedGif.args = {
       contentType: VIDEO_MP4,
       flags: SignalService.AttachmentPointer.Flags.GIF,
       fileName: 'cat-gif.mp4',
-      fileSize: '188.61 KB',
       blurHash: 'LDA,FDBnm+I=p{tkIUI;~UkpELV]',
       width: 400,
       height: 332,
+      path: undefined,
     }),
   ],
   status: 'sent',
-};
-NotDownloadedGif.story = {
-  name: 'Not Downloaded GIF',
 };
 
 export const PendingGif = Template.bind({});
@@ -1380,16 +1457,51 @@ PendingGif.args = {
       contentType: VIDEO_MP4,
       flags: SignalService.AttachmentPointer.Flags.GIF,
       fileName: 'cat-gif.mp4',
-      fileSize: '188.61 KB',
+      size: 188610,
       blurHash: 'LDA,FDBnm+I=p{tkIUI;~UkpELV]',
       width: 400,
       height: 332,
+      path: undefined,
     }),
   ],
   status: 'sent',
 };
-PendingGif.story = {
-  name: 'Pending GIF',
+
+export const DownloadingGif = Template.bind({});
+DownloadingGif.args = {
+  attachments: [
+    fakeAttachment({
+      pending: true,
+      contentType: VIDEO_MP4,
+      flags: SignalService.AttachmentPointer.Flags.GIF,
+      fileName: 'cat-gif.mp4',
+      size: 188610,
+      totalDownloaded: 101010,
+      blurHash: 'LDA,FDBnm+I=p{tkIUI;~UkpELV]',
+      width: 400,
+      height: 332,
+      path: undefined,
+    }),
+  ],
+  status: 'sent',
+};
+
+export const PartialDownloadNotPendingGif = Template.bind({});
+PartialDownloadNotPendingGif.args = {
+  attachments: [
+    fakeAttachment({
+      contentType: VIDEO_MP4,
+      flags: SignalService.AttachmentPointer.Flags.GIF,
+      fileName: 'cat-gif.mp4',
+      size: 188610,
+      totalDownloaded: 101010,
+      blurHash: 'LDA,FDBnm+I=p{tkIUI;~UkpELV]',
+      width: 400,
+      height: 332,
+      path: undefined,
+    }),
+  ],
+  status: 'sent',
 };
 
 export const _Audio = (): JSX.Element => {
@@ -1465,9 +1577,6 @@ AudioWithCaption.args = {
   status: 'sent',
   text: 'This is what I sound like.',
 };
-AudioWithCaption.story = {
-  name: 'Audio with Caption',
-};
 
 export const AudioWithNotDownloadedAttachment = Template.bind({});
 AudioWithNotDownloadedAttachment.args = {
@@ -1478,9 +1587,6 @@ AudioWithNotDownloadedAttachment.args = {
     }),
   ],
   status: 'sent',
-};
-AudioWithNotDownloadedAttachment.story = {
-  name: 'Audio with Not Downloaded Attachment',
 };
 
 export const AudioWithPendingAttachment = Template.bind({});
@@ -1494,9 +1600,6 @@ AudioWithPendingAttachment.args = {
   ],
   status: 'sent',
 };
-AudioWithPendingAttachment.story = {
-  name: 'Audio with Pending Attachment',
-};
 
 export const OtherFileType = Template.bind({});
 OtherFileType.args = {
@@ -1505,7 +1608,6 @@ OtherFileType.args = {
       contentType: stringToMIMEType('text/plain'),
       fileName: 'my-resume.txt',
       url: 'my-resume.txt',
-      fileSize: '10MB',
     }),
   ],
   status: 'sent',
@@ -1518,14 +1620,10 @@ OtherFileTypeWithCaption.args = {
       contentType: stringToMIMEType('text/plain'),
       fileName: 'my-resume.txt',
       url: 'my-resume.txt',
-      fileSize: '10MB',
     }),
   ],
   status: 'sent',
   text: 'This is what I have done.',
-};
-OtherFileTypeWithCaption.story = {
-  name: 'Other File Type with Caption',
 };
 
 export const OtherFileTypeWithLongFilename = Template.bind({});
@@ -1536,14 +1634,10 @@ OtherFileTypeWithLongFilename.args = {
       fileName:
         'INSERT-APP-NAME_INSERT-APP-APPLE-ID_AppStore_AppsGamesWatch.psd.zip',
       url: 'a2/a2334324darewer4234',
-      fileSize: '10MB',
     }),
   ],
   status: 'sent',
   text: 'This is what I have done.',
-};
-OtherFileTypeWithLongFilename.story = {
-  name: 'Other File Type with Long Filename',
 };
 
 export const TapToViewImage = Template.bind({});
@@ -1560,9 +1654,6 @@ TapToViewImage.args = {
   isTapToView: true,
   status: 'sent',
 };
-TapToViewImage.story = {
-  name: 'TapToView Image',
-};
 
 export const TapToViewVideo = Template.bind({});
 TapToViewVideo.args = {
@@ -1577,9 +1668,6 @@ TapToViewVideo.args = {
   ],
   isTapToView: true,
   status: 'sent',
-};
-TapToViewVideo.story = {
-  name: 'TapToView Video',
 };
 
 export const TapToViewGif = Template.bind({});
@@ -1597,9 +1685,6 @@ TapToViewGif.args = {
   isTapToView: true,
   status: 'sent',
 };
-TapToViewGif.story = {
-  name: 'TapToView GIF',
-};
 
 export const TapToViewExpired = Template.bind({});
 TapToViewExpired.args = {
@@ -1616,9 +1701,6 @@ TapToViewExpired.args = {
   isTapToViewExpired: true,
   status: 'sent',
 };
-TapToViewExpired.story = {
-  name: 'TapToView Expired',
-};
 
 export const TapToViewError = Template.bind({});
 TapToViewError.args = {
@@ -1634,9 +1716,6 @@ TapToViewError.args = {
   isTapToView: true,
   isTapToViewError: true,
   status: 'sent',
-};
-TapToViewError.story = {
-  name: 'TapToView Error',
 };
 
 export const DangerousFileType = Template.bind({});
@@ -1683,9 +1762,6 @@ Mentions.args = {
   ],
   text: '\uFFFC This Is It. The Moment We Should Have Trained For.',
 };
-Mentions.story = {
-  name: '@Mentions',
-};
 
 export function AllTheContextMenus(): JSX.Element {
   const props = createProps({
@@ -1706,9 +1782,6 @@ export function AllTheContextMenus(): JSX.Element {
 
   return <TimelineMessage {...props} direction="outgoing" />;
 }
-AllTheContextMenus.story = {
-  name: 'All the context menus',
-};
 
 export const NotApprovedWithLinkPreview = Template.bind({});
 NotApprovedWithLinkPreview.args = {
@@ -1723,6 +1796,7 @@ NotApprovedWithLinkPreview.args = {
         width: 320,
       }),
       isStickerPack: false,
+      isCallLink: false,
       title: 'Signal',
       description:
         'Say "hello" to a different messaging experience. An unexpected focus on privacy, combined with all of the features you expect.',
@@ -1733,9 +1807,6 @@ NotApprovedWithLinkPreview.args = {
   status: 'sent',
   text: 'Be sure to look at https://www.signal.org',
   isMessageRequestAccepted: false,
-};
-NotApprovedWithLinkPreview.story = {
-  name: 'Not approved, with link preview',
 };
 
 export function CustomColor(): JSX.Element {
@@ -1802,10 +1873,6 @@ export const CollapsingTextOnlyDMs = (): JSX.Element => {
   ]);
 };
 
-CollapsingTextOnlyDMs.story = {
-  name: 'Collapsing text-only DMs',
-};
-
 export const CollapsingTextOnlyGroupMessages = (): JSX.Element => {
   const author = getDefaultConversation();
 
@@ -1830,10 +1897,6 @@ export const CollapsingTextOnlyGroupMessages = (): JSX.Element => {
   ]);
 };
 
-CollapsingTextOnlyGroupMessages.story = {
-  name: 'Collapsing text-only group messages',
-};
-
 export const StoryReply = (): JSX.Element => {
   const conversation = getDefaultConversation();
 
@@ -1850,10 +1913,6 @@ export const StoryReply = (): JSX.Element => {
       text: 'Photo',
     },
   });
-};
-
-StoryReply.story = {
-  name: 'Story reply',
 };
 
 export const StoryReplyYours = (): JSX.Element => {
@@ -1874,15 +1933,11 @@ export const StoryReplyYours = (): JSX.Element => {
   });
 };
 
-StoryReplyYours.story = {
-  name: 'Story reply (yours)',
-};
-
 export const StoryReplyEmoji = (): JSX.Element => {
   const conversation = getDefaultConversation();
 
-  return renderThree({
-    ...createProps({ direction: 'outgoing', text: 'Wow!' }),
+  return renderBothDirections({
+    ...createProps({ text: 'Wow!' }),
     storyReplyContext: {
       authorTitle: conversation.firstName || conversation.title,
       conversationColor: ConversationColors[0],
@@ -1895,10 +1950,6 @@ export const StoryReplyEmoji = (): JSX.Element => {
       text: 'Photo',
     },
   });
-};
-
-StoryReplyEmoji.story = {
-  name: 'Story reply (emoji)',
 };
 
 const fullContact = {
@@ -1921,7 +1972,6 @@ const fullContact = {
     prefix: 'Dr.',
     suffix: 'Jr.',
     middleName: 'James',
-    displayName: 'Jerry Jordan',
   },
   number: [
     {
@@ -1935,9 +1985,6 @@ export const EmbeddedContactFullContact = Template.bind({});
 EmbeddedContactFullContact.args = {
   contact: fullContact,
 };
-EmbeddedContactFullContact.story = {
-  name: 'EmbeddedContact: Full Contact',
-};
 
 export const EmbeddedContactWithSendMessage = Template.bind({});
 EmbeddedContactWithSendMessage.args = {
@@ -1948,18 +1995,12 @@ EmbeddedContactWithSendMessage.args = {
   },
   direction: 'incoming',
 };
-EmbeddedContactWithSendMessage.story = {
-  name: 'EmbeddedContact: with Send Message',
-};
 
 export const EmbeddedContactOnlyEmail = Template.bind({});
 EmbeddedContactOnlyEmail.args = {
   contact: {
     email: fullContact.email,
   },
-};
-EmbeddedContactOnlyEmail.story = {
-  name: 'EmbeddedContact: Only Email',
 };
 
 export const EmbeddedContactGivenName = Template.bind({});
@@ -1970,18 +2011,12 @@ EmbeddedContactGivenName.args = {
     },
   },
 };
-EmbeddedContactGivenName.story = {
-  name: 'EmbeddedContact: Given Name',
-};
 
 export const EmbeddedContactOrganization = Template.bind({});
 EmbeddedContactOrganization.args = {
   contact: {
     organization: 'Company 5',
   },
-};
-EmbeddedContactOrganization.story = {
-  name: 'EmbeddedContact: Organization',
 };
 
 export const EmbeddedContactGivenFamilyName = Template.bind({});
@@ -1993,9 +2028,6 @@ EmbeddedContactGivenFamilyName.args = {
     },
   },
 };
-EmbeddedContactGivenFamilyName.story = {
-  name: 'EmbeddedContact: Given + Family Name',
-};
 
 export const EmbeddedContactFamilyName = Template.bind({});
 EmbeddedContactFamilyName.args = {
@@ -2005,15 +2037,12 @@ EmbeddedContactFamilyName.args = {
     },
   },
 };
-EmbeddedContactFamilyName.story = {
-  name: 'EmbeddedContact: Family Name',
-};
 
 export const EmbeddedContactLoadingAvatar = Template.bind({});
 EmbeddedContactLoadingAvatar.args = {
   contact: {
     name: {
-      displayName: 'Jerry Jordan',
+      nickname: 'Jerry',
     },
     avatar: {
       avatar: fakeAttachment({
@@ -2023,9 +2052,6 @@ EmbeddedContactLoadingAvatar.args = {
       isProfile: true,
     },
   },
-};
-EmbeddedContactLoadingAvatar.story = {
-  name: 'EmbeddedContact: Loading Avatar',
 };
 
 export const GiftBadgeUnopened = Template.bind({});
@@ -2037,8 +2063,12 @@ GiftBadgeUnopened.args = {
     state: GiftBadgeStates.Unopened,
   },
 };
-GiftBadgeUnopened.story = {
-  name: 'Gift Badge: Unopened',
+
+export const GiftBadgeFailed = Template.bind({});
+GiftBadgeFailed.args = {
+  giftBadge: {
+    state: GiftBadgeStates.Failed,
+  },
 };
 
 const getPreferredBadge = () => ({
@@ -2066,9 +2096,6 @@ GiftBadgeRedeemed30Days.args = {
     state: GiftBadgeStates.Redeemed,
   },
 };
-GiftBadgeRedeemed30Days.story = {
-  name: 'Gift Badge: Redeemed (30 days)',
-};
 
 export const GiftBadgeRedeemed24Hours = Template.bind({});
 GiftBadgeRedeemed24Hours.args = {
@@ -2079,9 +2106,6 @@ GiftBadgeRedeemed24Hours.args = {
     level: 3,
     state: GiftBadgeStates.Redeemed,
   },
-};
-GiftBadgeRedeemed24Hours.story = {
-  name: 'Gift Badge: Redeemed (24 hours)',
 };
 
 export const GiftBadgeOpened60Minutes = Template.bind({});
@@ -2094,9 +2118,6 @@ GiftBadgeOpened60Minutes.args = {
     state: GiftBadgeStates.Opened,
   },
 };
-GiftBadgeOpened60Minutes.story = {
-  name: 'Gift Badge: Opened (60 minutes)',
-};
 
 export const GiftBadgeRedeemed1Minute = Template.bind({});
 GiftBadgeRedeemed1Minute.args = {
@@ -2107,9 +2128,6 @@ GiftBadgeRedeemed1Minute.args = {
     level: 3,
     state: GiftBadgeStates.Redeemed,
   },
-};
-GiftBadgeRedeemed1Minute.story = {
-  name: 'Gift Badge: Redeemed (1 minute)',
 };
 
 export const GiftBadgeOpenedExpired = Template.bind({});
@@ -2122,9 +2140,6 @@ GiftBadgeOpenedExpired.args = {
     state: GiftBadgeStates.Opened,
   },
 };
-GiftBadgeOpenedExpired.story = {
-  name: 'Gift Badge: Opened (expired)',
-};
 
 export const GiftBadgeMissingBadge = Template.bind({});
 GiftBadgeMissingBadge.args = {
@@ -2135,9 +2150,6 @@ GiftBadgeMissingBadge.args = {
     level: 3,
     state: GiftBadgeStates.Redeemed,
   },
-};
-GiftBadgeMissingBadge.story = {
-  name: 'Gift Badge: Missing Badge',
 };
 
 export const PaymentNotification = Template.bind({});
@@ -2150,8 +2162,15 @@ PaymentNotification.args = {
   },
 };
 
+export const SMS = Template.bind({});
+SMS.args = {
+  isSMS: true,
+  text: 'hello',
+};
+
 function MultiSelectMessage() {
   const [selected, setSelected] = React.useState(false);
+
   return (
     <TimelineMessage
       {...createProps({

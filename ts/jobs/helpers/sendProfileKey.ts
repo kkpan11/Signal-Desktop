@@ -78,7 +78,7 @@ export async function sendProfileKey(
     return;
   }
 
-  if (!conversation.get('profileSharing')) {
+  if (!data?.isOneTimeSend && !conversation.get('profileSharing')) {
     log.info('No longer sharing profile. Cancelling job.');
     return;
   }
@@ -90,7 +90,7 @@ export async function sendProfileKey(
   }
 
   log.info(
-    `starting profile key share to ${conversation.idForLogging()} with timestamp ${timestamp}`
+    `starting profile key share to ${conversation.idForLogging()} with timestamp ${timestamp} type=${data.type}`
   );
 
   const { revision } = data;
@@ -119,6 +119,7 @@ export async function sendProfileKey(
       flags: Proto.DataMessage.Flags.PROFILE_KEY_UPDATE,
       profileKey,
       recipients: conversation.getRecipients(),
+      expireTimerVersion: undefined,
       timestamp,
       includePniSignatureMessage: true,
     });

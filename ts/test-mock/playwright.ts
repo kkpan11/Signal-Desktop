@@ -1,9 +1,10 @@
 // Copyright 2022 Signal Messenger, LLC
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import type { ElectronApplication, Locator, Page } from 'playwright';
+import type { ElectronApplication, Page } from 'playwright';
 import { _electron as electron } from 'playwright';
-import { EventEmitter } from 'events';
+import { EventEmitter, once } from 'events';
+import pTimeout from 'p-timeout';
 
 import type {
   IPCRequest as ChallengeRequestType,
@@ -11,6 +12,8 @@ import type {
 } from '../challenge';
 import type { ReceiptType } from '../types/Receipt';
 import { SECOND } from '../util/durations';
+import { drop } from '../util/drop';
+import type { MessageAttributesType } from '../model-types';
 
 export type AppLoadedInfoType = Readonly<{
   loadTime: number;
@@ -51,38 +54,63 @@ export class App extends EventEmitter {
   }
 
   public async start(): Promise<void> {
-    this.privApp = await electron.launch({
-      executablePath: this.options.main,
-      args: this.options.args.slice(),
-      env: {
-        ...process.env,
-        SIGNAL_CI_CONFIG: this.options.config,
-      },
-      locale: 'en',
-    });
+    try {
+      // launch the electron processs
+      this.privApp = await electron.launch({
+        executablePath: this.options.main,
+        args: this.options.args.slice(),
+        env: {
+          ...process.env,
+          MOCK_TEST: 'true',
+          SIGNAL_CI_CONFIG: this.options.config,
+        },
+        locale: 'en',
+        timeout: 30 * SECOND,
+      });
+
+      // wait for the first window to load
+      await pTimeout(
+        (async () => {
+          const page = await this.getWindow();
+          if (process.env.TRACING) {
+            await page.context().tracing.start({
+              name: 'tracing',
+              screenshots: true,
+              snapshots: true,
+            });
+          }
+          await page?.waitForLoadState('load');
+        })(),
+        20 * SECOND
+      );
+    } catch (e) {
+      this.privApp?.process().kill('SIGKILL');
+      throw e;
+    }
 
     this.privApp.on('close', () => this.emit('close'));
-  }
 
-  public async waitForEnabledComposer(): Promise<Locator> {
-    const window = await this.getWindow();
-    const composeArea = window.locator(
-      '.composition-area-wrapper, .Inbox__conversation .ConversationView'
-    );
-    const composeContainer = composeArea.locator(
-      '[data-testid=CompositionInput][data-enabled=true]'
-    );
-    await composeContainer.waitFor();
-
-    return composeContainer.locator('.ql-editor');
+    drop(this.printLoop());
   }
 
   public async waitForProvisionURL(): Promise<string> {
     return this.waitForEvent('provisioning-url');
   }
 
+  public async waitForDbInitialized(): Promise<void> {
+    return this.waitForEvent('db-initialized');
+  }
+
   public async waitUntilLoaded(): Promise<AppLoadedInfoType> {
     return this.waitForEvent('app-loaded');
+  }
+
+  public async waitForContactSync(): Promise<void> {
+    return this.waitForEvent('contactSync');
+  }
+
+  public async waitForBackupImportComplete(): Promise<{ duration: number }> {
+    return this.waitForEvent('backupImportComplete');
   }
 
   public async waitForMessageSend(): Promise<MessageSendInfoType> {
@@ -124,12 +152,65 @@ export class App extends EventEmitter {
     );
   }
 
+  private async checkForFatalTestErrors(): Promise<void> {
+    const count = await this.getPendingEventCount('fatalTestError');
+    if (count === 0) {
+      return;
+    }
+    for (let i = 0; i < count; i += 1) {
+      // eslint-disable-next-line no-await-in-loop, no-console
+      console.error(await this.waitForEvent('fatalTestError'));
+    }
+    throw new Error('App had fatal test errors');
+  }
+
   public async close(): Promise<void> {
-    await this.app.close();
+    try {
+      await this.checkForFatalTestErrors();
+    } finally {
+      await this.app.close();
+    }
   }
 
   public async getWindow(): Promise<Page> {
     return this.app.firstWindow();
+  }
+
+  public async openSignalRoute(url: URL | string): Promise<void> {
+    const window = await this.getWindow();
+    await window.evaluate(
+      `window.SignalCI.openSignalRoute(${JSON.stringify(url.toString())})`
+    );
+  }
+
+  public async getMessagesBySentAt(
+    timestamp: number
+  ): Promise<Array<MessageAttributesType>> {
+    const window = await this.getWindow();
+    return window.evaluate(`window.SignalCI.getMessagesBySentAt(${timestamp})`);
+  }
+
+  public async uploadBackup(): Promise<void> {
+    const window = await this.getWindow();
+    await window.evaluate('window.SignalCI.uploadBackup()');
+  }
+
+  public async migrateAllMessages(): Promise<void> {
+    const window = await this.getWindow();
+    await window.evaluate('window.SignalCI.migrateAllMessages()');
+  }
+
+  public async unlink(): Promise<void> {
+    const window = await this.getWindow();
+    return window.evaluate('window.SignalCI.unlink()');
+  }
+
+  public async waitForUnlink(): Promise<void> {
+    return this.waitForEvent('unlinkCleanupComplete');
+  }
+
+  public async waitForConversationOpenComplete(): Promise<void> {
+    return this.waitForEvent('conversationOpenComplete');
   }
 
   // EventEmitter types
@@ -149,6 +230,15 @@ export class App extends EventEmitter {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public override emit(type: string | symbol, ...args: Array<any>): boolean {
     return super.emit(type, ...args);
+  }
+
+  public async getPendingEventCount(event: string): Promise<number> {
+    const window = await this.getWindow();
+    const result = await window.evaluate(
+      `window.SignalCI.getPendingEventCount(${JSON.stringify(event)})`
+    );
+
+    return Number(result);
   }
 
   //
@@ -175,5 +265,37 @@ export class App extends EventEmitter {
     }
 
     return this.privApp;
+  }
+
+  private async printLoop(): Promise<void> {
+    const kClosed: unique symbol = Symbol('kClosed');
+    const onClose = (async (): Promise<typeof kClosed> => {
+      try {
+        await once(this, 'close');
+      } catch {
+        // Ignore
+      }
+      return kClosed;
+    })();
+
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        const value = await Promise.race([
+          this.waitForEvent<string>('print', 0),
+          onClose,
+        ]);
+
+        if (value === kClosed) {
+          break;
+        }
+
+        // eslint-disable-next-line no-console
+        console.error(`CI.print: ${value}`);
+      } catch {
+        // Ignore errors
+      }
+    }
   }
 }

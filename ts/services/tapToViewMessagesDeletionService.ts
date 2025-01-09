@@ -2,20 +2,35 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import { debounce } from 'lodash';
+import { DataReader } from '../sql/Client';
 import { clearTimeoutIfNecessary } from '../util/clearTimeoutIfNecessary';
-import { DAY } from '../util/durations';
+import { getMessageQueueTime } from '../util/getMessageQueueTime';
 import * as Errors from '../types/errors';
+import { strictAssert } from '../util/assert';
+import { toBoundedDate } from '../util/timestamp';
 
 async function eraseTapToViewMessages() {
   try {
     window.SignalContext.log.info(
       'eraseTapToViewMessages: Loading messages...'
     );
+    const maxTimestamp = Date.now() - getMessageQueueTime();
     const messages =
-      await window.Signal.Data.getTapToViewMessagesNeedingErase();
+      await DataReader.getTapToViewMessagesNeedingErase(maxTimestamp);
+
     await Promise.all(
       messages.map(async fromDB => {
-        const message = window.MessageController.register(fromDB.id, fromDB);
+        strictAssert(fromDB.isViewOnce === true, 'Must be view once');
+        strictAssert(
+          (fromDB.received_at_ms ?? 0) <= maxTimestamp,
+          'Must be older than maxTimestamp'
+        );
+
+        const message = window.MessageCache.__DEPRECATED$register(
+          fromDB.id,
+          fromDB,
+          'eraseTapToViewMessages'
+        );
 
         window.SignalContext.log.info(
           'eraseTapToViewMessages: erasing message contents',
@@ -49,16 +64,17 @@ class TapToViewMessagesDeletionService {
   }
 
   private async checkTapToViewMessages() {
-    const receivedAt =
-      await window.Signal.Data.getNextTapToViewMessageTimestampToAgeOut();
-    if (!receivedAt) {
+    const receivedAtMsForOldestTapToViewMessage =
+      await DataReader.getNextTapToViewMessageTimestampToAgeOut();
+    if (!receivedAtMsForOldestTapToViewMessage) {
       return;
     }
 
-    const nextCheck = receivedAt + 30 * DAY;
+    const nextCheck =
+      receivedAtMsForOldestTapToViewMessage + getMessageQueueTime();
     window.SignalContext.log.info(
       'checkTapToViewMessages: next check at',
-      new Date(nextCheck).toISOString()
+      toBoundedDate(nextCheck).toISOString()
     );
 
     let wait = nextCheck - Date.now();

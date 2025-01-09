@@ -8,8 +8,9 @@ import { Modal } from './Modal';
 import { Button, ButtonVariant } from './Button';
 
 export type PropsType = {
+  buttonVariant?: ButtonVariant;
   description?: string;
-  title?: string;
+  title?: string | null;
 
   onClose: () => void;
   i18n: LocalizerType;
@@ -22,10 +23,14 @@ function focusRef(el: HTMLElement | null) {
 }
 
 export function ErrorModal(props: PropsType): JSX.Element {
-  const { description, i18n, onClose, title } = props;
+  const { buttonVariant, description, i18n, onClose, title } = props;
 
   const footer = (
-    <Button onClick={onClose} ref={focusRef} variant={ButtonVariant.Secondary}>
+    <Button
+      onClick={onClose}
+      ref={focusRef}
+      variant={buttonVariant || ButtonVariant.Secondary}
+    >
       {i18n('icu:Confirmation--confirm')}
     </Button>
   );
@@ -35,7 +40,7 @@ export function ErrorModal(props: PropsType): JSX.Element {
       modalName="ErrorModal"
       i18n={i18n}
       onClose={onClose}
-      title={title || i18n('icu:ErrorModal--title')}
+      title={title == null ? undefined : title || i18n('icu:ErrorModal--title')}
       modalFooter={footer}
     >
       <div className="module-error-modal__description">

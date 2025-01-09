@@ -16,7 +16,9 @@ import Long from 'long';
 import { dropNull } from '../util/dropNull';
 import { SignalService as Proto } from '../protobuf';
 
-import WebSocketResource from '../textsecure/WebsocketResources';
+import WebSocketResource, {
+  ServerRequestType,
+} from '../textsecure/WebsocketResources';
 
 describe('WebSocket-Resource', () => {
   class FakeSocket extends EventEmitter {
@@ -29,7 +31,7 @@ describe('WebSocket-Resource', () => {
 
   const NOW = Date.now();
 
-  beforeEach(function beforeEach() {
+  beforeEach(function (this: Mocha.Context) {
     this.sandbox = sinon.createSandbox();
     this.clock = this.sandbox.useFakeTimers({
       now: NOW,
@@ -42,7 +44,7 @@ describe('WebSocket-Resource', () => {
       .callsFake(clearTimeout);
   });
 
-  afterEach(function afterEach() {
+  afterEach(function (this: Mocha.Context) {
     this.sandbox.restore();
   });
 
@@ -72,8 +74,7 @@ describe('WebSocket-Resource', () => {
       new WebSocketResource(socket as WebSocket, {
         name: 'test',
         handleRequest(request: any) {
-          assert.strictEqual(request.verb, 'PUT');
-          assert.strictEqual(request.path, '/some/path');
+          assert.strictEqual(request.requestType, ServerRequestType.ApiMessage);
           assert.deepEqual(request.body, new Uint8Array([1, 2, 3]));
           request.respond(200, 'OK');
         },
@@ -87,7 +88,7 @@ describe('WebSocket-Resource', () => {
           request: {
             id: requestId,
             verb: 'PUT',
-            path: '/some/path',
+            path: ServerRequestType.ApiMessage.toString(),
             body: new Uint8Array([1, 2, 3]),
           },
         }).finish(),
@@ -127,9 +128,9 @@ describe('WebSocket-Resource', () => {
         }).finish(),
       });
 
-      const { status, message } = await promise;
-      assert.strictEqual(message, 'OK');
-      assert.strictEqual(status, 200);
+      const response = await promise;
+      assert.strictEqual(response.statusText, 'OK');
+      assert.strictEqual(response.status, 200);
     });
   });
 
@@ -145,7 +146,7 @@ describe('WebSocket-Resource', () => {
       resource.close();
     });
 
-    it('force closes the connection', function test(done) {
+    it('force closes the connection', function (this: Mocha.Context, done) {
       const socket = new FakeSocket();
 
       const resource = new WebSocketResource(socket as WebSocket, {
@@ -161,7 +162,7 @@ describe('WebSocket-Resource', () => {
   });
 
   describe('with a keepalive config', () => {
-    it('sends keepalives once a minute', function test(done) {
+    it('sends keepalives once a minute', function (this: Mocha.Context, done) {
       const socket = new FakeSocket();
 
       sinon.stub(socket, 'sendBytes').callsFake(data => {
@@ -180,7 +181,7 @@ describe('WebSocket-Resource', () => {
       this.clock.next();
     });
 
-    it('optionally disconnects if no response', function thisNeeded1(done) {
+    it('optionally disconnects if no response', function (this: Mocha.Context, done) {
       const socket = new FakeSocket();
 
       sinon.stub(socket, 'close').callsFake(() => done());
@@ -197,7 +198,7 @@ describe('WebSocket-Resource', () => {
       this.clock.next();
     });
 
-    it('optionally disconnects if suspended', function thisNeeded1(done) {
+    it('optionally disconnects if suspended', function (this: Mocha.Context, done) {
       const socket = new FakeSocket();
 
       sinon.stub(socket, 'close').callsFake(() => done());
@@ -212,7 +213,7 @@ describe('WebSocket-Resource', () => {
       this.clock.next();
     });
 
-    it('allows resetting the keepalive timer', function thisNeeded2(done) {
+    it('allows resetting the keepalive timer', function (this: Mocha.Context, done) {
       const startTime = Date.now();
 
       const socket = new FakeSocket();

@@ -13,9 +13,10 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import classNames from 'classnames';
 import getDirection from 'direction';
-import { drop, groupBy, noop, orderBy, take, unescape } from 'lodash';
+import { drop, groupBy, orderBy, take, unescape } from 'lodash';
 import { Manager, Popper, Reference } from 'react-popper';
 import type { PreventOverflowModifier } from '@popperjs/core/lib/modifiers/preventOverflow';
+import type { ReadonlyDeep } from 'type-fest';
 
 import type {
   ConversationType,
@@ -23,6 +24,7 @@ import type {
   InteractionModeType,
   PushPanelForConversationActionType,
   SaveAttachmentActionCreatorType,
+  SaveAttachmentsActionCreatorType,
   ShowConversationType,
 } from '../../state/ducks/conversations';
 import type { ViewStoryActionCreatorType } from '../../state/ducks/stories';
@@ -37,7 +39,7 @@ import { ImageGrid } from './ImageGrid';
 import { GIF } from './GIF';
 import { CurveType, Image } from './Image';
 import { ContactName } from './ContactName';
-import type { QuotedAttachmentType } from './Quote';
+import type { QuotedAttachmentForUIType } from './Quote';
 import { Quote } from './Quote';
 import { EmbeddedContact } from './EmbeddedContact';
 import type { OwnProps as ReactionViewerProps } from './ReactionViewer';
@@ -50,7 +52,10 @@ import type { WidthBreakpoint } from '../_util';
 import { OutgoingGiftBadgeModal } from '../OutgoingGiftBadgeModal';
 import * as log from '../../logging/log';
 import { StoryViewModeType } from '../../types/Stories';
-import type { AttachmentType } from '../../types/Attachment';
+import type {
+  AttachmentForUIType,
+  AttachmentType,
+} from '../../types/Attachment';
 import {
   canDisplayImage,
   getExtensionForDisplay,
@@ -96,9 +101,14 @@ import { PanelType } from '../../types/Panels';
 import { openLinkInWebBrowser } from '../../util/openLinkInWebBrowser';
 import { RenderLocation } from './MessageTextRenderer';
 import { UserText } from '../UserText';
+import { getColorForCallLink } from '../../util/getColorForCallLink';
+import { getKeyFromCallLink } from '../../util/callLinks';
+import { InAnotherCallTooltip } from './InAnotherCallTooltip';
+import { formatFileSize } from '../../util/formatFileSize';
 
 const GUESS_METADATA_WIDTH_TIMESTAMP_SIZE = 16;
 const GUESS_METADATA_WIDTH_EXPIRE_TIMER_SIZE = 18;
+const GUESS_METADATA_WIDTH_SMS_SIZE = 18;
 const GUESS_METADATA_WIDTH_EDITED_SIZE = 40;
 const GUESS_METADATA_WIDTH_OUTGOING_SIZE: Record<MessageStatusType, number> = {
   delivered: 24,
@@ -118,7 +128,6 @@ const STICKER_SIZE = 200;
 const GIF_SIZE = 300;
 // Note: this needs to match the animation time
 const TARGETED_TIMEOUT = 1200;
-const THREE_HOURS = 3 * 60 * 60 * 1000;
 const SENT_STATUSES = new Set<MessageStatusType>([
   'delivered',
   'read',
@@ -158,17 +167,17 @@ export const MessageStatuses = [
   'sent',
   'viewed',
 ] as const;
-export type MessageStatusType = typeof MessageStatuses[number];
+export type MessageStatusType = (typeof MessageStatuses)[number];
 
 export const Directions = ['incoming', 'outgoing'] as const;
-export type DirectionType = typeof Directions[number];
+export type DirectionType = (typeof Directions)[number];
 
 export type AudioAttachmentProps = {
   renderingContext: string;
   i18n: LocalizerType;
   buttonRef: React.RefObject<HTMLButtonElement>;
   theme: ThemeType | undefined;
-  attachment: AttachmentType;
+  attachment: AttachmentForUIType;
   collapseMetadata: boolean;
   withContentAbove: boolean;
   withContentBelow: boolean;
@@ -192,14 +201,22 @@ export enum GiftBadgeStates {
   Unopened = 'Unopened',
   Opened = 'Opened',
   Redeemed = 'Redeemed',
+  Failed = 'Failed',
 }
 
-export type GiftBadgeType = {
-  expiration: number;
-  id: string | undefined;
-  level: number;
-  state: GiftBadgeStates;
-};
+export type GiftBadgeType =
+  | {
+      state:
+        | GiftBadgeStates.Unopened
+        | GiftBadgeStates.Opened
+        | GiftBadgeStates.Redeemed;
+      expiration: number;
+      id: string | undefined;
+      level: number;
+    }
+  | {
+      state: GiftBadgeStates.Failed;
+    };
 
 export type PropsData = {
   id: string;
@@ -210,24 +227,27 @@ export type PropsData = {
   customColor?: CustomColorType;
   conversationId: string;
   displayLimit?: number;
+  activeCallConversationId?: string;
   text?: string;
   textDirection: TextDirection;
-  textAttachment?: AttachmentType;
+  textAttachment?: AttachmentForUIType;
   isEditedMessage?: boolean;
   isSticker?: boolean;
   isTargeted?: boolean;
   isTargetedCounter?: number;
   isSelected: boolean;
   isSelectMode: boolean;
+  isSMS: boolean;
   isSpoilerExpanded?: Record<number, boolean>;
   direction: DirectionType;
   timestamp: number;
+  receivedAtMS?: number;
   status?: MessageStatusType;
-  contact?: EmbeddedContactType;
+  contact?: ReadonlyDeep<EmbeddedContactType>;
   author: Pick<
     ConversationType,
     | 'acceptedMessageRequest'
-    | 'avatarPath'
+    | 'avatarUrl'
     | 'badges'
     | 'color'
     | 'id'
@@ -236,10 +256,10 @@ export type PropsData = {
     | 'profileName'
     | 'sharedGroupNames'
     | 'title'
-    | 'unblurredAvatarPath'
+    | 'unblurredAvatarUrl'
   >;
   conversationType: ConversationTypeType;
-  attachments?: ReadonlyArray<AttachmentType>;
+  attachments?: ReadonlyArray<AttachmentForUIType>;
   giftBadge?: GiftBadgeType;
   payment?: AnyPaymentEvent;
   quote?: {
@@ -247,7 +267,7 @@ export type PropsData = {
     conversationTitle: string;
     customColor?: CustomColorType;
     text: string;
-    rawAttachment?: QuotedAttachmentType;
+    rawAttachment?: QuotedAttachmentForUIType;
     payment?: AnyPaymentEvent;
     isFromMe: boolean;
     sentAt: number;
@@ -267,7 +287,7 @@ export type PropsData = {
     customColor?: CustomColorType;
     emoji?: string;
     isFromMe: boolean;
-    rawAttachment?: QuotedAttachmentType;
+    rawAttachment?: QuotedAttachmentForUIType;
     storyId?: string;
     text: string;
   };
@@ -285,6 +305,7 @@ export type PropsData = {
   reactions?: ReactionViewerProps['reactions'];
 
   deletedForEveryone?: boolean;
+  attachmentDroppedDueToSize?: boolean;
 
   canDeleteForEveryone: boolean;
   isBlocked: boolean;
@@ -295,6 +316,8 @@ export type PropsData = {
   onKeyDown?: (event: React.KeyboardEvent<HTMLDivElement>) => void;
 
   item?: never;
+  // test-only, to force GIF's reduced motion experience
+  _forceTapToPlay?: boolean;
 };
 
 export type PropsHousekeeping = {
@@ -327,15 +350,14 @@ export type PropsActions = {
   showContactModal: (contactId: string, conversationId?: string) => void;
   showSpoiler: (messageId: string, data: Record<number, boolean>) => void;
 
-  kickOffAttachmentDownload: (options: {
-    attachment: AttachmentType;
-    messageId: string;
-  }) => void;
+  cancelAttachmentDownload: (options: { messageId: string }) => void;
+  kickOffAttachmentDownload: (options: { messageId: string }) => void;
   markAttachmentAsCorrupted: (options: {
     attachment: AttachmentType;
     messageId: string;
   }) => void;
   saveAttachment: SaveAttachmentActionCreatorType;
+  saveAttachments: SaveAttachmentsActionCreatorType;
   showLightbox: (options: {
     attachment: AttachmentType;
     messageId: string;
@@ -350,6 +372,7 @@ export type PropsActions = {
   targetMessage?: (messageId: string, conversationId: string) => unknown;
 
   showEditHistoryModal?: (id: string) => unknown;
+  showAttachmentDownloadStillInProgressToast: (count: number) => unknown;
   showExpiredIncomingTapToViewToast: () => unknown;
   showExpiredOutgoingTapToViewToast: () => unknown;
   viewStory: ViewStoryActionCreatorType;
@@ -566,6 +589,7 @@ export class Message extends React.PureComponent<Props, State> {
   private getMetadataPlacement(
     {
       attachments,
+      attachmentDroppedDueToSize,
       deletedForEveryone,
       direction,
       expirationLength,
@@ -600,13 +624,21 @@ export class Message extends React.PureComponent<Props, State> {
       return MetadataPlacement.Bottom;
     }
 
-    if (!text && !deletedForEveryone) {
+    if (!text && !deletedForEveryone && !attachmentDroppedDueToSize) {
       return isAudio(attachments)
         ? MetadataPlacement.RenderedByMessageAudioComponent
         : MetadataPlacement.Bottom;
     }
 
+    if (!text && attachmentDroppedDueToSize) {
+      return MetadataPlacement.InlineWithText;
+    }
+
     if (this.canRenderStickerLikeEmoji()) {
+      return MetadataPlacement.Bottom;
+    }
+
+    if (this.shouldShowJoinButton()) {
       return MetadataPlacement.Bottom;
     }
 
@@ -622,7 +654,8 @@ export class Message extends React.PureComponent<Props, State> {
    * because it can reduce layout jumpiness.
    */
   private guessMetadataWidth(): number {
-    const { direction, expirationLength, status, isEditedMessage } = this.props;
+    const { direction, expirationLength, isSMS, status, isEditedMessage } =
+      this.props;
 
     let result = GUESS_METADATA_WIDTH_TIMESTAMP_SIZE;
 
@@ -633,6 +666,10 @@ export class Message extends React.PureComponent<Props, State> {
     const hasExpireTimer = Boolean(expirationLength);
     if (hasExpireTimer) {
       result += GUESS_METADATA_WIDTH_EXPIRE_TIMER_SIZE;
+    }
+
+    if (isSMS) {
+      result += GUESS_METADATA_WIDTH_SMS_SIZE;
     }
 
     if (direction === 'outgoing' && status) {
@@ -679,7 +716,7 @@ export class Message extends React.PureComponent<Props, State> {
 
   private getTimeRemainingForDeleteForEveryone(): number {
     const { timestamp } = this.props;
-    return Math.max(timestamp - Date.now() + THREE_HOURS, 0);
+    return Math.max(timestamp - Date.now() + DAY, 0);
   }
 
   private startDeleteForEveryoneTimerIfApplicable(): void {
@@ -797,6 +834,7 @@ export class Message extends React.PureComponent<Props, State> {
     }
 
     const {
+      attachmentDroppedDueToSize,
       deletedForEveryone,
       direction,
       expirationLength,
@@ -804,6 +842,7 @@ export class Message extends React.PureComponent<Props, State> {
       i18n,
       id,
       isEditedMessage,
+      isSMS,
       isSticker,
       isTapToViewExpired,
       retryMessageSend,
@@ -823,11 +862,15 @@ export class Message extends React.PureComponent<Props, State> {
         direction={direction}
         expirationLength={expirationLength}
         expirationTimestamp={expirationTimestamp}
-        hasText={Boolean(text)}
+        hasText={Boolean(text || attachmentDroppedDueToSize)}
         i18n={i18n}
         id={id}
         isEditedMessage={isEditedMessage}
+        isSMS={isSMS}
         isInline={isInline}
+        isOutlineOnlyBubble={
+          deletedForEveryone || (attachmentDroppedDueToSize && !text)
+        }
         isShowingImage={this.isShowingImage()}
         isSticker={isStickerLike}
         isTapToViewExpired={isTapToViewExpired}
@@ -879,10 +922,13 @@ export class Message extends React.PureComponent<Props, State> {
   public renderAttachment(): JSX.Element | null {
     const {
       attachments,
+      attachmentDroppedDueToSize,
+      cancelAttachmentDownload,
       conversationId,
       direction,
       expirationLength,
       expirationTimestamp,
+      _forceTapToPlay,
       i18n,
       id,
       isSticker,
@@ -913,7 +959,7 @@ export class Message extends React.PureComponent<Props, State> {
     const firstAttachment = attachments[0];
 
     // For attachments which aren't full-frame
-    const withContentBelow = Boolean(text);
+    const withContentBelow = Boolean(text || attachmentDroppedDueToSize);
     const withContentAbove = Boolean(quote) || this.shouldRenderAuthor();
     const displayImage = canDisplayImage(attachments);
 
@@ -938,9 +984,10 @@ export class Message extends React.PureComponent<Props, State> {
             <GIF
               attachment={firstAttachment}
               size={GIF_SIZE}
+              tabIndex={0}
+              _forceTapToPlay={_forceTapToPlay}
               theme={theme}
               i18n={i18n}
-              tabIndex={0}
               onError={this.handleImageError}
               showVisualAttachment={() => {
                 showLightbox({
@@ -948,9 +995,13 @@ export class Message extends React.PureComponent<Props, State> {
                   messageId: id,
                 });
               }}
-              kickOffAttachmentDownload={() => {
+              startDownload={() => {
                 kickOffAttachmentDownload({
-                  attachment: firstAttachment,
+                  messageId: id,
+                });
+              }}
+              cancelDownload={() => {
+                cancelAttachmentDownload({
                   messageId: id,
                 });
               }}
@@ -986,12 +1037,14 @@ export class Message extends React.PureComponent<Props, State> {
               shouldCollapseAbove={shouldCollapseAbove}
               shouldCollapseBelow={shouldCollapseBelow}
               tabIndex={tabIndex}
-              onClick={attachment => {
-                if (!isDownloaded(attachment)) {
-                  kickOffAttachmentDownload({ attachment, messageId: id });
-                } else {
-                  showLightbox({ attachment, messageId: id });
-                }
+              showVisualAttachment={attachment => {
+                showLightbox({ attachment, messageId: id });
+              }}
+              startDownload={() => {
+                kickOffAttachmentDownload({ messageId: id });
+              }}
+              cancelDownload={() => {
+                cancelAttachmentDownload({ messageId: id });
               }}
             />
           </div>
@@ -1023,10 +1076,7 @@ export class Message extends React.PureComponent<Props, State> {
         timestamp,
 
         kickOffAttachmentDownload() {
-          kickOffAttachmentDownload({
-            attachment: firstAttachment,
-            messageId: id,
-          });
+          kickOffAttachmentDownload({ messageId: id });
         },
         onCorrupted() {
           markAttachmentAsCorrupted({
@@ -1036,7 +1086,7 @@ export class Message extends React.PureComponent<Props, State> {
         },
       });
     }
-    const { pending, fileName, fileSize, contentType } = firstAttachment;
+    const { pending, fileName, size, contentType } = firstAttachment;
     const extension = getExtensionForDisplay({ contentType, fileName });
     const isDangerous = isFileDangerous(fileName || '');
 
@@ -1050,9 +1100,6 @@ export class Message extends React.PureComponent<Props, State> {
             : null,
           withContentAbove
             ? 'module-message__generic-attachment--with-content-above'
-            : null,
-          !firstAttachment.url
-            ? 'module-message__generic-attachment--not-active'
             : null
         )}
         // There's only ever one of these, so we don't want users to tab into it
@@ -1063,7 +1110,6 @@ export class Message extends React.PureComponent<Props, State> {
 
           if (!isDownloaded(firstAttachment)) {
             kickOffAttachmentDownload({
-              attachment: firstAttachment,
               messageId: id,
             });
           } else {
@@ -1106,7 +1152,7 @@ export class Message extends React.PureComponent<Props, State> {
               `module-message__generic-attachment__file-size--${direction}`
             )}
           >
-            {fileSize}
+            {formatFileSize(size)}
           </div>
         </div>
       </button>
@@ -1121,6 +1167,7 @@ export class Message extends React.PureComponent<Props, State> {
       i18n,
       id,
       kickOffAttachmentDownload,
+      cancelAttachmentDownload,
       previews,
       quote,
       shouldCollapseAbove,
@@ -1151,6 +1198,16 @@ export class Message extends React.PureComponent<Props, State> {
     const isFullSizeImage = shouldUseFullSizeLinkPreviewImage(first);
 
     const linkPreviewDate = first.date || null;
+    const title =
+      first.title ||
+      (first.isCallLink
+        ? i18n('icu:calling__call-link-default-title')
+        : undefined);
+    const description =
+      first.description ||
+      (first.isCallLink
+        ? i18n('icu:message--call-link-description')
+        : undefined);
 
     const isClickable = this.areLinksEnabled();
 
@@ -1162,18 +1219,6 @@ export class Message extends React.PureComponent<Props, State> {
         'module-message__link-preview--nonclickable': !isClickable,
       }
     );
-    const onPreviewImageClick = isClickable
-      ? () => {
-          if (first.image && !isDownloaded(first.image)) {
-            kickOffAttachmentDownload({
-              attachment: first.image,
-              messageId: id,
-            });
-            return;
-          }
-          openLinkInWebBrowser(first.url);
-        }
-      : noop;
     const contents = (
       <>
         {first.image && previewHasImage && isFullSizeImage ? (
@@ -1186,7 +1231,15 @@ export class Message extends React.PureComponent<Props, State> {
             onError={this.handleImageError}
             i18n={i18n}
             theme={theme}
-            onClick={onPreviewImageClick}
+            showVisualAttachment={() => {
+              openLinkInWebBrowser(first.url);
+            }}
+            startDownload={() => {
+              kickOffAttachmentDownload({ messageId: id });
+            }}
+            cancelDownload={() => {
+              cancelAttachmentDownload({ messageId: id });
+            }}
           />
         ) : null}
         <div dir="auto" className="module-message__link-preview__content">
@@ -1214,10 +1267,33 @@ export class Message extends React.PureComponent<Props, State> {
                 blurHash={first.image.blurHash}
                 onError={this.handleImageError}
                 i18n={i18n}
-                onClick={onPreviewImageClick}
+                showVisualAttachment={() => {
+                  openLinkInWebBrowser(first.url);
+                }}
+                startDownload={() => {
+                  kickOffAttachmentDownload({ messageId: id });
+                }}
+                cancelDownload={() => {
+                  cancelAttachmentDownload({ messageId: id });
+                }}
               />
             </div>
           ) : null}
+          {first.isCallLink && (
+            <div className="module-message__link-preview__call-link-icon">
+              <Avatar
+                acceptedMessageRequest
+                badge={undefined}
+                color={getColorForCallLink(getKeyFromCallLink(first.url))}
+                conversationType="callLink"
+                i18n={i18n}
+                isMe={false}
+                sharedGroupNames={[]}
+                size={64}
+                title={title ?? i18n('icu:calling__call-link-default-title')}
+              />
+            </div>
+          )}
           <div
             className={classNames(
               'module-message__link-preview__text',
@@ -1226,12 +1302,10 @@ export class Message extends React.PureComponent<Props, State> {
                 : null
             )}
           >
-            <div className="module-message__link-preview__title">
-              {first.title}
-            </div>
-            {first.description && (
+            <div className="module-message__link-preview__title">{title}</div>
+            {description && (
               <div className="module-message__link-preview__description">
-                {unescape(first.description)}
+                {unescape(description)}
               </div>
             )}
             <div className="module-message__link-preview__footer">
@@ -1275,6 +1349,62 @@ export class Message extends React.PureComponent<Props, State> {
     );
   }
 
+  public renderAttachmentTooBig(): JSX.Element | null {
+    const {
+      attachments,
+      attachmentDroppedDueToSize,
+      direction,
+      i18n,
+      quote,
+      shouldCollapseAbove,
+      shouldCollapseBelow,
+      text,
+    } = this.props;
+    const { metadataWidth } = this.state;
+
+    if (!attachmentDroppedDueToSize) {
+      return null;
+    }
+
+    const labelText = attachments?.length
+      ? i18n('icu:message--attachmentTooBig--multiple')
+      : i18n('icu:message--attachmentTooBig--one');
+
+    const isContentAbove = quote || attachments?.length;
+    const isContentBelow = Boolean(text);
+    const willCollapseAbove = shouldCollapseAbove && !isContentAbove;
+    const willCollapseBelow = shouldCollapseBelow && !isContentBelow;
+
+    const maybeSpacer = text
+      ? undefined
+      : this.getMetadataPlacement() === MetadataPlacement.InlineWithText && (
+          <MessageTextMetadataSpacer metadataWidth={metadataWidth} />
+        );
+
+    return (
+      <div
+        className={classNames(
+          'module-message__attachment-too-big',
+          isContentAbove
+            ? 'module-message__attachment-too-big--content-above'
+            : null,
+          isContentBelow
+            ? 'module-message__attachment-too-big--content-below'
+            : null,
+          willCollapseAbove
+            ? `module-message__attachment-too-big--collapse-above--${direction}`
+            : null,
+          willCollapseBelow
+            ? `module-message__attachment-too-big--collapse-below--${direction}`
+            : null
+        )}
+      >
+        {labelText}
+        {maybeSpacer}
+      </div>
+    );
+  }
+
   public renderGiftBadge(): JSX.Element | null {
     const { conversationTitle, direction, getPreferredBadge, giftBadge, i18n } =
       this.props;
@@ -1283,7 +1413,10 @@ export class Message extends React.PureComponent<Props, State> {
       return null;
     }
 
-    if (giftBadge.state === GiftBadgeStates.Unopened) {
+    if (
+      giftBadge.state === GiftBadgeStates.Unopened ||
+      giftBadge.state === GiftBadgeStates.Failed
+    ) {
       const description =
         direction === 'incoming'
           ? i18n('icu:message--donation--unopened--incoming')
@@ -1581,9 +1714,11 @@ export class Message extends React.PureComponent<Props, State> {
       <>
         {storyReplyContext.emoji && (
           <div className="module-message__quote-story-reaction-header">
-            {i18n('icu:Quote__story-reaction', {
-              name: storyReplyContext.authorTitle,
-            })}
+            {isIncoming
+              ? i18n('icu:Quote__story-reaction--you')
+              : i18n('icu:Quote__story-reaction', {
+                  name: storyReplyContext.authorTitle,
+                })}
           </div>
         )}
         <Quote
@@ -1733,7 +1868,7 @@ export class Message extends React.PureComponent<Props, State> {
         ) : (
           <Avatar
             acceptedMessageRequest={author.acceptedMessageRequest}
-            avatarPath={author.avatarPath}
+            avatarUrl={author.avatarUrl}
             badge={getPreferredBadge(author.badges)}
             color={author.color}
             conversationType="direct"
@@ -1751,11 +1886,24 @@ export class Message extends React.PureComponent<Props, State> {
             size={GROUP_AVATAR_SIZE}
             theme={theme}
             title={author.title}
-            unblurredAvatarPath={author.unblurredAvatarPath}
+            unblurredAvatarUrl={author.unblurredAvatarUrl}
           />
         )}
       </div>
     );
+  }
+
+  private getContents(): string | undefined {
+    const { deletedForEveryone, direction, i18n, status, text } = this.props;
+
+    if (deletedForEveryone) {
+      return i18n('icu:message--deletedForEveryone');
+    }
+    if (direction === 'incoming' && status === 'error') {
+      return i18n('icu:incomingError');
+    }
+
+    return text;
   }
 
   public renderText(): JSX.Element | null {
@@ -1773,17 +1921,12 @@ export class Message extends React.PureComponent<Props, State> {
       showConversation,
       showSpoiler,
       status,
-      text,
+
       textAttachment,
     } = this.props;
     const { metadataWidth } = this.state;
 
-    // eslint-disable-next-line no-nested-ternary
-    const contents = deletedForEveryone
-      ? i18n('icu:message--deletedForEveryone')
-      : direction === 'incoming' && status === 'error'
-      ? i18n('icu:incomingError')
-      : text;
+    const contents = this.getContents();
 
     if (!contents) {
       return null;
@@ -1837,8 +1980,10 @@ export class Message extends React.PureComponent<Props, State> {
             if (!textAttachment) {
               return;
             }
+            if (isDownloaded(textAttachment)) {
+              return;
+            }
             kickOffAttachmentDownload({
-              attachment: textAttachment,
               messageId: id,
             });
           }}
@@ -1854,6 +1999,55 @@ export class Message extends React.PureComponent<Props, State> {
         )}
       </div>
     );
+  }
+
+  private shouldShowJoinButton(): boolean {
+    const { previews } = this.props;
+
+    if (previews?.length !== 1) {
+      return false;
+    }
+
+    const onlyPreview = previews[0];
+    return Boolean(onlyPreview.isCallLink);
+  }
+
+  private renderAction(): JSX.Element | null {
+    const { direction, activeCallConversationId, i18n, previews } = this.props;
+
+    if (this.shouldShowJoinButton()) {
+      const firstPreview = previews[0];
+      const inAnotherCall = Boolean(
+        activeCallConversationId &&
+          (!firstPreview.callLinkRoomId ||
+            activeCallConversationId !== firstPreview.callLinkRoomId)
+      );
+
+      const joinButton = (
+        <button
+          type="button"
+          className={classNames('module-message__action', {
+            'module-message__action--incoming': direction === 'incoming',
+            'module-message__action--outgoing': direction === 'outgoing',
+            'module-message__action--incoming--in-another-call':
+              direction === 'incoming' && inAnotherCall,
+            'module-message__action--outgoing--in-another-call':
+              direction === 'outgoing' && inAnotherCall,
+          })}
+          onClick={() => openLinkInWebBrowser(firstPreview?.url)}
+        >
+          {i18n('icu:calling__join')}
+        </button>
+      );
+
+      return inAnotherCall ? (
+        <InAnotherCallTooltip i18n={i18n}>{joinButton}</InAnotherCallTooltip>
+      ) : (
+        joinButton
+      );
+    }
+
+    return null;
   }
 
   private renderError(): ReactNode {
@@ -1914,6 +2108,10 @@ export class Message extends React.PureComponent<Props, State> {
       if (dimensions) {
         return dimensions.width;
       }
+    }
+
+    if (firstLinkPreview && firstLinkPreview.isCallLink) {
+      return 300;
     }
 
     return undefined;
@@ -2297,7 +2495,7 @@ export class Message extends React.PureComponent<Props, State> {
   }
 
   public renderContents(): JSX.Element | null {
-    const { giftBadge, isTapToView, deletedForEveryone } = this.props;
+    const { deletedForEveryone, giftBadge, isTapToView } = this.props;
 
     if (deletedForEveryone) {
       return (
@@ -2327,9 +2525,11 @@ export class Message extends React.PureComponent<Props, State> {
         {this.renderStoryReplyContext()}
         {this.renderAttachment()}
         {this.renderPreview()}
+        {this.renderAttachmentTooBig()}
         {this.renderPayment()}
         {this.renderEmbeddedContact()}
         {this.renderText()}
+        {this.renderAction()}
         {this.renderMetadata()}
         {this.renderSendMessageButton()}
       </>
@@ -2387,10 +2587,7 @@ export class Message extends React.PureComponent<Props, State> {
       }
 
       if (attachments && !isDownloaded(attachments[0])) {
-        kickOffAttachmentDownload({
-          attachment: attachments[0],
-          messageId: id,
-        });
+        kickOffAttachmentDownload({ messageId: id });
 
         return;
       }
@@ -2410,9 +2607,7 @@ export class Message extends React.PureComponent<Props, State> {
       event.preventDefault();
       event.stopPropagation();
 
-      const attachment = attachments[0];
-
-      kickOffAttachmentDownload({ attachment, messageId: id });
+      kickOffAttachmentDownload({ messageId: id });
 
       return;
     }
@@ -2512,10 +2707,7 @@ export class Message extends React.PureComponent<Props, State> {
 
     const attachment = attachments[0];
     if (!isDownloaded(attachment)) {
-      kickOffAttachmentDownload({
-        attachment,
-        messageId: id,
-      });
+      kickOffAttachmentDownload({ messageId: id });
       return;
     }
 
@@ -2535,11 +2727,11 @@ export class Message extends React.PureComponent<Props, State> {
   public renderContainer(): JSX.Element {
     const {
       attachments,
+      attachmentDroppedDueToSize,
       conversationColor,
       customColor,
       deletedForEveryone,
       direction,
-      giftBadge,
       id,
       isSticker,
       isTapToView,
@@ -2553,10 +2745,7 @@ export class Message extends React.PureComponent<Props, State> {
     const { isTargeted } = this.state;
 
     const isAttachmentPending = this.isAttachmentPending();
-
     const width = this.getWidth();
-    const shouldUseWidth = Boolean(giftBadge || this.isShowingImage());
-
     const isEmojiOnly = this.canRenderStickerLikeEmoji();
     const isStickerLike = isSticker || isEmojiOnly;
 
@@ -2596,9 +2785,14 @@ export class Message extends React.PureComponent<Props, State> {
         : null
     );
     const containerStyles = {
-      width: shouldUseWidth ? width : undefined,
+      width,
     };
-    if (!isStickerLike && !deletedForEveryone && direction === 'outgoing') {
+    if (
+      !isStickerLike &&
+      !deletedForEveryone &&
+      !(attachmentDroppedDueToSize && !text) &&
+      direction === 'outgoing'
+    ) {
       Object.assign(containerStyles, getCustomColorStyle(customColor));
     }
 

@@ -8,11 +8,9 @@ import type * as Backbone from 'backbone';
 import type PQueue from 'p-queue/dist';
 import type { assert } from 'chai';
 import type { PhoneNumber, PhoneNumberFormat } from 'google-libphonenumber';
+import type { MochaOptions } from 'mocha';
 
-import type {
-  ConversationModelCollectionType,
-  MessageModelCollectionType,
-} from './model-types.d';
+import type { ConversationModelCollectionType } from './model-types.d';
 import type { textsecure } from './textsecure';
 import type { Storage } from './textsecure/Storage';
 import type {
@@ -23,29 +21,27 @@ import type AccountManager from './textsecure/AccountManager';
 import type { WebAPIConnectType } from './textsecure/WebAPI';
 import type { CallingClass } from './services/calling';
 import type * as StorageService from './services/storage';
+import type { BackupsService } from './services/backups';
 import type * as Groups from './groups';
 import type * as Crypto from './Crypto';
 import type * as Curve from './Curve';
 import type * as RemoteConfig from './RemoteConfig';
 import type { OSType } from './util/os/shared';
-import type { getEnvironment } from './environment';
-import type { LocalizerType, ThemeType } from './types/Util';
+import type { LocalizerType, SystemThemeType, ThemeType } from './types/Util';
 import type { Receipt } from './types/Receipt';
 import type { ConversationController } from './ConversationController';
 import type { ReduxActions } from './state/types';
-import type { createStore } from './state/createStore';
 import type { createApp } from './state/roots/createApp';
-import type Data from './sql/Client';
 import type { MessageModel } from './models/messages';
 import type { ConversationModel } from './models/conversations';
 import type { BatcherType } from './util/batcher';
 import type { ConfirmationDialog } from './components/ConfirmationDialog';
 import type { SignalProtocolStore } from './SignalProtocolStore';
 import type { SocketStatus } from './types/SocketStatus';
+import type { ScreenShareStatus } from './types/Calling';
 import type SyncRequest from './textsecure/SyncRequest';
-import type { MessageController } from './util/MessageController';
+import type { MessageCache } from './services/MessageCache';
 import type { StateType } from './state/reducer';
-import type { SystemTraySetting } from './types/SystemTraySetting';
 import type { Address } from './types/Address';
 import type { QualifiedAddress } from './types/QualifiedAddress';
 import type { CIType } from './CI';
@@ -56,6 +52,7 @@ import type { initializeMigrations } from './signal';
 import type { RetryPlaceholders } from './util/retryPlaceholders';
 import type { PropsPreloadType as PreferencesPropsType } from './components/Preferences';
 import type { WindowsNotificationData } from './services/notifications';
+import type { QueryStatsOptions } from './sql/main';
 
 export { Long } from 'long';
 
@@ -65,17 +62,19 @@ export type IPCType = {
   closeAbout: () => void;
   crashReports: {
     getCount: () => Promise<number>;
-    upload: () => Promise<void>;
+    writeToLog: () => Promise<void>;
     erase: () => Promise<void>;
   };
   drawAttention: () => void;
   getAutoLaunch: () => Promise<boolean>;
+  getMediaAccessStatus: (
+    mediaType: 'screen' | 'microphone' | 'camera'
+  ) => Promise<string | undefined>;
   getMediaCameraPermissions: () => Promise<boolean>;
   getMediaPermissions: () => Promise<boolean>;
   logAppLoadedEvent?: (options: { processedCount?: number }) => void;
   readyForUpdates: () => void;
   removeSetupMenuItems: () => unknown;
-  restart: () => void;
   setAutoHideMenuBar: (value: boolean) => void;
   setAutoLaunch: (value: boolean) => Promise<void>;
   setBadge: (badge: number | 'marked-unread') => void;
@@ -89,8 +88,9 @@ export type IPCType = {
   showWindow: () => void;
   showWindowsNotification: (data: WindowsNotificationData) => Promise<void>;
   shutdown: () => void;
+  startTrackingQueryStats: () => void;
+  stopTrackingQueryStats: (options?: QueryStatsOptions) => void;
   titleBarDoubleClick: () => void;
-  updateSystemTraySetting: (value: SystemTraySetting) => void;
   updateTrayIcon: (count: number) => void;
 };
 
@@ -104,8 +104,8 @@ export type FeatureFlagType = {
 };
 
 type AboutWindowPropsType = {
+  appEnv: string;
   arch: string;
-  environmentText: string;
   platform: string;
 };
 
@@ -124,7 +124,9 @@ type PermissionsWindowPropsType = {
 
 type ScreenShareWindowPropsType = {
   onStopSharing: () => void;
-  presentedSourceName: string;
+  presentedSourceName: string | undefined;
+  getStatus: () => ScreenShareStatus;
+  setRenderCallback: (cb: () => void) => void;
 };
 
 type SettingsOnRenderCallbackType = (props: PreferencesPropsType) => void;
@@ -137,7 +139,6 @@ export type SignalCoreType = {
   AboutWindowProps?: AboutWindowPropsType;
   Crypto: typeof Crypto;
   Curve: typeof Curve;
-  Data: typeof Data;
   DebugLogWindowProps?: DebugLogWindowPropsType;
   Groups: typeof Groups;
   PermissionsWindowProps?: PermissionsWindowPropsType;
@@ -145,6 +146,7 @@ export type SignalCoreType = {
   ScreenShareWindowProps?: ScreenShareWindowPropsType;
   Services: {
     calling: CallingClass;
+    backups: BackupsService;
     initializeGroupCredentialFetcher: () => Promise<void>;
     initializeNetworkObserver: (network: ReduxActions['network']) => void;
     initializeUpdateListener: (updates: ReduxActions['updates']) => void;
@@ -164,13 +166,16 @@ export type SignalCoreType = {
   };
   OS: OSType;
   State: {
-    createStore: typeof createStore;
     Roots: {
       createApp: typeof createApp;
     };
   };
   conversationControllerStart: () => void;
   challengeHandler?: ChallengeHandler;
+
+  // Only for debugging in Dev Tools
+  DataReader?: unknown;
+  DataWriter?: unknown;
 };
 
 declare global {
@@ -182,7 +187,6 @@ declare global {
     // Used for sticker creator localization
     localeMessages: { [key: string]: { message: string } };
 
-    isBehindProxy: () => boolean;
     openArtCreator: (opts: { username: string; password: string }) => void;
 
     enterKeyboardMode: () => void;
@@ -192,11 +196,13 @@ declare global {
     getConversations: () => ConversationModelCollectionType;
     getBuildCreation: () => number;
     getBuildExpiration: () => number;
-    getEnvironment: typeof getEnvironment;
     getHostName: () => string;
     getInteractionMode: () => 'mouse' | 'keyboard';
     getServerPublicParams: () => string;
+    getGenericServerPublicParams: () => string;
+    getBackupServerPublicParams: () => string;
     getSfuUrl: () => string;
+    getIceServerOverride: () => string;
     getSocketStatus: () => SocketStatus;
     getSyncRequest: (timeoutMillis?: number) => SyncRequest;
     getTitle: () => string;
@@ -218,7 +224,7 @@ declare global {
     sendChallengeRequest: (request: IPCChallengeRequest) => void;
     showKeyboardShortcuts: () => void;
     storage: Storage;
-    systemTheme: ThemeType;
+    systemTheme: SystemThemeType;
 
     Signal: SignalCoreType;
 
@@ -235,7 +241,7 @@ declare global {
     ConversationController: ConversationController;
     Events: IPCEventsType;
     FontFace: typeof FontFace;
-    MessageController: MessageController;
+    MessageCache: MessageCache;
     SignalProtocolStore: typeof SignalProtocolStore;
     WebAPI: WebAPIConnectType;
     Whisper: WhisperType;
@@ -277,10 +283,11 @@ declare global {
     RETRY_DELAY: boolean;
     assert: typeof assert;
     testUtilities: {
-      onComplete: (info: unknown) => void;
+      setup: MochaOptions;
+      debug: (info: unknown) => void;
+      onTestEvent: (event: unknown) => void;
+      initialize: () => Promise<void>;
       prepareTests: () => void;
-      installMessageController: () => void;
-      initializeMessageCounter: () => Promise<void>;
     };
   }
 
@@ -302,13 +309,17 @@ declare global {
   interface SharedArrayBuffer {
     __arrayBuffer: never;
   }
+
+  interface Set<T> {
+    // Needed until TS upgrade
+    difference<U>(other: ReadonlySet<U>): Set<T>;
+  }
 }
 
 export type WhisperType = {
   Conversation: typeof ConversationModel;
   ConversationCollection: typeof ConversationModelCollectionType;
   Message: typeof MessageModel;
-  MessageCollection: typeof MessageModelCollectionType;
 
   deliveryReceiptQueue: PQueue;
   deliveryReceiptBatcher: BatcherType<Receipt>;

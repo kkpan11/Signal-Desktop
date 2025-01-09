@@ -33,6 +33,28 @@ const CONNECT_TIMEOUT_MS = 10 * SECOND;
 
 const electronLookup = promisify(electronLookupWithCb);
 
+const HOST_LOG_ALLOWLIST = new Set([
+  // Production
+  'chat.signal.org',
+  'storage.signal.org',
+  'cdsi.signal.org',
+  'cdn.signal.org',
+  'cdn2.signal.org',
+  'cdn3.signal.org',
+
+  // Staging
+  'chat.staging.signal.org',
+  'storage-staging.signal.org',
+  'cdsi.staging.signal.org',
+  'cdn-staging.signal.org',
+  'cdn2-staging.signal.org',
+  'create.staging.signal.art',
+
+  // Common
+  'updates2.signal.org',
+  'sfu.voip.signal.org',
+]);
+
 export class Agent extends HTTPSAgent {
   constructor(options: AgentOptions = {}) {
     super({
@@ -65,16 +87,18 @@ export class Agent extends HTTPSAgent {
         },
       });
 
-      const duration = Date.now() - start;
-      const logLine =
-        `createHTTPSAgent.createConnection(${host}): connected to ` +
-        `IPv${address.family} addr after ${duration}ms ` +
-        `(attempts v4=${v4Attempts} v6=${v6Attempts})`;
+      if (HOST_LOG_ALLOWLIST.has(host)) {
+        const duration = Date.now() - start;
+        const logLine =
+          `createHTTPSAgent.createConnection(${host}): connected to ` +
+          `IPv${address.family} addr after ${duration}ms ` +
+          `(attempts v4=${v4Attempts} v6=${v6Attempts})`;
 
-      if (v4Attempts + v6Attempts > 1 || duration > CONNECT_THRESHOLD_MS) {
-        log.warn(logLine);
-      } else {
-        log.info(logLine);
+        if (v4Attempts + v6Attempts > 1 || duration > CONNECT_THRESHOLD_MS) {
+          log.warn(logLine);
+        } else {
+          log.info(logLine);
+        }
       }
 
       return socket;
@@ -121,16 +145,22 @@ export async function happyEyeballs({
         v6Attempts += 1;
       }
 
-      const socket = await pTimeout(
-        connect({
-          address: addr.address,
-          port,
-          tlsOptions,
-          abortSignal: abortController.signal,
-        }),
-        CONNECT_TIMEOUT_MS,
-        'createHTTPSAgent.connect: connection timed out'
-      );
+      let socket: net.Socket;
+      try {
+        socket = await pTimeout(
+          connect({
+            address: addr.address,
+            port,
+            tlsOptions,
+            abortSignal: abortController.signal,
+          }),
+          CONNECT_TIMEOUT_MS,
+          'createHTTPSAgent.connect: connection timed out'
+        );
+      } catch (error) {
+        abortController.abort();
+        throw error;
+      }
 
       if (abortController.signal.aborted) {
         throw new Error('Aborted');
@@ -189,8 +219,10 @@ async function defaultConnect({
 }: ConnectOptionsType): Promise<net.Socket> {
   const socket = tls.connect(port, address, {
     ...tlsOptions,
-    signal: abortSignal,
   });
+  abortSignal?.addEventListener('abort', () =>
+    socket.destroy(new Error('Aborted'))
+  );
 
   const { promise: onHandshake, resolve, reject } = explodePromise<void>();
 

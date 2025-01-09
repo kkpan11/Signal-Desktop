@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from 'react';
+import { partition } from 'lodash';
 import type { ConversationType } from '../state/ducks/conversations';
+import type { CallingConversationType } from '../types/Calling';
 import type { LocalizerType } from '../types/Util';
 import { Avatar, AvatarSize } from './Avatar';
 import { getParticipantName } from '../util/callingGetParticipantName';
@@ -15,30 +17,46 @@ export enum RingMode {
   IsRinging,
 }
 
-type PropsType = {
+type PeekedParticipantType = Pick<
+  ConversationType,
+  | 'firstName'
+  | 'systemGivenName'
+  | 'systemNickname'
+  | 'title'
+  | 'serviceId'
+  | 'titleNoDefault'
+>;
+
+export type PropsType = {
   conversation: Pick<
-    ConversationType,
+    CallingConversationType,
     | 'acceptedMessageRequest'
-    | 'avatarPath'
+    | 'avatarUrl'
     | 'color'
     | 'isMe'
     | 'phoneNumber'
     | 'profileName'
     | 'sharedGroupNames'
+    | 'systemGivenName'
+    | 'systemNickname'
     | 'title'
     | 'type'
-    | 'unblurredAvatarPath'
+    | 'unblurredAvatarUrl'
   >;
   i18n: LocalizerType;
   me: Pick<ConversationType, 'id' | 'serviceId'>;
   ringMode: RingMode;
 
   // The following should only be set for group conversations.
-  groupMembers?: Array<Pick<ConversationType, 'id' | 'firstName' | 'title'>>;
-  isCallFull?: boolean;
-  peekedParticipants?: Array<
-    Pick<ConversationType, 'firstName' | 'title' | 'serviceId'>
+  groupMembers?: Array<
+    Pick<
+      ConversationType,
+      'id' | 'firstName' | 'systemGivenName' | 'systemNickname' | 'title'
+    >
   >;
+  isCallFull?: boolean;
+  isConnecting?: boolean;
+  peekedParticipants?: Array<PeekedParticipantType>;
 };
 
 export function CallingPreCallInfo({
@@ -46,56 +64,79 @@ export function CallingPreCallInfo({
   groupMembers = [],
   i18n,
   isCallFull = false,
+  isConnecting = false,
   me,
   peekedParticipants = [],
   ringMode,
 }: PropsType): JSX.Element {
+  const [visibleParticipants, unknownParticipants] = React.useMemo<
+    [Array<PeekedParticipantType>, Array<PeekedParticipantType>]
+  >(
+    () =>
+      partition(peekedParticipants, (participant: PeekedParticipantType) =>
+        Boolean(participant.titleNoDefault)
+      ),
+    [peekedParticipants]
+  );
+
   let subtitle: string;
   if (ringMode === RingMode.IsRinging) {
-    subtitle = i18n('icu:outgoingCallRinging');
+    if (isConnecting) {
+      subtitle = i18n('icu:outgoingCallConnecting');
+    } else {
+      subtitle = i18n('icu:outgoingCallRinging');
+    }
   } else if (isCallFull) {
     subtitle = i18n('icu:calling__call-is-full');
   } else if (peekedParticipants.length) {
-    // It should be rare to see yourself in this list, but it's possible if (1) you rejoin
-    //   quickly, causing the server to return stale state (2) you have joined on another
-    //   device.
-    let hasYou = false;
-    const participantNames = peekedParticipants.map(participant => {
-      if (participant.serviceId === me.serviceId) {
-        hasYou = true;
-        return i18n('icu:you');
+    if (unknownParticipants.length > 0) {
+      subtitle = i18n(
+        'icu:calling__pre-call-info--only-unknown-contacts-in-call',
+        {
+          count: peekedParticipants.length,
+        }
+      );
+    } else {
+      // It should be rare to see yourself in this list, but it's possible if (1) you
+      // rejoin quickly, causing the server to return stale state (2) you have joined on
+      // another device.
+      let hasYou = false;
+      const participantNames = visibleParticipants.map(participant => {
+        if (participant.serviceId === me.serviceId) {
+          hasYou = true;
+          return i18n('icu:you');
+        }
+        return getParticipantName(participant);
+      });
+      switch (participantNames.length) {
+        case 1:
+          subtitle = hasYou
+            ? i18n('icu:calling__pre-call-info--another-device-in-call')
+            : i18n('icu:calling__pre-call-info--1-person-in-call', {
+                first: participantNames[0],
+              });
+          break;
+        case 2:
+          subtitle = i18n('icu:calling__pre-call-info--2-people-in-call', {
+            first: participantNames[0],
+            second: participantNames[1],
+          });
+          break;
+        case 3:
+          subtitle = i18n('icu:calling__pre-call-info--3-people-in-call', {
+            first: participantNames[0],
+            second: participantNames[1],
+            third: participantNames[2],
+          });
+          break;
+        default:
+          subtitle = i18n('icu:calling__pre-call-info--many-people-in-call', {
+            first: participantNames[0],
+            second: participantNames[1],
+            others: participantNames.length - 2,
+          });
+          break;
       }
-      return getParticipantName(participant);
-    });
-
-    switch (participantNames.length) {
-      case 1:
-        subtitle = hasYou
-          ? i18n('icu:calling__pre-call-info--another-device-in-call')
-          : i18n('icu:calling__pre-call-info--1-person-in-call', {
-              first: participantNames[0],
-            });
-        break;
-      case 2:
-        subtitle = i18n('icu:calling__pre-call-info--2-people-in-call', {
-          first: participantNames[0],
-          second: participantNames[1],
-        });
-        break;
-      case 3:
-        subtitle = i18n('icu:calling__pre-call-info--3-people-in-call', {
-          first: participantNames[0],
-          second: participantNames[1],
-          third: participantNames[2],
-        });
-        break;
-      default:
-        subtitle = i18n('icu:calling__pre-call-info--many-people-in-call', {
-          first: participantNames[0],
-          second: participantNames[1],
-          others: String(participantNames.length - 2),
-        });
-        break;
     }
   } else {
     let memberNames: Array<string>;
@@ -104,6 +145,7 @@ export function CallingPreCallInfo({
         memberNames = [getParticipantName(conversation)];
         break;
       case 'group':
+      case 'callLink':
         memberNames = groupMembers
           .filter(member => member.id !== me.id)
           .map(getParticipantName);
@@ -159,12 +201,12 @@ export function CallingPreCallInfo({
           ? i18n('icu:calling__pre-call-info--will-ring-many', {
               first: memberNames[0],
               second: memberNames[1],
-              others: String(memberNames.length - 2),
+              others: memberNames.length - 2,
             })
           : i18n('icu:calling__pre-call-info--will-notify-many', {
               first: memberNames[0],
               second: memberNames[1],
-              others: String(memberNames.length - 2),
+              others: memberNames.length - 2,
             });
         break;
       }
@@ -174,7 +216,7 @@ export function CallingPreCallInfo({
   return (
     <div className="module-CallingPreCallInfo">
       <Avatar
-        avatarPath={conversation.avatarPath}
+        avatarUrl={conversation.avatarUrl}
         badge={undefined}
         color={conversation.color}
         acceptedMessageRequest={conversation.acceptedMessageRequest}
@@ -184,9 +226,9 @@ export function CallingPreCallInfo({
         phoneNumber={conversation.phoneNumber}
         profileName={conversation.profileName}
         sharedGroupNames={conversation.sharedGroupNames}
-        size={AvatarSize.EIGHTY}
+        size={AvatarSize.SIXTY_FOUR}
         title={conversation.title}
-        unblurredAvatarPath={conversation.unblurredAvatarPath}
+        unblurredAvatarUrl={conversation.unblurredAvatarUrl}
         i18n={i18n}
       />
       <div className="module-CallingPreCallInfo__title">

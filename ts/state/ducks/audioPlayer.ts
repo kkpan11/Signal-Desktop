@@ -19,11 +19,11 @@ import type {
   MessageDeletedActionType,
   MessageChangedActionType,
   TargetedConversationChangedActionType,
-  ConversationChangedActionType,
+  ConversationsUpdatedActionType,
 } from './conversations';
 import * as log from '../../logging/log';
 import { isAudio } from '../../types/Attachment';
-import { getAttachmentUrlForPath } from '../selectors/message';
+import { getLocalAttachmentUrl } from '../../util/getLocalAttachmentUrl';
 import { assertDev } from '../../util/assert';
 
 // State
@@ -184,7 +184,7 @@ function setPlaybackRate(
   void,
   RootStateType,
   unknown,
-  SetPlaybackRate | ConversationChangedActionType
+  SetPlaybackRate | ConversationsUpdatedActionType
 > {
   return (dispatch, getState) => {
     const { audioPlayer } = getState();
@@ -623,7 +623,7 @@ export function reducer(
       return state;
     }
 
-    const url = getAttachmentUrlForPath(attachment.path);
+    const url = getLocalAttachmentUrl(attachment);
 
     // if we got the url for the current message
     if (

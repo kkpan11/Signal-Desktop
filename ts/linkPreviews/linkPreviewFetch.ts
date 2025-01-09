@@ -290,8 +290,6 @@ const getHtmlDocument = async (
   abortSignal: AbortSignal,
   logger: Pick<LoggerType, 'warn'> = log
 ): Promise<HTMLDocument> => {
-  let result: HTMLDocument = emptyHtmlDocument();
-
   const buffer = new Uint8Array(MAX_HTML_BYTES_TO_LOAD);
   let bytesLoadedSoFar = 0;
 
@@ -313,8 +311,6 @@ const getHtmlDocument = async (
       buffer.set(truncatedChunk, bytesLoadedSoFar);
       bytesLoadedSoFar += truncatedChunk.byteLength;
 
-      result = parseHtmlBytes(buffer.slice(0, bytesLoadedSoFar), httpCharset);
-
       const hasLoadedMaxBytes = bytesLoadedSoFar >= buffer.length;
       if (hasLoadedMaxBytes) {
         break;
@@ -326,6 +322,7 @@ const getHtmlDocument = async (
     );
   }
 
+  const result = parseHtmlBytes(buffer.slice(0, bytesLoadedSoFar), httpCharset);
   return result;
 };
 
@@ -609,11 +606,12 @@ export async function fetchLinkPreviewImage(
     const dataBlob = new Blob([data], {
       type: contentType,
     });
-    const { blob: xcodedDataBlob } = await scaleImageToLevel(
-      dataBlob,
+    const { blob: xcodedDataBlob } = await scaleImageToLevel({
+      fileOrBlobOrURL: dataBlob,
       contentType,
-      false
-    );
+      size: dataBlob.size,
+      highQuality: false,
+    });
     const xcodedDataArrayBuffer = await blobToArrayBuffer(xcodedDataBlob);
 
     data = new Uint8Array(xcodedDataArrayBuffer);

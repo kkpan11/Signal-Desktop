@@ -14,14 +14,15 @@
 
 import { assertDev } from './util/assert';
 import { isOlderThan } from './util/timestamp';
-import { parseRetryAfterWithDefault } from './util/parseRetryAfter';
 import { clearTimeoutIfNecessary } from './util/clearTimeoutIfNecessary';
 import { missingCaseError } from './util/missingCaseError';
 import type { StorageInterface } from './types/Storage.d';
 import * as Errors from './types/errors';
-import { HTTPError } from './textsecure/Errors';
-import type { SendMessageChallengeData } from './textsecure/Errors';
+import { HTTPError, type SendMessageChallengeData } from './textsecure/Errors';
 import * as log from './logging/log';
+import { drop } from './util/drop';
+import { findRetryAfterTimeFromError } from './jobs/helpers/findRetryAfterTimeFromError';
+import { MINUTE } from './util/durations';
 
 export type ChallengeResponse = Readonly<{
   captcha: string;
@@ -45,7 +46,7 @@ type Handler = Readonly<{
 }>;
 
 export type ChallengeData = Readonly<{
-  type: 'recaptcha';
+  type: 'captcha';
   token: string;
   captcha: string;
 }>;
@@ -75,6 +76,7 @@ export type RegisteredChallengeType = Readonly<{
   reason: string;
   retryAt?: number;
   token?: string;
+  silent: boolean;
 }>;
 
 type SolveOptionsType = Readonly<{
@@ -130,6 +132,8 @@ export class ChallengeHandler {
   private seq = 0;
 
   private isOnline = false;
+
+  private challengeRateLimitRetryAt: undefined | number;
 
   private readonly responseHandlers = new Map<number, Handler>();
 
@@ -192,10 +196,6 @@ export class ChallengeHandler {
     log.info(`challenge: online, starting ${pending.length} queues`);
 
     // Start queues for challenges that matured while we were offline
-    await Promise.all(
-      pending.map(conversationId => this.startQueue(conversationId))
-    );
-
     await this.startAllQueues();
   }
 
@@ -209,8 +209,53 @@ export class ChallengeHandler {
       return;
     }
 
+    if (this.challengeRateLimitRetryAt) {
+      return;
+    }
+
     if (challenge.token) {
-      void this.solve({ reason, token: challenge.token });
+      drop(this.solve({ reason, token: challenge.token }));
+    }
+  }
+
+  public scheduleRetry(
+    conversationId: string,
+    retryAt: number,
+    reason: string
+  ): void {
+    const waitTime = Math.max(0, retryAt - Date.now());
+    const oldTimer = this.startTimers.get(conversationId);
+    if (oldTimer) {
+      clearTimeoutIfNecessary(oldTimer);
+    }
+    this.startTimers.set(
+      conversationId,
+      setTimeout(() => {
+        this.startTimers.delete(conversationId);
+
+        this.challengeRateLimitRetryAt = undefined;
+
+        drop(this.startQueue(conversationId));
+      }, waitTime)
+    );
+    log.info(
+      `scheduleRetry(${reason}): tracking ${conversationId} with waitTime=${waitTime}`
+    );
+  }
+
+  public forceWaitOnAll(retryAt: number): void {
+    this.challengeRateLimitRetryAt = retryAt;
+
+    for (const conversationId of this.registeredConversations.keys()) {
+      const existing = this.registeredConversations.get(conversationId);
+      if (!existing) {
+        continue;
+      }
+      this.registeredConversations.set(conversationId, {
+        ...existing,
+        retryAt,
+      });
+      this.scheduleRetry(conversationId, retryAt, 'forceWaitOnAll');
     }
   }
 
@@ -236,29 +281,24 @@ export class ChallengeHandler {
       return;
     }
 
-    if (challenge.retryAt) {
-      const waitTime = Math.max(0, challenge.retryAt - Date.now());
-      const oldTimer = this.startTimers.get(conversationId);
-      if (oldTimer) {
-        clearTimeoutIfNecessary(oldTimer);
-      }
-      this.startTimers.set(
+    if (this.challengeRateLimitRetryAt) {
+      this.scheduleRetry(
         conversationId,
-        setTimeout(() => {
-          this.startTimers.delete(conversationId);
-
-          void this.startQueue(conversationId);
-        }, waitTime)
+        this.challengeRateLimitRetryAt,
+        'register-challengeRateLimit'
       );
-      log.info(
-        `${logId}: tracking ${conversationId} with waitTime=${waitTime}`
-      );
+    } else if (challenge.retryAt) {
+      this.scheduleRetry(conversationId, challenge.retryAt, 'register');
     } else {
       log.info(`${logId}: tracking ${conversationId} with no waitTime`);
     }
 
-    if (data && !data.options?.includes('recaptcha')) {
-      log.error(`${logId}: unexpected options ${JSON.stringify(data.options)}`);
+    if (data && !data.options?.includes('captcha')) {
+      const dataString = JSON.stringify(data.options);
+      log.error(
+        `${logId}: unexpected options ${dataString}. ${conversationId} is waiting.`
+      );
+      return;
     }
 
     if (!challenge.token) {
@@ -269,7 +309,9 @@ export class ChallengeHandler {
       return;
     }
 
-    void this.solve({ token: challenge.token, reason });
+    if (!challenge.silent) {
+      drop(this.solve({ token: challenge.token, reason }));
+    }
   }
 
   public onResponse(response: IPCResponse): void {
@@ -282,8 +324,13 @@ export class ChallengeHandler {
     handler.resolve(response.data);
   }
 
-  public async unregister(conversationId: string): Promise<void> {
-    log.info(`challenge: unregistered conversation ${conversationId}`);
+  public async unregister(
+    conversationId: string,
+    source: string
+  ): Promise<void> {
+    log.info(
+      `challenge: unregistered conversation ${conversationId} via ${source}`
+    );
     this.registeredConversations.delete(conversationId);
     this.pendingStarts.delete(conversationId);
 
@@ -321,6 +368,10 @@ export class ChallengeHandler {
     );
   }
 
+  public areAnyRegistered(): boolean {
+    return this.registeredConversations.size > 0;
+  }
+
   public isRegistered(conversationId: string): boolean {
     return this.registeredConversations.has(conversationId);
   }
@@ -343,7 +394,7 @@ export class ChallengeHandler {
       return;
     }
 
-    await this.unregister(conversationId);
+    await this.unregister(conversationId, 'startQueue');
 
     if (this.registeredConversations.size === 0) {
       this.options.setChallengeStatus('idle');
@@ -374,51 +425,53 @@ export class ChallengeHandler {
     log.info(`challenge(${reason}): sending challenge to server`);
 
     try {
-      await this.sendChallengeResponse({
-        type: 'recaptcha',
+      await this.options.sendChallengeResponse({
+        type: 'captcha',
         token: lastToken,
         captcha,
       });
     } catch (error) {
+      // If we get an error back from server after solving a captcha, it could be that we
+      // are rate-limited (413, 429), that we need to solve another captcha (428), or any
+      // other possible 4xx, 5xx error.
+
+      // In general, unless we're being rate-limited, we don't want to wait to show
+      // another captcha: this may be a time-critical situation (e.g. user is in a call),
+      // and if the server 500s, for instance, we  want to allow the user to immediately
+      // try again.
+      let defaultRetryAfter = 0;
+
+      if (error instanceof HTTPError) {
+        if ([413, 429].includes(error.code)) {
+          // These rate-limit codes should have a retry-after in the response, but just in
+          // case, let's wait a minute
+          defaultRetryAfter = MINUTE;
+        }
+      }
+
+      const retryAfter = findRetryAfterTimeFromError(error, defaultRetryAfter);
+
       log.error(
-        `challenge(${reason}): challenge failure, error:`,
+        `challenge(${reason}): challenge solve failure; will retry after ${retryAfter}ms; error:`,
         Errors.toLogFormat(error)
       );
-      this.options.setChallengeStatus('required');
-      this.solving -= 1;
+
+      const retryAt = retryAfter + Date.now();
+
+      // Remove the challenge dialog, and trigger the conversationJobQueue to retry the
+      // sends, which will likely trigger another captcha
+      this.options.setChallengeStatus('idle');
+      this.options.onChallengeFailed(retryAfter);
+      this.forceWaitOnAll(retryAt);
       return;
+    } finally {
+      this.solving -= 1;
     }
 
     log.info(`challenge(${reason}): challenge success. force sending`);
 
     this.options.setChallengeStatus('idle');
-
-    this.startAllQueues({ force: true });
-    this.solving -= 1;
-  }
-
-  private async sendChallengeResponse(data: ChallengeData): Promise<void> {
-    try {
-      await this.options.sendChallengeResponse(data);
-    } catch (error) {
-      if (
-        !(error instanceof HTTPError) ||
-        !(error.code === 413 || error.code === 429) ||
-        !error.responseHeaders
-      ) {
-        this.options.onChallengeFailed();
-        throw error;
-      }
-
-      const retryAfter = parseRetryAfterWithDefault(
-        error.responseHeaders['retry-after']
-      );
-
-      log.info(`challenge: retry after ${retryAfter}ms`);
-      this.options.onChallengeFailed(retryAfter);
-      return;
-    }
-
     this.options.onChallengeSolved();
+    this.startAllQueues({ force: true });
   }
 }

@@ -9,6 +9,11 @@ import { maybeParseUrl } from '../util/url';
 import { replaceEmojiWithSpaces } from '../util/emoji';
 
 import type { AttachmentWithHydratedData } from './Attachment';
+import {
+  artAddStickersRoute,
+  groupInvitesRoute,
+  linkCallRoute,
+} from '../util/signalRoutes';
 
 export type LinkPreviewImage = AttachmentWithHydratedData;
 
@@ -41,7 +46,20 @@ export type AddLinkPreviewOptionsType = Readonly<{
   disableFetch?: boolean;
 }>;
 
-const linkify = LinkifyIt();
+const linkify = new LinkifyIt();
+
+export function isValidLink(maybeUrl: string | undefined): boolean {
+  if (maybeUrl == null) {
+    return false;
+  }
+
+  try {
+    const url = new URL(maybeUrl);
+    return url.protocol === 'https:';
+  } catch (_error) {
+    return false;
+  }
+}
 
 export function shouldPreviewHref(href: string): boolean {
   const url = maybeParseUrl(href);
@@ -94,12 +112,19 @@ export function shouldLinkifyMessage(
   return true;
 }
 
+export function isCallLink(link = ''): boolean {
+  const url = maybeParseUrl(link);
+  return url?.protocol === 'https:' && linkCallRoute.isMatch(url);
+}
+
 export function isStickerPack(link = ''): boolean {
-  return link.startsWith('https://signal.art/addstickers/');
+  const url = maybeParseUrl(link);
+  return url?.protocol === 'https:' && artAddStickersRoute.isMatch(url);
 }
 
 export function isGroupLink(link = ''): boolean {
-  return link.startsWith('https://signal.group/');
+  const url = maybeParseUrl(link);
+  return url?.protocol === 'https:' && groupInvitesRoute.isMatch(url);
 }
 
 export function findLinks(text: string, caretLocation?: number): Array<string> {
@@ -132,6 +157,14 @@ export function findLinks(text: string, caretLocation?: number): Array<string> {
       return null;
     })
   );
+}
+
+export function getSafeDomain(href: string): string | undefined {
+  try {
+    return getDomain(href);
+  } catch {
+    return undefined;
+  }
 }
 
 export function getDomain(href: string): string {

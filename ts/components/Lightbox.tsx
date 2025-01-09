@@ -17,6 +17,7 @@ import type { LocalizerType } from '../types/Util';
 import type { MediaItemType, MediaItemMessageType } from '../types/MediaItem';
 import * as GoogleChrome from '../util/GoogleChrome';
 import * as log from '../logging/log';
+import * as Errors from '../types/errors';
 import { Avatar, AvatarSize } from './Avatar';
 import { IMAGE_PNG, isImage, isVideo } from '../types/MIME';
 import { formatDateTimeForAttachment } from '../util/timestamp';
@@ -25,6 +26,11 @@ import { isGIF } from '../types/Attachment';
 import { useRestoreFocus } from '../hooks/useRestoreFocus';
 import { usePrevious } from '../hooks/usePrevious';
 import { arrow } from '../util/keyboard';
+import { drop } from '../util/drop';
+import { isCmdOrCtrl } from '../hooks/useKeyboardShortcuts';
+import type { ForwardMessagesPayload } from '../state/ducks/globalModals';
+import { ForwardMessagesModalType } from './ForwardMessagesModal';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
 export type PropsType = {
   children?: ReactNode;
@@ -33,9 +39,10 @@ export type PropsType = {
   i18n: LocalizerType;
   isViewOnce?: boolean;
   media: ReadonlyArray<ReadonlyDeep<MediaItemType>>;
+  playbackDisabled: boolean;
   saveAttachment: SaveAttachmentActionCreatorType;
   selectedIndex: number;
-  toggleForwardMessagesModal: (messageIds: ReadonlyArray<string>) => unknown;
+  toggleForwardMessagesModal: (payload: ForwardMessagesPayload) => unknown;
   onMediaPlaybackStart: () => void;
   onNextAttachment: () => void;
   onPrevAttachment: () => void;
@@ -79,6 +86,7 @@ export function Lightbox({
   saveAttachment,
   selectedIndex,
   toggleForwardMessagesModal,
+  playbackDisabled,
   onMediaPlaybackStart,
   onNextAttachment,
   onPrevAttachment,
@@ -159,21 +167,24 @@ export function Lightbox({
     setVideoTime(videoElement.currentTime);
   }, [setVideoTime, videoElement]);
 
-  const handleSave = (
-    event: React.MouseEvent<HTMLButtonElement, MouseEvent>
-  ) => {
-    if (isViewOnce) {
-      return;
-    }
+  const handleSave = useCallback(
+    (
+      event: KeyboardEvent | React.MouseEvent<HTMLButtonElement, MouseEvent>
+    ) => {
+      if (isViewOnce) {
+        return;
+      }
 
-    event.stopPropagation();
-    event.preventDefault();
+      event.stopPropagation();
+      event.preventDefault();
 
-    const mediaItem = media[selectedIndex];
-    const { attachment, message, index } = mediaItem;
+      const mediaItem = media[selectedIndex];
+      const { attachment, message, index } = mediaItem;
 
-    saveAttachment(attachment, message.sent_at, index + 1);
-  };
+      saveAttachment(attachment, message.sentAt, index + 1);
+    },
+    [isViewOnce, media, saveAttachment, selectedIndex]
+  );
 
   const handleForward = (
     event: React.MouseEvent<HTMLButtonElement, MouseEvent>
@@ -187,7 +198,10 @@ export function Lightbox({
 
     closeLightbox();
     const mediaItem = media[selectedIndex];
-    toggleForwardMessagesModal([mediaItem.message.id]);
+    toggleForwardMessagesModal({
+      type: ForwardMessagesModalType.Forward,
+      messageIds: [mediaItem.message.id],
+    });
   };
 
   const onKeyDown = useCallback(
@@ -210,10 +224,16 @@ export function Lightbox({
           onNext(event);
           break;
 
+        case 's':
+          if (isCmdOrCtrl(event)) {
+            handleSave(event);
+          }
+          break;
+
         default:
       }
     },
-    [closeLightbox, onNext, onPrevious]
+    [closeLightbox, onNext, onPrevious, handleSave]
   );
 
   const onClose = (event: React.MouseEvent<HTMLElement>) => {
@@ -230,11 +250,23 @@ export function Lightbox({
 
     if (videoElement.paused) {
       onMediaPlaybackStart();
-      void videoElement.play();
+      void videoElement.play().catch(error => {
+        log.error('Lightbox: Failed to play video', Errors.toLogFormat(error));
+      });
     } else {
       videoElement.pause();
     }
   }, [videoElement, onMediaPlaybackStart]);
+
+  useEffect(() => {
+    if (!videoElement || videoElement.paused) {
+      return;
+    }
+
+    if (playbackDisabled) {
+      videoElement.pause();
+    }
+  }, [playbackDisabled, videoElement]);
 
   useEffect(() => {
     const div = document.createElement('div');
@@ -291,8 +323,12 @@ export function Lightbox({
   const thumbnailsMarginInlineStart =
     0 - (selectedIndex * THUMBNAIL_FULL_WIDTH + THUMBNAIL_WIDTH / 2);
 
+  const reducedMotion = useReducedMotion();
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- FIXME
   const [thumbnailsStyle, thumbnailsAnimation] = useSpring(
     {
+      immediate: reducedMotion,
       config: THUMBNAIL_SPRING_CONFIG,
       to: {
         marginInlineStart: thumbnailsMarginInlineStart,
@@ -314,10 +350,14 @@ export function Lightbox({
         (selectedIndex === 0 ? 1 : -1) * THUMBNAIL_FULL_WIDTH,
       opacity: 0,
     });
-    thumbnailsAnimation.start({
-      marginInlineStart: thumbnailsMarginInlineStart,
-      opacity: 1,
-    });
+    drop(
+      Promise.all(
+        thumbnailsAnimation.start({
+          marginInlineStart: thumbnailsMarginInlineStart,
+          opacity: 1,
+        })
+      )
+    );
   }, [
     needsAnimation,
     selectedIndex,
@@ -362,11 +402,15 @@ export function Lightbox({
       const posY = offsetY * ZOOM_SCALE;
       const [x, y] = maxBoundsLimiter(posX, posY);
 
-      springApi.start({
-        scale: ZOOM_SCALE,
-        translateX: shouldTranslateX ? x : undefined,
-        translateY: shouldTranslateY ? y : undefined,
-      });
+      drop(
+        Promise.all(
+          springApi.start({
+            scale: ZOOM_SCALE,
+            translateX: shouldTranslateX ? x : undefined,
+            translateY: shouldTranslateY ? y : undefined,
+          })
+        )
+      );
     },
     [maxBoundsLimiter, springApi]
   );
@@ -401,11 +445,15 @@ export function Lightbox({
       const x = dragCache.translateX + deltaX;
       const y = dragCache.translateY + deltaY;
 
-      springApi.start({
-        scale: ZOOM_SCALE,
-        translateX: x,
-        translateY: y,
-      });
+      drop(
+        Promise.all(
+          springApi.start({
+            scale: ZOOM_SCALE,
+            translateX: x,
+            translateY: y,
+          })
+        )
+      );
     },
     [springApi]
   );
@@ -446,15 +494,19 @@ export function Lightbox({
         const posY = -offsetY * ZOOM_SCALE + translateY.get();
         const [x, y] = maxBoundsLimiter(posX, posY);
 
-        springApi.start({
-          scale: ZOOM_SCALE,
-          translateX: shouldTranslateX ? x : undefined,
-          translateY: shouldTranslateY ? y : undefined,
-        });
+        drop(
+          Promise.all(
+            springApi.start({
+              scale: ZOOM_SCALE,
+              translateX: shouldTranslateX ? x : undefined,
+              translateY: shouldTranslateY ? y : undefined,
+            })
+          )
+        );
 
         setIsZoomed(true);
       } else {
-        springApi.start(INITIAL_IMAGE_TRANSFORM);
+        drop(Promise.all(springApi.start(INITIAL_IMAGE_TRANSFORM)));
         setIsZoomed(false);
       }
     },
@@ -506,6 +558,7 @@ export function Lightbox({
               <img
                 alt={i18n('icu:lightboxImageAlt')}
                 className="Lightbox__object"
+                data-testid={attachment.fileName}
                 onContextMenu={(ev: React.MouseEvent<HTMLImageElement>) => {
                   // These are the only image types supported by Electron's NativeImage
                   if (
@@ -759,7 +812,7 @@ function LightboxHeader({
       <div className="Lightbox__header--avatar">
         <Avatar
           acceptedMessageRequest={conversation.acceptedMessageRequest}
-          avatarPath={conversation.avatarPath}
+          avatarUrl={conversation.avatarUrl}
           badge={undefined}
           color={conversation.color}
           conversationType={conversation.type}
@@ -770,13 +823,13 @@ function LightboxHeader({
           sharedGroupNames={conversation.sharedGroupNames}
           size={AvatarSize.THIRTY_TWO}
           title={conversation.title}
-          unblurredAvatarPath={conversation.unblurredAvatarPath}
+          unblurredAvatarUrl={conversation.unblurredAvatarUrl}
         />
       </div>
       <div className="Lightbox__header--content">
         <div className="Lightbox__header--name">{conversation.title}</div>
         <div className="Lightbox__header--timestamp">
-          {formatDateTimeForAttachment(i18n, message.sent_at ?? now)}
+          {formatDateTimeForAttachment(i18n, message.sentAt ?? now)}
         </div>
       </div>
     </div>

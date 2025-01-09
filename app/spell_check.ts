@@ -3,7 +3,6 @@
 
 import type { BrowserWindow } from 'electron';
 import { Menu, clipboard, nativeImage } from 'electron';
-import { fileURLToPath } from 'url';
 import * as LocaleMatcher from '@formatjs/intl-localematcher';
 
 import { maybeParseUrl } from '../ts/util/url';
@@ -12,8 +11,9 @@ import type { MenuListType } from '../ts/types/menu';
 import type { LocalizerType } from '../ts/types/Util';
 import { strictAssert } from '../ts/util/assert';
 import type { LoggerType } from '../ts/types/Logging';
+import { handleAttachmentRequest } from './attachment_channel';
 
-export const FAKE_DEFAULT_LOCALE = 'en-x-ignore'; // -x- is an extension space for attaching other metadata to the locale
+export const FAKE_DEFAULT_LOCALE = 'und'; // 'und' is the BCP 47 subtag for "undetermined"
 
 strictAssert(
   new Intl.Locale(FAKE_DEFAULT_LOCALE).toString() === FAKE_DEFAULT_LOCALE,
@@ -56,6 +56,7 @@ export function getLanguages(
 export const setup = (
   browserWindow: BrowserWindow,
   preferredSystemLocales: ReadonlyArray<string>,
+  localeOverride: string | null,
   i18n: LocalizerType,
   logger: LoggerType
 ): void => {
@@ -74,13 +75,16 @@ export const setup = (
     logger.info('spellcheck: dictionary initialized:', lang);
   });
 
+  // Locale override should be combined with other preferences rather than
+  // replace them entirely.
+  const combinedLocales =
+    localeOverride != null
+      ? [localeOverride, ...preferredSystemLocales]
+      : preferredSystemLocales;
+
   const availableLocales = session.availableSpellCheckerLanguages;
-  const languages = getLanguages(
-    preferredSystemLocales,
-    availableLocales,
-    'en'
-  );
-  console.log('spellcheck: user locales:', preferredSystemLocales);
+  const languages = getLanguages(combinedLocales, availableLocales, 'en');
+  console.log('spellcheck: user locales:', combinedLocales);
   console.log(
     'spellcheck: available spellchecker languages:',
     availableLocales
@@ -93,7 +97,11 @@ export const setup = (
     const isMisspelled = Boolean(params.misspelledWord);
     const isLink = Boolean(params.linkURL);
     const isImage =
-      params.mediaType === 'image' && params.hasImageContents && params.srcURL;
+      params.mediaType === 'image' &&
+      params.hasImageContents &&
+      params.srcURL &&
+      !params.selectionText.trim();
+
     const showMenu =
       params.isEditable || editFlags.canCopy || isLink || isImage;
 
@@ -147,23 +155,35 @@ export const setup = (
           };
           label = i18n('icu:contextMenuCopyLink');
         } else if (isImage) {
-          const urlIsViewOnce =
-            params.srcURL?.includes('/temp/') ||
-            params.srcURL?.includes('\\temp\\');
-          if (urlIsViewOnce) {
-            return;
-          }
-
-          click = () => {
+          click = async () => {
             const parsedSrcUrl = maybeParseUrl(params.srcURL);
-            if (!parsedSrcUrl || parsedSrcUrl.protocol !== 'file:') {
+            if (!parsedSrcUrl || parsedSrcUrl.protocol !== 'attachment:') {
               return;
             }
 
-            const image = nativeImage.createFromPath(
-              fileURLToPath(params.srcURL)
-            );
-            clipboard.writeImage(image);
+            const urlIsViewOnce =
+              parsedSrcUrl.searchParams.get('disposition') === 'temporary';
+            if (urlIsViewOnce) {
+              return;
+            }
+
+            const req = new Request(parsedSrcUrl, {
+              method: 'GET',
+            });
+
+            try {
+              const res = await handleAttachmentRequest(req);
+              if (!res.ok) {
+                return;
+              }
+
+              const image = nativeImage.createFromBuffer(
+                Buffer.from(await res.arrayBuffer())
+              );
+              clipboard.writeImage(image);
+            } catch (error) {
+              logger.error('Failed to load image', error);
+            }
           };
           label = i18n('icu:contextMenuCopyImage');
         } else {

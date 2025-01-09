@@ -5,7 +5,7 @@ import type { KeyboardEvent } from 'react';
 import React from 'react';
 
 import type { AttachmentType } from '../../types/Attachment';
-import { canBeDownloaded } from '../../types/Attachment';
+import { canBeDownloaded, isDownloaded } from '../../types/Attachment';
 import { getSizeClass } from '../emoji/lib';
 
 import type { ShowConversationType } from '../../state/ducks/conversations';
@@ -33,7 +33,10 @@ export type Props = {
   renderLocation: RenderLocation;
   showConversation?: ShowConversationType;
   text: string;
-  textAttachment?: Pick<AttachmentType, 'pending' | 'digest' | 'key'>;
+  textAttachment?: Pick<
+    AttachmentType,
+    'pending' | 'digest' | 'key' | 'wasTooBig' | 'path'
+  >;
 };
 
 /**
@@ -59,27 +62,45 @@ export function MessageBody({
   text,
   textAttachment,
 }: Props): JSX.Element {
-  const hasReadMore = Boolean(onIncreaseTextLength);
-
   const shouldDisableLinks = disableLinks || !shouldLinkifyMessage(text);
   const textWithSuffix =
-    textAttachment?.pending || hasReadMore ? `${text}...` : text;
+    textAttachment?.pending || onIncreaseTextLength || textAttachment?.wasTooBig
+      ? `${text}...`
+      : text;
 
   const sizeClass = disableJumbomoji ? undefined : getSizeClass(text);
 
-  let pendingContent: React.ReactNode;
-  if (hasReadMore) {
-    pendingContent = null;
+  let endNotification: React.ReactNode;
+  if (onIncreaseTextLength) {
+    endNotification = (
+      <button
+        className="MessageBody__read-more"
+        onClick={() => {
+          onIncreaseTextLength();
+        }}
+        onKeyDown={(ev: KeyboardEvent) => {
+          if (ev.key === 'Space' || ev.key === 'Enter') {
+            onIncreaseTextLength();
+          }
+        }}
+        tabIndex={0}
+        type="button"
+      >
+        {' '}
+        {i18n('icu:MessageBody--read-more')}
+      </button>
+    );
   } else if (textAttachment?.pending) {
-    pendingContent = (
+    endNotification = (
       <span className="MessageBody__highlight"> {i18n('icu:downloading')}</span>
     );
   } else if (
     textAttachment &&
     canBeDownloaded(textAttachment) &&
+    !isDownloaded(textAttachment) &&
     kickOffBodyDownload
   ) {
-    pendingContent = (
+    endNotification = (
       <span>
         {' '}
         <button
@@ -99,8 +120,14 @@ export function MessageBody({
         </button>
       </span>
     );
+  } else if (textAttachment?.wasTooBig) {
+    endNotification = (
+      <span className="MessageBody__message-too-long">
+        {' '}
+        {i18n('icu:MessageBody--message-too-long')}
+      </span>
+    );
   }
-
   return (
     <span>
       {author && (
@@ -135,25 +162,7 @@ export function MessageBody({
         textLength={text.length}
       />
 
-      {pendingContent}
-      {onIncreaseTextLength ? (
-        <button
-          className="MessageBody__read-more"
-          onClick={() => {
-            onIncreaseTextLength();
-          }}
-          onKeyDown={(ev: KeyboardEvent) => {
-            if (ev.key === 'Space' || ev.key === 'Enter') {
-              onIncreaseTextLength();
-            }
-          }}
-          tabIndex={0}
-          type="button"
-        >
-          {' '}
-          {i18n('icu:MessageBody--read-more')}
-        </button>
-      ) : null}
+      {endNotification}
     </span>
   );
 }

@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import { partition } from 'lodash';
-import * as AttachmentDownloads from '../messageModifiers/AttachmentDownloads';
-import * as log from '../logging/log';
+import * as logger from '../logging/log';
 import { isLongMessage } from '../types/MIME';
 import { getMessageIdForLogging } from './idForLogging';
 import {
@@ -11,9 +10,9 @@ import {
   savePackMetadata,
   getStickerPackStatus,
 } from '../types/Stickers';
-import dataInterface from '../sql/Client';
+import { DataWriter } from '../sql/Client';
 
-import type { AttachmentType } from '../types/Attachment';
+import type { AttachmentType, ThumbnailType } from '../types/Attachment';
 import type { EmbeddedContactType } from '../types/EmbeddedContact';
 import type {
   EditHistoryType,
@@ -22,15 +21,20 @@ import type {
 } from '../model-types.d';
 import * as Errors from '../types/errors';
 import {
-  getAttachmentSignature,
+  getAttachmentSignatureSafe,
   isDownloading,
   isDownloaded,
 } from '../types/Attachment';
 import type { StickerType } from '../types/Stickers';
 import type { LinkPreviewType } from '../types/message/LinkPreviews';
 import { isNotNil } from './isNotNil';
+import {
+  AttachmentDownloadManager,
+  AttachmentDownloadUrgency,
+} from '../jobs/AttachmentDownloadManager';
+import { AttachmentDownloadSource } from '../sql/Interface';
 
-type ReturnType = {
+export type MessageAttachmentsDownloadedType = {
   bodyAttachment?: AttachmentType;
   attachments: Array<AttachmentType>;
   editHistory?: Array<EditHistoryType>;
@@ -40,12 +44,24 @@ type ReturnType = {
   sticker?: StickerType;
 };
 
+function getLogger(source: AttachmentDownloadSource) {
+  const verbose = source !== AttachmentDownloadSource.BACKUP_IMPORT;
+  const log = verbose ? logger : { ...logger, info: () => null };
+  return log;
+}
 // Receive logic
 // NOTE: If you're changing any logic in this function that deals with the
 // count then you'll also have to modify ./hasAttachmentsDownloads
 export async function queueAttachmentDownloads(
-  message: MessageAttributesType
-): Promise<ReturnType | undefined> {
+  message: MessageAttributesType,
+  {
+    urgency = AttachmentDownloadUrgency.STANDARD,
+    source = AttachmentDownloadSource.STANDARD,
+  }: {
+    urgency?: AttachmentDownloadUrgency;
+    source?: AttachmentDownloadSource;
+  } = {}
+): Promise<MessageAttachmentsDownloadedType | undefined> {
   const attachmentsToQueue = message.attachments || [];
   const messageId = message.id;
   const idForLogging = getMessageIdForLogging(message);
@@ -54,10 +70,7 @@ export async function queueAttachmentDownloads(
   let bodyAttachment;
 
   const idLog = `queueAttachmentDownloads(${idForLogging}})`;
-
-  log.info(
-    `${idLog}: Queueing ${attachmentsToQueue.length} attachment downloads`
-  );
+  const log = getLogger(source);
 
   const [longMessageAttachments, normalAttachments] = partition(
     attachmentsToQueue,
@@ -68,68 +81,107 @@ export async function queueAttachmentDownloads(
     log.error(`${idLog}: Received more than one long message attachment`);
   }
 
-  log.info(
-    `${idLog}: Queueing ${longMessageAttachments.length} long message attachment downloads`
-  );
-
   if (longMessageAttachments.length > 0) {
-    count += 1;
     [bodyAttachment] = longMessageAttachments;
   }
+
   if (!bodyAttachment && message.bodyAttachment) {
-    count += 1;
     bodyAttachment = message.bodyAttachment;
   }
 
-  if (bodyAttachment) {
-    await AttachmentDownloads.addJob(bodyAttachment, {
-      messageId,
-      type: 'long-message',
-      index: 0,
-    });
+  const bodyAttachmentsToDownload = [
+    bodyAttachment,
+    ...(message.editHistory
+      ?.slice(1) // first entry is the same as the root level message!
+      .map(editHistory => editHistory.bodyAttachment) ?? []),
+  ]
+    .filter(isNotNil)
+    .filter(attachment => !isDownloaded(attachment));
+
+  if (bodyAttachmentsToDownload.length) {
+    log.info(
+      `${idLog}: Queueing ${bodyAttachmentsToDownload.length} long message attachment download`
+    );
+    await Promise.all(
+      bodyAttachmentsToDownload.map(attachment =>
+        AttachmentDownloadManager.addJob({
+          attachment,
+          messageId,
+          attachmentType: 'long-message',
+          receivedAt: message.received_at,
+          sentAt: message.sent_at,
+          urgency,
+          source,
+        })
+      )
+    );
+    count += bodyAttachmentsToDownload.length;
   }
 
-  log.info(
-    `${idLog}: Queueing ${normalAttachments.length} normal attachment downloads`
-  );
+  if (normalAttachments.length > 0) {
+    log.info(
+      `${idLog}: Queueing ${normalAttachments.length} normal attachment downloads`
+    );
+  }
   const { attachments, count: attachmentsCount } = await queueNormalAttachments(
-    idLog,
-    messageId,
-    normalAttachments,
-    message.editHistory?.flatMap(x => x.attachments ?? [])
+    {
+      idLog,
+      messageId,
+      attachments: normalAttachments,
+      otherAttachments: message.editHistory?.flatMap(x => x.attachments ?? []),
+      receivedAt: message.received_at,
+      sentAt: message.sent_at,
+      urgency,
+      source,
+    }
   );
   count += attachmentsCount;
 
   const previewsToQueue = message.preview || [];
-  log.info(
-    `${idLog}: Queueing ${previewsToQueue.length} preview attachment downloads`
-  );
-  const { preview, count: previewCount } = await queuePreviews(
+  if (previewsToQueue.length > 0) {
+    log.info(
+      `${idLog}: Queueing ${previewsToQueue.length} preview attachment downloads`
+    );
+  }
+  const { preview, count: previewCount } = await queuePreviews({
     idLog,
     messageId,
-    previewsToQueue,
-    message.editHistory?.flatMap(x => x.preview ?? [])
-  );
+    previews: previewsToQueue,
+    otherPreviews: message.editHistory?.flatMap(x => x.preview ?? []),
+    receivedAt: message.received_at,
+    sentAt: message.sent_at,
+    urgency,
+    source,
+  });
   count += previewCount;
 
-  log.info(
-    `${idLog}: Queueing ${message.quote?.attachments?.length ?? 0} ` +
-      'quote attachment downloads'
-  );
-  const { quote, count: thumbnailCount } = await queueQuoteAttachments(
+  const numQuoteAttachments = message.quote?.attachments?.length ?? 0;
+  if (numQuoteAttachments > 0) {
+    log.info(
+      `${idLog}: Queueing ${numQuoteAttachments} ` +
+        'quote attachment downloads'
+    );
+  }
+  const { quote, count: thumbnailCount } = await queueQuoteAttachments({
     idLog,
     messageId,
-    message.quote,
-    message.editHistory?.map(x => x.quote).filter(isNotNil) ?? []
-  );
+    quote: message.quote,
+    otherQuotes: message.editHistory?.map(x => x.quote).filter(isNotNil) ?? [],
+    receivedAt: message.received_at,
+    sentAt: message.sent_at,
+    urgency,
+    source,
+  });
   count += thumbnailCount;
 
   const contactsToQueue = message.contact || [];
-  log.info(
-    `${idLog}: Queueing ${contactsToQueue.length} contact attachment downloads`
-  );
+  if (contactsToQueue.length > 0) {
+    log.info(
+      `${idLog}: Queueing ${contactsToQueue.length} contact attachment downloads`
+    );
+  }
   const contact = await Promise.all(
-    contactsToQueue.map(async (item, index) => {
+    contactsToQueue.map(async item => {
       if (!item.avatar || !item.avatar.avatar) {
         return item;
       }
@@ -144,10 +196,14 @@ export async function queueAttachmentDownloads(
         ...item,
         avatar: {
           ...item.avatar,
-          avatar: await AttachmentDownloads.addJob(item.avatar.avatar, {
+          avatar: await AttachmentDownloadManager.addJob({
+            attachment: item.avatar.avatar,
             messageId,
-            type: 'contact',
-            index,
+            attachmentType: 'contact',
+            receivedAt: message.received_at,
+            sentAt: message.sent_at,
+            urgency,
+            source,
           }),
         },
       };
@@ -175,18 +231,26 @@ export async function queueAttachmentDownloads(
         );
       }
     }
-    if (!data && sticker.data) {
-      data = await AttachmentDownloads.addJob(sticker.data, {
-        messageId,
-        type: 'sticker',
-        index: 0,
-      });
+    if (!data) {
+      if (sticker.data) {
+        data = await AttachmentDownloadManager.addJob({
+          attachment: sticker.data,
+          messageId,
+          attachmentType: 'sticker',
+          receivedAt: message.received_at,
+          sentAt: message.sent_at,
+          urgency,
+          source,
+        });
+      } else {
+        log.error(`${idLog}: Sticker data was missing`);
+      }
     }
     if (!status) {
       // Save the packId/packKey for future download/install
       void savePackMetadata(packId, packKey, { messageId });
     } else {
-      await dataInterface.addStickerPackReference(messageId, packId);
+      await DataWriter.addStickerPackReference(messageId, packId);
     }
 
     if (!data) {
@@ -206,12 +270,16 @@ export async function queueAttachmentDownloads(
     editHistory = await Promise.all(
       editHistory.map(async edit => {
         const { attachments: editAttachments, count: editAttachmentsCount } =
-          await queueNormalAttachments(
+          await queueNormalAttachments({
             idLog,
             messageId,
-            edit.attachments,
-            attachments
-          );
+            attachments: edit.attachments,
+            otherAttachments: attachments,
+            receivedAt: message.received_at,
+            sentAt: message.sent_at,
+            urgency,
+            source,
+          });
         count += editAttachmentsCount;
         if (editAttachmentsCount !== 0) {
           log.info(
@@ -221,7 +289,16 @@ export async function queueAttachmentDownloads(
         }
 
         const { preview: editPreview, count: editPreviewCount } =
-          await queuePreviews(idLog, messageId, edit.preview, preview);
+          await queuePreviews({
+            idLog,
+            messageId,
+            previews: edit.preview,
+            otherPreviews: preview,
+            receivedAt: message.received_at,
+            sentAt: message.sent_at,
+            urgency,
+            source,
+          });
         count += editPreviewCount;
         if (editPreviewCount !== 0) {
           log.info(
@@ -239,11 +316,11 @@ export async function queueAttachmentDownloads(
     );
   }
 
-  log.info(`${idLog}: Queued ${count} total attachment downloads`);
-
   if (count <= 0) {
     return;
   }
+
+  log.info(`${idLog}: Queued ${count} total attachment downloads`);
 
   return {
     attachments,
@@ -256,15 +333,29 @@ export async function queueAttachmentDownloads(
   };
 }
 
-async function queueNormalAttachments(
-  idLog: string,
-  messageId: string,
-  attachments: MessageAttributesType['attachments'] = [],
-  otherAttachments: MessageAttributesType['attachments']
-): Promise<{
+async function queueNormalAttachments({
+  idLog,
+  messageId,
+  attachments = [],
+  otherAttachments,
+  receivedAt,
+  sentAt,
+  urgency,
+  source,
+}: {
+  idLog: string;
+  messageId: string;
+  attachments: MessageAttributesType['attachments'];
+  otherAttachments: MessageAttributesType['attachments'];
+  receivedAt: number;
+  sentAt: number;
+  urgency: AttachmentDownloadUrgency;
+  source: AttachmentDownloadSource;
+}): Promise<{
   attachments: Array<AttachmentType>;
   count: number;
 }> {
+  const log = getLogger(source);
   // Look through "otherAttachments" which can either be attachments in the
   // edit history or the message's attachments and see if any of the attachments
   // are the same. If they are let's replace it so that we don't download more
@@ -273,7 +364,7 @@ async function queueNormalAttachments(
   // then not be added to the AttachmentDownloads job.
   const attachmentSignatures: Map<string, AttachmentType> = new Map();
   otherAttachments?.forEach(attachment => {
-    const signature = getAttachmentSignature(attachment);
+    const signature = getAttachmentSignatureSafe(attachment);
     if (signature) {
       attachmentSignatures.set(signature, attachment);
     }
@@ -281,7 +372,7 @@ async function queueNormalAttachments(
 
   let count = 0;
   const nextAttachments = await Promise.all(
-    attachments.map((attachment, index) => {
+    attachments.map(attachment => {
       if (!attachment) {
         return attachment;
       }
@@ -291,7 +382,7 @@ async function queueNormalAttachments(
         return attachment;
       }
 
-      const signature = getAttachmentSignature(attachment);
+      const signature = getAttachmentSignatureSafe(attachment);
       const existingAttachment = signature
         ? attachmentSignatures.get(signature)
         : undefined;
@@ -311,10 +402,14 @@ async function queueNormalAttachments(
 
       count += 1;
 
-      return AttachmentDownloads.addJob(attachment, {
+      return AttachmentDownloadManager.addJob({
+        attachment,
         messageId,
-        type: 'attachment',
-        index,
+        attachmentType: 'attachment',
+        receivedAt,
+        sentAt,
+        urgency,
+        source,
       });
     })
   );
@@ -332,15 +427,34 @@ function getLinkPreviewSignature(preview: LinkPreviewType): string | undefined {
     return;
   }
 
-  return `<${url}>${getAttachmentSignature(image)}`;
+  const signature = getAttachmentSignatureSafe(image);
+  if (!signature) {
+    return;
+  }
+
+  return `<${url}>${signature}`;
 }
 
-async function queuePreviews(
-  idLog: string,
-  messageId: string,
-  previews: MessageAttributesType['preview'] = [],
-  otherPreviews: MessageAttributesType['preview']
-): Promise<{ preview: Array<LinkPreviewType>; count: number }> {
+async function queuePreviews({
+  idLog,
+  messageId,
+  previews = [],
+  otherPreviews,
+  receivedAt,
+  sentAt,
+  urgency,
+  source,
+}: {
+  idLog: string;
+  messageId: string;
+  previews: MessageAttributesType['preview'];
+  otherPreviews: MessageAttributesType['preview'];
+  receivedAt: number;
+  sentAt: number;
+  urgency: AttachmentDownloadUrgency;
+  source: AttachmentDownloadSource;
+}): Promise<{ preview: Array<LinkPreviewType>; count: number }> {
+  const log = getLogger(source);
   // Similar to queueNormalAttachments' logic for detecting same attachments
   // except here we also pick by link preview URL.
   const previewSignatures: Map<string, LinkPreviewType> = new Map();
@@ -355,7 +469,7 @@ async function queuePreviews(
   let count = 0;
 
   const preview = await Promise.all(
-    previews.map(async (item, index) => {
+    previews.map(async item => {
       if (!item.image) {
         return item;
       }
@@ -384,10 +498,14 @@ async function queuePreviews(
       count += 1;
       return {
         ...item,
-        image: await AttachmentDownloads.addJob(item.image, {
+        image: await AttachmentDownloadManager.addJob({
+          attachment: item.image,
           messageId,
-          type: 'preview',
-          index,
+          attachmentType: 'preview',
+          receivedAt,
+          sentAt,
+          urgency,
+          source,
         }),
       };
     })
@@ -406,15 +524,33 @@ function getQuoteThumbnailSignature(
   if (!thumbnail) {
     return undefined;
   }
-  return `<${quote.id}>${getAttachmentSignature(thumbnail)}`;
+  const signature = getAttachmentSignatureSafe(thumbnail);
+  if (!signature) {
+    return;
+  }
+  return `<${quote.id}>${signature}`;
 }
 
-async function queueQuoteAttachments(
-  idLog: string,
-  messageId: string,
-  quote: QuotedMessageType | undefined,
-  otherQuotes: ReadonlyArray<QuotedMessageType>
-): Promise<{ quote?: QuotedMessageType; count: number }> {
+async function queueQuoteAttachments({
+  idLog,
+  messageId,
+  quote,
+  otherQuotes,
+  receivedAt,
+  sentAt,
+  urgency,
+  source,
+}: {
+  idLog: string;
+  messageId: string;
+  quote: QuotedMessageType | undefined;
+  otherQuotes: ReadonlyArray<QuotedMessageType>;
+  receivedAt: number;
+  sentAt: number;
+  urgency: AttachmentDownloadUrgency;
+  source: AttachmentDownloadSource;
+}): Promise<{ quote?: QuotedMessageType; count: number }> {
+  const log = getLogger(source);
   let count = 0;
   if (!quote) {
     return { quote, count };
@@ -428,17 +564,17 @@ async function queueQuoteAttachments(
 
   // Similar to queueNormalAttachments' logic for detecting same attachments
   // except here we also pick by quote sent timestamp.
-  const thumbnailSignatures: Map<string, AttachmentType> = new Map();
+  const thumbnailSignatures: Map<string, ThumbnailType> = new Map();
   otherQuotes.forEach(otherQuote => {
     for (const attachment of otherQuote.attachments) {
       const signature = getQuoteThumbnailSignature(
         otherQuote,
         attachment.thumbnail
       );
-      if (!signature) {
+      if (!signature || !attachment.thumbnail) {
         continue;
       }
-      thumbnailSignatures.set(signature, attachment);
+      thumbnailSignatures.set(signature, attachment.thumbnail);
     }
   });
 
@@ -446,7 +582,7 @@ async function queueQuoteAttachments(
     quote: {
       ...quote,
       attachments: await Promise.all(
-        quote.attachments.map(async (item, index) => {
+        quote.attachments.map(async item => {
           if (!item.thumbnail) {
             return item;
           }
@@ -481,10 +617,14 @@ async function queueQuoteAttachments(
           count += 1;
           return {
             ...item,
-            thumbnail: await AttachmentDownloads.addJob(item.thumbnail, {
+            thumbnail: await AttachmentDownloadManager.addJob({
+              attachment: item.thumbnail,
               messageId,
-              type: 'quote',
-              index,
+              attachmentType: 'quote',
+              receivedAt,
+              sentAt,
+              urgency,
+              source,
             }),
           };
         })

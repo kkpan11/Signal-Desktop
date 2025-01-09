@@ -3,17 +3,22 @@
 
 import { Buffer } from 'buffer';
 import Long from 'long';
-import { HKDF } from '@signalapp/libsignal-client';
+import { Aci, HKDF } from '@signalapp/libsignal-client';
+import { AccountEntropyPool } from '@signalapp/libsignal-client/dist/AccountKeys';
 
 import * as Bytes from './Bytes';
+import { Crypto } from './context/Crypto';
 import { calculateAgreement, generateKeyPair } from './Curve';
 import { HashType, CipherType } from './types/Crypto';
 import { ProfileDecryptError } from './types/errors';
 import { getBytesSubarray } from './util/uuidToBytes';
+import { logPadSize } from './util/logPadding';
+import { Environment, getEnvironment } from './environment';
+import { toWebSafeBase64 } from './util/webSafeBase64';
+
+import type { AciString } from './types/ServiceId';
 
 export { HashType, CipherType };
-
-export const UUID_BYTE_SIZE = 16;
 
 const PROFILE_IV_LENGTH = 12; // bytes
 const PROFILE_KEY_LENGTH = 32; // bytes
@@ -29,6 +34,7 @@ export const PaddedLengths = {
 export type EncryptedAttachment = {
   ciphertext: Uint8Array;
   digest: Uint8Array;
+  plaintextHash: string;
 };
 
 export function generateRegistrationId(): number {
@@ -66,6 +72,26 @@ export function deriveMasterKeyFromGroupV1(groupV1Id: Uint8Array): Uint8Array {
   const [part1] = deriveSecrets(groupV1Id, salt, info);
 
   return part1;
+}
+
+export function hashProfileKey(
+  profileKey: string | undefined,
+  aci: AciString
+): string {
+  if (!profileKey) {
+    return 'none';
+  }
+
+  const profileKeyBytes = Bytes.fromBase64(profileKey);
+  const aciBytes = Aci.parseFromServiceIdString(aci).getRawUuidBytes();
+  const hashBytes = hmacSha256(
+    profileKeyBytes,
+    Bytes.concatenate([Bytes.fromString('profileKeyHash'), aciBytes])
+  );
+
+  const webSafe = toWebSafeBase64(Bytes.toBase64(hashBytes));
+
+  return webSafe.slice(-3);
 }
 
 export function computeHash(data: Uint8Array): string {
@@ -129,6 +155,14 @@ export function decryptDeviceName(
   return Bytes.toString(plaintext);
 }
 
+export function deriveMasterKey(accountEntropyPool: string): Uint8Array {
+  return AccountEntropyPool.deriveSvrKey(accountEntropyPool);
+}
+
+export function deriveStorageServiceKey(masterKey: Uint8Array): Uint8Array {
+  return hmacSha256(masterKey, Bytes.fromString('Storage Service Encryption'));
+}
+
 export function deriveStorageManifestKey(
   storageServiceKey: Uint8Array,
   version: Long = Long.fromNumber(0)
@@ -136,11 +170,36 @@ export function deriveStorageManifestKey(
   return hmacSha256(storageServiceKey, Bytes.fromString(`Manifest_${version}`));
 }
 
-export function deriveStorageItemKey(
-  storageServiceKey: Uint8Array,
-  itemID: string
-): Uint8Array {
-  return hmacSha256(storageServiceKey, Bytes.fromString(`Item_${itemID}`));
+const STORAGE_SERVICE_ITEM_KEY_INFO_PREFIX =
+  '20240801_SIGNAL_STORAGE_SERVICE_ITEM_';
+const STORAGE_SERVICE_ITEM_KEY_LEN = 32;
+
+export type DeriveStorageItemKeyOptionsType = Readonly<{
+  storageServiceKey: Uint8Array;
+  recordIkm: Uint8Array | undefined;
+  key: Uint8Array;
+}>;
+
+export function deriveStorageItemKey({
+  storageServiceKey,
+  recordIkm,
+  key,
+}: DeriveStorageItemKeyOptionsType): Uint8Array {
+  if (recordIkm == null) {
+    const itemID = Bytes.toBase64(key);
+    return hmacSha256(storageServiceKey, Bytes.fromString(`Item_${itemID}`));
+  }
+
+  const hkdf = HKDF.new(3);
+  return hkdf.deriveSecrets(
+    STORAGE_SERVICE_ITEM_KEY_LEN,
+    Buffer.from(recordIkm),
+    Buffer.concat([
+      Buffer.from(STORAGE_SERVICE_ITEM_KEY_INFO_PREFIX),
+      Buffer.from(key),
+    ]),
+    Buffer.alloc(0)
+  );
 }
 
 export function deriveAccessKey(profileKey: Uint8Array): Uint8Array {
@@ -171,8 +230,8 @@ export function verifyAccessKey(
 }
 
 const IV_LENGTH = 16;
-const MAC_LENGTH = 16;
 const NONCE_LENGTH = 16;
+const SYMMETRIC_MAC_LENGTH = 16;
 
 export function encryptSymmetric(
   key: Uint8Array,
@@ -185,7 +244,10 @@ export function encryptSymmetric(
   const macKey = hmacSha256(key, cipherKey);
 
   const ciphertext = encryptAes256CbcPkcsPadding(cipherKey, plaintext, iv);
-  const mac = getFirstBytes(hmacSha256(macKey, ciphertext), MAC_LENGTH);
+  const mac = getFirstBytes(
+    hmacSha256(macKey, ciphertext),
+    SYMMETRIC_MAC_LENGTH
+  );
 
   return Bytes.concatenate([nonce, ciphertext, mac]);
 }
@@ -200,18 +262,21 @@ export function decryptSymmetric(
   const ciphertext = getBytesSubarray(
     data,
     NONCE_LENGTH,
-    data.byteLength - NONCE_LENGTH - MAC_LENGTH
+    data.byteLength - NONCE_LENGTH - SYMMETRIC_MAC_LENGTH
   );
   const theirMac = getBytesSubarray(
     data,
-    data.byteLength - MAC_LENGTH,
-    MAC_LENGTH
+    data.byteLength - SYMMETRIC_MAC_LENGTH,
+    SYMMETRIC_MAC_LENGTH
   );
 
   const cipherKey = hmacSha256(key, nonce);
   const macKey = hmacSha256(key, cipherKey);
 
-  const ourMac = getFirstBytes(hmacSha256(macKey, ciphertext), MAC_LENGTH);
+  const ourMac = getFirstBytes(
+    hmacSha256(macKey, ciphertext),
+    SYMMETRIC_MAC_LENGTH
+  );
   if (!constantTimeEqual(theirMac, ourMac)) {
     throw new Error(
       'decryptSymmetric: Failed to decrypt; MAC verification failed'
@@ -377,7 +442,7 @@ function verifyDigest(data: Uint8Array, theirDigest: Uint8Array): void {
   }
 }
 
-export function decryptAttachment(
+export function decryptAttachmentV1(
   encryptedBin: Uint8Array,
   keys: Uint8Array,
   theirDigest?: Uint8Array
@@ -409,20 +474,31 @@ export function decryptAttachment(
   return decryptAes256CbcPkcsPadding(aesKey, ciphertext, iv);
 }
 
-export function encryptAttachment(
-  plaintext: Readonly<Uint8Array>,
-  keys: Readonly<Uint8Array>
-): EncryptedAttachment {
+export function encryptAttachment({
+  plaintext,
+  keys,
+  dangerousTestOnlyIv,
+}: {
+  plaintext: Readonly<Uint8Array>;
+  keys: Readonly<Uint8Array>;
+  dangerousTestOnlyIv?: Readonly<Uint8Array>;
+}): Omit<EncryptedAttachment, 'plaintextHash'> {
+  const logId = 'encryptAttachment';
   if (!(plaintext instanceof Uint8Array)) {
     throw new TypeError(
-      `\`plaintext\` must be an \`Uint8Array\`; got: ${typeof plaintext}`
+      `${logId}: \`plaintext\` must be an \`Uint8Array\`; got: ${typeof plaintext}`
     );
   }
 
   if (keys.byteLength !== 64) {
-    throw new Error('Got invalid length attachment keys');
+    throw new Error(`${logId}: invalid length attachment keys`);
   }
-  const iv = getRandomBytes(16);
+
+  if (dangerousTestOnlyIv && getEnvironment() !== Environment.Test) {
+    throw new Error(`${logId}: Used dangerousTestOnlyIv outside tests!`);
+  }
+
+  const iv = dangerousTestOnlyIv || getRandomBytes(16);
   const aesKey = keys.slice(0, 32);
   const macKey = keys.slice(32, 64);
 
@@ -441,22 +517,30 @@ export function encryptAttachment(
   };
 }
 
-export function getAttachmentSizeBucket(size: number): number {
-  return Math.max(
-    541,
-    Math.floor(1.05 ** Math.ceil(Math.log(size) / Math.log(1.05)))
-  );
-}
-
-export function padAndEncryptAttachment(
-  data: Readonly<Uint8Array>,
-  keys: Readonly<Uint8Array>
-): EncryptedAttachment {
-  const size = data.byteLength;
-  const paddedSize = getAttachmentSizeBucket(size);
+export function padAndEncryptAttachment({
+  plaintext,
+  keys,
+  dangerousTestOnlyIv,
+}: {
+  plaintext: Readonly<Uint8Array>;
+  keys: Readonly<Uint8Array>;
+  dangerousTestOnlyIv?: Readonly<Uint8Array>;
+}): EncryptedAttachment {
+  const size = plaintext.byteLength;
+  const paddedSize = logPadSize(size);
   const padding = getZeroes(paddedSize - size);
 
-  return encryptAttachment(Bytes.concatenate([data, padding]), keys);
+  return {
+    ...encryptAttachment({
+      plaintext: Bytes.concatenate([plaintext, padding]),
+      keys,
+      dangerousTestOnlyIv,
+    }),
+    // We generate the plaintext hash here for forwards-compatibility with streaming
+    // attachment encryption, which may be the only place that the whole attachment flows
+    // through memory
+    plaintextHash: Buffer.from(sha256(plaintext)).toString('hex'),
+  };
 }
 
 export function encryptProfile(data: Uint8Array, key: Uint8Array): Uint8Array {
@@ -497,7 +581,7 @@ export function decryptProfile(data: Uint8Array, key: Uint8Array): Uint8Array {
 export function encryptProfileItemWithPadding(
   item: Uint8Array,
   profileKey: Uint8Array,
-  paddedLengths: typeof PaddedLengths[keyof typeof PaddedLengths]
+  paddedLengths: (typeof PaddedLengths)[keyof typeof PaddedLengths]
 ): Uint8Array {
   const paddedLength = paddedLengths.find(
     (length: number) => item.byteLength <= length
@@ -544,7 +628,7 @@ export function decryptProfileName(
 // SignalContext APIs
 //
 
-const { crypto } = globalThis.window?.SignalContext ?? {};
+const crypto = globalThis.window?.SignalContext.crypto || new Crypto();
 
 export function sign(key: Uint8Array, data: Uint8Array): Uint8Array {
   return crypto.sign(key, data);

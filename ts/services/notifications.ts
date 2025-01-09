@@ -36,8 +36,8 @@ type NotificationDataType = Readonly<{
 
 export type NotificationClickData = Readonly<{
   conversationId: string;
-  messageId?: string;
-  storyId?: string;
+  messageId: string | null;
+  storyId: string | null;
 }>;
 export type WindowsNotificationData = {
   avatarPath?: string;
@@ -208,8 +208,8 @@ class NotificationService extends EventEmitter {
           window.IPC.showWindow();
           window.Events.showConversationViaNotification({
             conversationId,
-            messageId,
-            storyId,
+            messageId: messageId ?? null,
+            storyId: storyId ?? null,
           });
         } else if (type === NotificationType.IncomingGroupCall) {
           window.IPC.showWindow();
@@ -218,7 +218,7 @@ class NotificationService extends EventEmitter {
             isVideoCall: true,
           });
         } else if (type === NotificationType.IsPresenting) {
-          window.reduxActions?.calling?.setPresenting();
+          window.reduxActions?.calling?.cancelPresenting();
         } else if (type === NotificationType.IncomingCall) {
           window.IPC.showWindow();
         } else {
@@ -487,4 +487,21 @@ function filterNotificationText(text: string) {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
+}
+
+export function shouldSaveNotificationAvatarToDisk(): boolean {
+  const notificationSetting = notificationService.getNotificationSetting();
+  switch (notificationSetting) {
+    case NotificationSetting.NameOnly:
+    case NotificationSetting.NameAndMessage:
+      // According to the MSDN, avatars can only be loaded from disk or an
+      // http server:
+      // https://learn.microsoft.com/en-us/uwp/schemas/tiles/toastschema/element-image?redirectedfrom=MSDN
+      return OS.isWindows();
+    case NotificationSetting.Off:
+    case NotificationSetting.NoNameOrMessage:
+      return false;
+    default:
+      throw missingCaseError(notificationSetting);
+  }
 }

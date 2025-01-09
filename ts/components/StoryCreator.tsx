@@ -97,11 +97,10 @@ export type PropsType = {
   Pick<
     MediaEditorPropsType,
     | 'isFormattingEnabled'
-    | 'isFormattingFlagEnabled'
-    | 'isFormattingSpoilersFlagEnabled'
     | 'onPickEmoji'
     | 'onTextTooLong'
     | 'platform'
+    | 'sortedGroupMembers'
   >;
 
 export function StoryCreator({
@@ -117,8 +116,6 @@ export function StoryCreator({
   imageToBlurHash,
   installedPacks,
   isFormattingEnabled,
-  isFormattingFlagEnabled,
-  isFormattingSpoilersFlagEnabled,
   isSending,
   linkPreview,
   me,
@@ -146,6 +143,7 @@ export function StoryCreator({
   setMyStoriesToAllSignalConnections,
   signalConnections,
   skinTone,
+  sortedGroupMembers,
   theme,
   toggleGroupsForStorySend,
   toggleSignalConnectionsModal,
@@ -254,8 +252,6 @@ export function StoryCreator({
               imageToBlurHash={imageToBlurHash}
               installedPacks={installedPacks}
               isFormattingEnabled={isFormattingEnabled}
-              isFormattingFlagEnabled={isFormattingFlagEnabled}
-              isFormattingSpoilersFlagEnabled={isFormattingSpoilersFlagEnabled}
               isSending={isSending}
               onClose={onClose}
               onDone={({
@@ -278,9 +274,13 @@ export function StoryCreator({
               }}
               onPickEmoji={onPickEmoji}
               onTextTooLong={onTextTooLong}
+              ourConversationId={ourConversationId}
               platform={platform}
               recentStickers={recentStickers}
               skinTone={skinTone}
+              sortedGroupMembers={sortedGroupMembers}
+              draftText={null}
+              draftBodyRanges={null}
             />
           )}
           {!file && (

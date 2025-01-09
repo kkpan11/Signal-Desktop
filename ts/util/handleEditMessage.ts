@@ -6,13 +6,14 @@ import type { EditAttributesType } from '../messageModifiers/Edits';
 import type {
   EditHistoryType,
   MessageAttributesType,
+  QuotedAttachmentType,
   QuotedMessageType,
 } from '../model-types.d';
 import type { LinkPreviewType } from '../types/message/LinkPreviews';
 import * as Edits from '../messageModifiers/Edits';
 import * as log from '../logging/log';
 import { ReadStatus } from '../messages/MessageReadStatus';
-import dataInterface from '../sql/Client';
+import { DataWriter } from '../sql/Client';
 import { drop } from './drop';
 import { getAttachmentSignature, isVoiceMessage } from '../types/Attachment';
 import { isAciString } from './isAciString';
@@ -23,8 +24,23 @@ import { isDirectConversation } from './whatTypeOfConversation';
 import { isTooOldToModifyMessage } from './isTooOldToModifyMessage';
 import { queueAttachmentDownloads } from './queueAttachmentDownloads';
 import { modifyTargetMessage } from './modifyTargetMessage';
+import { isMessageNoteToSelf } from './isMessageNoteToSelf';
 
 const RECURSION_LIMIT = 15;
+
+function getAttachmentSignatureSafe(
+  attachment: AttachmentType
+): string | undefined {
+  try {
+    return getAttachmentSignature(attachment);
+  } catch {
+    log.warn(
+      'handleEditMessage: attachment was missing digest',
+      attachment.blurHash
+    );
+    return undefined;
+  }
+}
 
 export async function handleEditMessage(
   mainMessage: MessageAttributesType,
@@ -77,21 +93,20 @@ export async function handleEditMessage(
   }
 
   const { serverTimestamp } = editAttributes.message;
-  const isNoteToSelf =
-    mainMessage.conversationId ===
-    window.ConversationController.getOurConversationId();
+
   if (
     serverTimestamp &&
-    !isNoteToSelf &&
+    !isMessageNoteToSelf(mainMessage) &&
     isTooOldToModifyMessage(serverTimestamp, mainMessage)
   ) {
     log.warn(`${idLog}: cannot edit message older than 48h`, serverTimestamp);
     return;
   }
 
-  const mainMessageModel = window.MessageController.register(
+  const mainMessageModel = window.MessageCache.__DEPRECATED$register(
     mainMessage.id,
-    mainMessage
+    mainMessage,
+    'handleEditMessage'
   );
 
   // Pull out the edit history from the main message. If this is the first edit
@@ -100,11 +115,17 @@ export async function handleEditMessage(
     {
       attachments: mainMessage.attachments,
       body: mainMessage.body,
+      bodyAttachment: mainMessage.bodyAttachment,
       bodyRanges: mainMessage.bodyRanges,
       preview: mainMessage.preview,
       quote: mainMessage.quote,
       sendStateByConversationId: { ...mainMessage.sendStateByConversationId },
       timestamp: mainMessage.timestamp,
+      received_at: mainMessage.received_at,
+      received_at_ms: mainMessage.received_at_ms,
+      serverTimestamp: mainMessage.serverTimestamp,
+      readStatus: mainMessage.readStatus,
+      unidentifiedDeliveryReceived: mainMessage.unidentifiedDeliveryReceived,
     },
   ];
 
@@ -125,10 +146,10 @@ export async function handleEditMessage(
   // and they have already been downloaded.
   const attachmentSignatures: Map<string, AttachmentType> = new Map();
   const previewSignatures: Map<string, LinkPreviewType> = new Map();
-  const quoteSignatures: Map<string, AttachmentType> = new Map();
+  const quoteSignatures: Map<string, QuotedAttachmentType> = new Map();
 
   mainMessage.attachments?.forEach(attachment => {
-    const signature = getAttachmentSignature(attachment);
+    const signature = getAttachmentSignatureSafe(attachment);
     if (signature) {
       attachmentSignatures.set(signature, attachment);
     }
@@ -137,7 +158,7 @@ export async function handleEditMessage(
     if (!preview.image) {
       return;
     }
-    const signature = getAttachmentSignature(preview.image);
+    const signature = getAttachmentSignatureSafe(preview.image);
     if (signature) {
       previewSignatures.set(signature, preview);
     }
@@ -147,7 +168,7 @@ export async function handleEditMessage(
       if (!attachment.thumbnail) {
         continue;
       }
-      const signature = getAttachmentSignature(attachment.thumbnail);
+      const signature = getAttachmentSignatureSafe(attachment.thumbnail);
       if (signature) {
         quoteSignatures.set(signature, attachment);
       }
@@ -157,7 +178,7 @@ export async function handleEditMessage(
   let newAttachments = 0;
   const nextEditedMessageAttachments =
     upgradedEditedMessageData.attachments?.map(attachment => {
-      const signature = getAttachmentSignature(attachment);
+      const signature = getAttachmentSignatureSafe(attachment);
       const existingAttachment = signature
         ? attachmentSignatures.get(signature)
         : undefined;
@@ -177,7 +198,7 @@ export async function handleEditMessage(
         return preview;
       }
 
-      const signature = getAttachmentSignature(preview.image);
+      const signature = getAttachmentSignatureSafe(preview.image);
       const existingPreview = signature
         ? previewSignatures.get(signature)
         : undefined;
@@ -207,14 +228,14 @@ export async function handleEditMessage(
         if (!attachment.thumbnail) {
           return attachment;
         }
-        const signature = getAttachmentSignature(attachment.thumbnail);
-        const existingThumbnail = signature
+        const signature = getAttachmentSignatureSafe(attachment.thumbnail);
+        const existingQuoteAttachment = signature
           ? quoteSignatures.get(signature)
           : undefined;
-        if (existingThumbnail) {
+        if (existingQuoteAttachment) {
           return {
             ...attachment,
-            thumbnail: existingThumbnail,
+            thumbnail: existingQuoteAttachment.thumbnail,
           };
         }
 
@@ -232,11 +253,18 @@ export async function handleEditMessage(
   const editedMessage: EditHistoryType = {
     attachments: nextEditedMessageAttachments,
     body: upgradedEditedMessageData.body,
+    bodyAttachment: upgradedEditedMessageData.bodyAttachment,
     bodyRanges: upgradedEditedMessageData.bodyRanges,
     preview: nextEditedMessagePreview,
     sendStateByConversationId:
       upgradedEditedMessageData.sendStateByConversationId,
     timestamp: upgradedEditedMessageData.timestamp,
+    received_at: upgradedEditedMessageData.received_at,
+    received_at_ms: upgradedEditedMessageData.received_at_ms,
+    serverTimestamp: upgradedEditedMessageData.serverTimestamp,
+    readStatus: upgradedEditedMessageData.readStatus,
+    unidentifiedDeliveryReceived:
+      upgradedEditedMessageData.unidentifiedDeliveryReceived,
     quote: nextEditedMessageQuote,
   };
 
@@ -249,9 +277,12 @@ export async function handleEditMessage(
   mainMessageModel.set({
     attachments: editedMessage.attachments,
     body: editedMessage.body,
+    bodyAttachment: editedMessage.bodyAttachment,
     bodyRanges: editedMessage.bodyRanges,
     editHistory,
     editMessageTimestamp: upgradedEditedMessageData.timestamp,
+    editMessageReceivedAt: upgradedEditedMessageData.received_at,
+    editMessageReceivedAtMs: upgradedEditedMessageData.received_at_ms,
     preview: editedMessage.preview,
     quote: editedMessage.quote,
   });
@@ -260,6 +291,25 @@ export async function handleEditMessage(
   const updatedFields = await queueAttachmentDownloads(
     mainMessageModel.attributes
   );
+
+  // If we've scheduled a bodyAttachment download, we need that edit to know about it
+  if (updatedFields?.bodyAttachment) {
+    const existing =
+      updatedFields.editHistory || mainMessageModel.get('editHistory') || [];
+
+    updatedFields.editHistory = existing.map(item => {
+      if (item.timestamp !== editedMessage.timestamp) {
+        return item;
+      }
+
+      return {
+        ...item,
+        attachments: updatedFields.attachments,
+        bodyAttachment: updatedFields.bodyAttachment,
+      };
+    });
+  }
+
   if (updatedFields) {
     mainMessageModel.set(updatedFields);
   }
@@ -302,7 +352,7 @@ export async function handleEditMessage(
 
   // Save both the main message and the edited message for fast lookups
   drop(
-    dataInterface.saveEditedMessage(
+    DataWriter.saveEditedMessage(
       mainMessageModel.attributes,
       window.textsecure.storage.user.getCheckedAci(),
       {
@@ -327,8 +377,11 @@ export async function handleEditMessage(
     await modifyTargetMessage(mainMessageModel, mainMessageConversation, {
       isFirstRun: false,
       skipEdits: true,
-      skipSave: true,
     });
+
+    window.reduxActions.conversations.markOpenConversationRead(
+      mainMessageConversation.id
+    );
   }
 
   // Apply any other pending edits that target this message

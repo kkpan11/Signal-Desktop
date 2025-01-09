@@ -2,18 +2,24 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import * as log from '../logging/log';
+import { DataReader } from '../sql/Client';
 import type { MessageModel } from '../models/messages';
 import type { MessageAttributesType } from '../model-types.d';
 import * as Errors from '../types/errors';
 
 export async function getMessagesById(
-  messageIds: Iterable<string>
+  messageIds: Iterable<string>,
+  location: string
 ): Promise<Array<MessageModel>> {
+  const innerLocation = `getMessagesById/${location}`;
   const messagesFromMemory: Array<MessageModel> = [];
   const messageIdsToLookUpInDatabase: Array<string> = [];
 
   for (const messageId of messageIds) {
-    const message = window.MessageController.getById(messageId);
+    const message = window.MessageCache.__DEPRECATED$getById(
+      messageId,
+      innerLocation
+    );
     if (message) {
       messagesFromMemory.push(message);
     } else {
@@ -23,7 +29,7 @@ export async function getMessagesById(
 
   let rawMessagesFromDatabase: Array<MessageAttributesType>;
   try {
-    rawMessagesFromDatabase = await window.Signal.Data.getMessagesById(
+    rawMessagesFromDatabase = await DataReader.getMessagesById(
       messageIdsToLookUpInDatabase
     );
   } catch (err: unknown) {
@@ -39,7 +45,11 @@ export async function getMessagesById(
     // We use `window.Whisper.Message` instead of `MessageModel` here to avoid a circular
     //   import.
     const message = new window.Whisper.Message(rawMessage);
-    return window.MessageController.register(message.id, message);
+    return window.MessageCache.__DEPRECATED$register(
+      message.id,
+      message,
+      innerLocation
+    );
   });
 
   return [...messagesFromMemory, ...messagesFromDatabase];
