@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import * as React from 'react';
-
 import { action } from '@storybook/addon-actions';
-
+import type { Meta } from '@storybook/react';
 import { EmojiPicker } from '../emoji/EmojiPicker';
 import { setupI18n } from '../../util/setupI18n';
 import { DurationInSeconds } from '../../util/durations';
@@ -12,12 +11,13 @@ import enMessages from '../../../_locales/en/messages.json';
 import type { PropsType as TimelineItemProps } from './TimelineItem';
 import { TimelineItem } from './TimelineItem';
 import { UniversalTimerNotification } from './UniversalTimerNotification';
-import { CallMode } from '../../types/Calling';
+import { CallMode } from '../../types/CallDisposition';
 import { AvatarColors } from '../../types/Colors';
 import { getDefaultConversation } from '../../test-both/helpers/getDefaultConversation';
 import { WidthBreakpoint } from '../_util';
 import { ThemeType } from '../../types/Util';
 import { PaymentEventKind } from '../../types/Payment';
+import { ErrorBoundary } from './ErrorBoundary';
 
 const i18n = setupI18n('en', enMessages);
 
@@ -33,6 +33,7 @@ const renderEmojiPicker: TimelineItemProps['renderEmojiPicker'] = ({
     ref={ref}
     onClose={onClose}
     onPickEmoji={onPickEmoji}
+    wasInvokedFromKeyboard={false}
   />
 );
 
@@ -59,6 +60,8 @@ const getDefaultProps = () => ({
   id: 'asdf',
   isNextItemCallingNotification: false,
   isTargeted: false,
+  isBlocked: false,
+  isGroup: false,
   interactionMode: 'keyboard' as const,
   theme: ThemeType.light,
   platform: 'darwin',
@@ -73,12 +76,15 @@ const getDefaultProps = () => ({
   retryDeleteForEveryone: action('retryDeleteForEveryone'),
   retryMessageSend: action('retryMessageSend'),
   blockGroupLinkRequests: action('blockGroupLinkRequests'),
+  cancelAttachmentDownload: action('cancelAttachmentDownload'),
   kickOffAttachmentDownload: action('kickOffAttachmentDownload'),
   markAttachmentAsCorrupted: action('markAttachmentAsCorrupted'),
   messageExpanded: action('messageExpanded'),
   showConversation: action('showConversation'),
   openGiftBadge: action('openGiftBadge'),
   saveAttachment: action('saveAttachment'),
+  saveAttachments: action('saveAttachments'),
+  onOpenEditNicknameAndNoteModal: action('onOpenEditNicknameAndNoteModal'),
   onOutgoingAudioCallInConversation: action(
     'onOutgoingAudioCallInConversation'
   ),
@@ -92,12 +98,17 @@ const getDefaultProps = () => ({
   toggleForwardMessagesModal: action('toggleForwardMessagesModal'),
   showLightboxForViewOnceMedia: action('showLightboxForViewOnceMedia'),
   doubleCheckMissingQuoteReference: action('doubleCheckMissingQuoteReference'),
+  showAttachmentDownloadStillInProgressToast: action(
+    'showAttachmentDownloadStillInProgressToast'
+  ),
   showExpiredIncomingTapToViewToast: action(
     'showExpiredIncomingTapToViewToast'
   ),
   showExpiredOutgoingTapToViewToast: action(
     'showExpiredIncomingTapToViewToast'
   ),
+  showAttachmentNotAvailableModal: action('showAttachmentNotAvailableModal'),
+  showMediaNoLongerAvailableToast: action('showMediaNoLongerAvailableToast'),
   scrollToQuotedMessage: action('scrollToQuotedMessage'),
   showSpoiler: action('showSpoiler'),
   startConversation: action('startConversation'),
@@ -118,11 +129,14 @@ const getDefaultProps = () => ({
   viewStory: action('viewStory'),
 
   onReplyToMessage: action('onReplyToMessage'),
+  onOpenMessageRequestActionsConfirmation: action(
+    'onOpenMessageRequestActionsConfirmation'
+  ),
 });
 
 export default {
   title: 'Components/Conversation/TimelineItem',
-};
+} satisfies Meta<TimelineItemProps>;
 
 export function PlainMessage(): JSX.Element {
   const item = {
@@ -191,6 +205,12 @@ export function Notification(): JSX.Element {
       data: {
         sender: getDefaultConversation(),
         timestamp: Date.now(),
+      },
+    },
+    {
+      type: 'titleTransitionNotification',
+      data: {
+        oldTitle: 'alice.01',
       },
     },
     {
@@ -584,7 +604,11 @@ export function UnknownType(): JSX.Element {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any as TimelineItemProps['item'];
 
-  return <TimelineItem {...getDefaultProps()} item={item} i18n={i18n} />;
+  return (
+    <ErrorBoundary i18n={i18n} showDebugLog={action('showDebugLog')}>
+      <TimelineItem {...getDefaultProps()} item={item} i18n={i18n} />
+    </ErrorBoundary>
+  );
 }
 
 export function MissingItem(): JSX.Element {

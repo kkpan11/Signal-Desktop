@@ -18,17 +18,29 @@ ts/protobuf/*.d.ts
 ts/protobuf/*.js
 stylesheets/manifest.css
 ts/util/lint/exceptions.json
+storybook-static
+build/locale-display-names.json
+build/country-display-names.json
+build/compact-locales/**/*.json
+release/**
+pnpm-lock.yaml
 
 # Third-party files
 node_modules/**
+danger/node_modules/**
+sticker-creator/node_modules/**
 components/**
 js/curve/**
 js/Mp3LameEncoder.min.js
 js/WebAudioRecorderMp3.js
+js/calling-tools/**
 
 # Assets
 /images/
 /fixtures/
+
+# Version control
+**/.git
 
 # Github workflows
 .github/**
@@ -41,6 +53,7 @@ js/WebAudioRecorderMp3.js
 stylesheets/_intlTelInput.scss
 
 preload.bundle.*
+preload.wrapper.js
 bundles/**
 
 # Sticker Creator has its own prettier config

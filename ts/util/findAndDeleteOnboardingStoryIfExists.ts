@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import * as log from '../logging/log';
-import { getMessageById } from '../messages/getMessageById';
+import { DataWriter } from '../sql/Client';
 import { calculateExpirationTimestamp } from './expirationTimer';
 import { DAY } from './durations';
+import { cleanupMessages } from './cleanup';
+import { getMessageById } from '../messages/getMessageById';
 
 export async function findAndDeleteOnboardingStoryIfExists(): Promise<void> {
   const existingOnboardingStoryMessageIds = window.storage.get(
@@ -16,11 +18,13 @@ export async function findAndDeleteOnboardingStoryIfExists(): Promise<void> {
   }
 
   const hasExpired = await (async () => {
-    for (const id of existingOnboardingStoryMessageIds) {
-      // eslint-disable-next-line no-await-in-loop
-      const message = await getMessageById(id);
+    const [storyId] = existingOnboardingStoryMessageIds;
+    try {
+      const message = await getMessageById(storyId);
       if (!message) {
-        continue;
+        throw new Error(
+          `findAndDeleteOnboardingStoryIfExists: Failed to find message ${storyId}`
+        );
       }
 
       const expires = calculateExpirationTimestamp(message.attributes) ?? 0;
@@ -30,9 +34,9 @@ export async function findAndDeleteOnboardingStoryIfExists(): Promise<void> {
       const needsRepair = expires > now + 2 * DAY;
 
       return isExpired || needsRepair;
+    } catch {
+      return true;
     }
-
-    return true;
   })();
 
   if (!hasExpired) {
@@ -44,7 +48,9 @@ export async function findAndDeleteOnboardingStoryIfExists(): Promise<void> {
 
   log.info('findAndDeleteOnboardingStoryIfExists: removing onboarding stories');
 
-  await window.Signal.Data.removeMessages(existingOnboardingStoryMessageIds);
+  await DataWriter.removeMessages(existingOnboardingStoryMessageIds, {
+    cleanupMessages,
+  });
 
   await window.storage.put('existingOnboardingStoryMessageIds', undefined);
 

@@ -8,6 +8,7 @@ import * as Bytes from '../Bytes';
 import type { LoggerType } from '../types/Logging';
 import { exponentialBackoffMaxAttempts } from '../util/exponentialBackoff';
 import type { ParsedJob } from './types';
+import type { JOB_STATUS } from './JobQueue';
 import { JobQueue } from './JobQueue';
 import { jobQueueDatabaseStore } from './JobQueueDatabaseStore';
 import { DAY } from '../util/durations';
@@ -23,26 +24,27 @@ import {
 } from './helpers/handleMultipleSendErrors';
 import { isConversationUnregistered } from '../util/isConversationUnregistered';
 import { isConversationAccepted } from '../util/isConversationAccepted';
+import { parseUnknown } from '../util/schemas';
 
 const MAX_RETRY_TIME = DAY;
 const MAX_PARALLEL_JOBS = 5;
 const MAX_ATTEMPTS = exponentialBackoffMaxAttempts(MAX_RETRY_TIME);
 
 export class SingleProtoJobQueue extends JobQueue<SingleProtoJobData> {
-  private parallelQueue = new PQueue({ concurrency: MAX_PARALLEL_JOBS });
+  #parallelQueue = new PQueue({ concurrency: MAX_PARALLEL_JOBS });
 
   protected override getQueues(): ReadonlySet<PQueue> {
-    return new Set([this.parallelQueue]);
+    return new Set([this.#parallelQueue]);
   }
 
   protected override getInMemoryQueue(
     _parsedJob: ParsedJob<SingleProtoJobData>
   ): PQueue {
-    return this.parallelQueue;
+    return this.#parallelQueue;
   }
 
   protected parseData(data: unknown): SingleProtoJobData {
-    return singleProtoJobDataSchema.parse(data);
+    return parseUnknown(singleProtoJobDataSchema, data);
   }
 
   protected async run(
@@ -51,7 +53,7 @@ export class SingleProtoJobQueue extends JobQueue<SingleProtoJobData> {
       timestamp,
     }: Readonly<{ data: SingleProtoJobData; timestamp: number }>,
     { attempt, log }: Readonly<{ attempt: number; log: LoggerType }>
-  ): Promise<void> {
+  ): Promise<typeof JOB_STATUS.NEEDS_RETRY | undefined> {
     const timeRemaining = timestamp + MAX_RETRY_TIME - Date.now();
     const isFinalAttempt = attempt >= MAX_ATTEMPTS;
 
@@ -62,7 +64,7 @@ export class SingleProtoJobQueue extends JobQueue<SingleProtoJobData> {
       skipWait: false,
     });
     if (!shouldContinue) {
-      return;
+      return undefined;
     }
 
     const {
@@ -87,19 +89,19 @@ export class SingleProtoJobQueue extends JobQueue<SingleProtoJobData> {
       log.info(
         `conversation ${conversation.idForLogging()} is not accepted; refusing to send`
       );
-      return;
+      return undefined;
     }
     if (isConversationUnregistered(conversation.attributes)) {
       log.info(
         `conversation ${conversation.idForLogging()} is unregistered; refusing to send`
       );
-      return;
+      return undefined;
     }
     if (conversation.isBlocked()) {
       log.info(
         `conversation ${conversation.idForLogging()} is blocked; refusing to send`
       );
-      return;
+      return undefined;
     }
 
     const proto = Proto.Content.decode(Bytes.fromBase64(protoBase64));
@@ -133,6 +135,8 @@ export class SingleProtoJobQueue extends JobQueue<SingleProtoJobData> {
         toThrow: error,
       });
     }
+
+    return undefined;
   }
 }
 

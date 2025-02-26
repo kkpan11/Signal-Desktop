@@ -16,16 +16,17 @@
  * Most notably, if something is queued and the function is called again, we discard the
  *   previously queued task completely.
  */
+
+import { drop } from './drop';
+
 export class LatestQueue {
-  private isRunning: boolean;
-
-  private queuedTask?: () => Promise<void>;
-
-  private onceEmptyCallbacks: Array<() => unknown>;
+  #isRunning: boolean;
+  #queuedTask?: () => Promise<void>;
+  #onceEmptyCallbacks: Array<() => unknown>;
 
   constructor() {
-    this.isRunning = false;
-    this.onceEmptyCallbacks = [];
+    this.#isRunning = false;
+    this.#onceEmptyCallbacks = [];
   }
 
   /**
@@ -36,27 +37,29 @@ export class LatestQueue {
    *    tasks will be enqueued at a time.
    */
   add(task: () => Promise<void>): void {
-    if (this.isRunning) {
-      this.queuedTask = task;
+    if (this.#isRunning) {
+      this.#queuedTask = task;
     } else {
-      this.isRunning = true;
-      task().finally(() => {
-        this.isRunning = false;
+      this.#isRunning = true;
+      drop(
+        task().finally(() => {
+          this.#isRunning = false;
 
-        const { queuedTask } = this;
-        if (queuedTask) {
-          this.queuedTask = undefined;
-          this.add(queuedTask);
-        } else {
-          try {
-            this.onceEmptyCallbacks.forEach(callback => {
-              callback();
-            });
-          } finally {
-            this.onceEmptyCallbacks = [];
+          const queuedTask = this.#queuedTask;
+          if (queuedTask) {
+            this.#queuedTask = undefined;
+            this.add(queuedTask);
+          } else {
+            try {
+              this.#onceEmptyCallbacks.forEach(callback => {
+                callback();
+              });
+            } finally {
+              this.#onceEmptyCallbacks = [];
+            }
           }
-        }
-      });
+        })
+      );
     }
   }
 
@@ -64,6 +67,6 @@ export class LatestQueue {
    * Adds a callback to be called the first time the queue goes from "running" to "empty".
    */
   onceEmpty(callback: () => unknown): void {
-    this.onceEmptyCallbacks.push(callback);
+    this.#onceEmptyCallbacks.push(callback);
   }
 }

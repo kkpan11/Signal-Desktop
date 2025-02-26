@@ -8,17 +8,22 @@ import type { VideoFrameSource } from '@signalapp/ringrtc';
 import type { LocalizerType } from '../types/Util';
 import type { GroupCallRemoteParticipantType } from '../types/Calling';
 import { GroupCallRemoteParticipant } from './GroupCallRemoteParticipant';
+import type { CallingImageDataCache } from './CallManager';
 
 const OVERFLOW_SCROLLED_TO_EDGE_THRESHOLD = 20;
 const OVERFLOW_SCROLL_BUTTON_RATIO = 0.75;
 
 // This should be an integer, as sub-pixel widths can cause performance issues.
-export const OVERFLOW_PARTICIPANT_WIDTH = 140;
+export const OVERFLOW_PARTICIPANT_WIDTH = 107;
 
-type PropsType = {
+export type PropsType = {
   getFrameBuffer: () => Buffer;
   getGroupCallVideoFrameSource: (demuxId: number) => VideoFrameSource;
   i18n: LocalizerType;
+  imageDataCache: React.RefObject<CallingImageDataCache>;
+  isCallReconnecting: boolean;
+  joinedAt: number | null;
+  onClickRaisedHand?: () => void;
   onParticipantVisibilityChanged: (
     demuxId: number,
     isVisible: boolean
@@ -31,7 +36,11 @@ type PropsType = {
 export function GroupCallOverflowArea({
   getFrameBuffer,
   getGroupCallVideoFrameSource,
+  imageDataCache,
   i18n,
+  isCallReconnecting,
+  joinedAt,
+  onClickRaisedHand,
   onParticipantVisibilityChanged,
   overflowedParticipants,
   remoteAudioLevels,
@@ -117,8 +126,10 @@ export function GroupCallOverflowArea({
             key={remoteParticipant.demuxId}
             getFrameBuffer={getFrameBuffer}
             getGroupCallVideoFrameSource={getGroupCallVideoFrameSource}
+            imageDataCache={imageDataCache}
             i18n={i18n}
             audioLevel={remoteAudioLevels.get(remoteParticipant.demuxId) ?? 0}
+            onClickRaisedHand={onClickRaisedHand}
             onVisibilityChanged={onParticipantVisibilityChanged}
             width={OVERFLOW_PARTICIPANT_WIDTH}
             height={Math.floor(
@@ -127,6 +138,9 @@ export function GroupCallOverflowArea({
             remoteParticipant={remoteParticipant}
             remoteParticipantsCount={remoteParticipantsCount}
             isActiveSpeakerInSpeakerView={false}
+            isCallReconnecting={isCallReconnecting}
+            isInOverflow
+            joinedAt={joinedAt}
           />
         ))}
       </div>

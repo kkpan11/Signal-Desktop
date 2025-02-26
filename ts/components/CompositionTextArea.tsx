@@ -1,11 +1,9 @@
 // Copyright 2022 Signal Messenger, LLC
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import { noop } from 'lodash';
 import React from 'react';
 import type { LocalizerType } from '../types/I18N';
 import type { EmojiPickDataType } from './emoji/EmojiPicker';
-import { shouldNeverBeCalled } from '../util/shouldNeverBeCalled';
 import type { InputApi } from './CompositionInput';
 import { CompositionInput } from './CompositionInput';
 import { EmojiButton } from './emoji/EmojiButton';
@@ -19,15 +17,13 @@ import type { PreferredBadgeSelectorType } from '../state/selectors/badges';
 import * as grapheme from '../util/grapheme';
 
 export type CompositionTextAreaProps = {
-  bodyRanges?: HydratedBodyRangesType;
+  bodyRanges: HydratedBodyRangesType | null;
   i18n: LocalizerType;
+  isActive: boolean;
   isFormattingEnabled: boolean;
-  isFormattingFlagEnabled: boolean;
-  isFormattingSpoilersFlagEnabled: boolean;
   maxLength?: number;
   placeholder?: string;
   whenToShowRemainingCount?: number;
-  scrollerRef?: React.RefObject<HTMLDivElement>;
   onScroll?: (ev: React.UIEvent<HTMLElement, UIEvent>) => void;
   onPickEmoji: (e: EmojiPickDataType) => void;
   onChange: (
@@ -42,6 +38,7 @@ export type CompositionTextAreaProps = {
     timestamp: number
   ) => void;
   onTextTooLong: () => void;
+  ourConversationId: string | undefined;
   platform: string;
   getPreferredBadge: PreferredBadgeSelectorType;
   draftText: string;
@@ -60,9 +57,8 @@ export function CompositionTextArea({
   draftText,
   getPreferredBadge,
   i18n,
+  isActive,
   isFormattingEnabled,
-  isFormattingFlagEnabled,
-  isFormattingSpoilersFlagEnabled,
   maxLength,
   onChange,
   onPickEmoji,
@@ -70,10 +66,10 @@ export function CompositionTextArea({
   onSetSkinTone,
   onSubmit,
   onTextTooLong,
+  ourConversationId,
   placeholder,
   platform,
   recentEmojis,
-  scrollerRef,
   skinTone,
   theme,
   whenToShowRemainingCount = Infinity,
@@ -137,15 +133,12 @@ export function CompositionTextArea({
   return (
     <div className="CompositionTextArea">
       <CompositionInput
-        clearQuotedMessage={shouldNeverBeCalled}
         draftBodyRanges={bodyRanges}
         draftText={draftText}
         getPreferredBadge={getPreferredBadge}
-        getQuotedMessage={noop}
         i18n={i18n}
+        isActive={isActive}
         isFormattingEnabled={isFormattingEnabled}
-        isFormattingFlagEnabled={isFormattingFlagEnabled}
-        isFormattingSpoilersFlagEnabled={isFormattingSpoilersFlagEnabled}
         inputApi={inputApiRef}
         large
         moduleClassName="CompositionTextArea__input"
@@ -154,11 +147,23 @@ export function CompositionTextArea({
         onScroll={onScroll}
         onSubmit={onSubmit}
         onTextTooLong={onTextTooLong}
+        ourConversationId={ourConversationId}
         placeholder={placeholder}
         platform={platform}
-        scrollerRef={scrollerRef}
+        quotedMessageId={null}
         sendCounter={0}
         theme={theme}
+        skinTone={skinTone ?? null}
+        // These do not apply in the forward modal because there isn't
+        // strictly one conversation
+        conversationId={null}
+        sortedGroupMembers={null}
+        // we don't edit in this context
+        draftEditMessage={null}
+        // rendered in the forward modal
+        linkPreviewResult={null}
+        // Panels appear behind this modal
+        shouldHidePopovers={null}
       />
       <div className="CompositionTextArea__emoji">
         <EmojiButton

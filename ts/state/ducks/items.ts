@@ -27,20 +27,7 @@ export type ItemsStateType = ReadonlyDeep<
     [key: string]: unknown;
     remoteConfig?: RemoteConfigType;
     serverTimeSkew?: number;
-  } & Partial<
-    Pick<
-      StorageAccessType,
-      | 'universalExpireTimer'
-      | 'defaultConversationColor'
-      | 'customColors'
-      | 'preferredLeftPaneWidth'
-      | 'navTabsCollapsed'
-      | 'preferredReactionEmoji'
-      | 'areWeASubscriber'
-      | 'usernameLinkColor'
-      | 'usernameLink'
-    >
-  >
+  } & Partial<StorageAccessType>
 >;
 
 // Actions
@@ -85,7 +72,6 @@ export type ItemsActionType = ReadonlyDeep<
 export const actions = {
   addCustomColor,
   editCustomColor,
-  markHasCompletedSafetyNumberOnboarding,
   removeCustomColor,
   resetDefaultChatColor,
   savePreferredLeftPaneWidth,
@@ -156,6 +142,7 @@ function getDefaultCustomColorData() {
   return {
     colors: {} as Record<string, CustomColorType>,
     version: 1,
+    order: [],
   };
 }
 
@@ -171,12 +158,17 @@ function addCustomColor(
       uuid = getGuid();
     }
 
+    const order = new Set(customColors.order ?? []);
+    order.delete(uuid);
+    order.add(uuid);
+
     const nextCustomColors = {
       ...customColors,
       colors: {
         ...customColors.colors,
         [uuid]: customColor,
       },
+      order: [...order],
     };
 
     dispatch(putItem('customColors', nextCustomColors));
@@ -234,6 +226,7 @@ function removeCustomColor(
     const nextCustomColors = {
       ...customColors,
       colors: omit(customColors.colors, payload),
+      order: customColors.order?.filter(id => id !== payload),
     };
 
     dispatch(putItem('customColors', nextCustomColors));
@@ -280,17 +273,6 @@ function savePreferredLeftPaneWidth(
 ): ThunkAction<void, RootStateType, unknown, ItemPutAction> {
   return dispatch => {
     dispatch(putItem('preferredLeftPaneWidth', preferredWidth));
-  };
-}
-
-function markHasCompletedSafetyNumberOnboarding(): ThunkAction<
-  void,
-  RootStateType,
-  unknown,
-  ItemPutAction
-> {
-  return dispatch => {
-    dispatch(putItem('hasCompletedSafetyNumberOnboarding', true));
   };
 }
 

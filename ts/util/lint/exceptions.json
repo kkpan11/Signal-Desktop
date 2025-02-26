@@ -16,624 +16,176 @@
     "reasonDetail": "Part of runtime library for C++ transpiled code"
   },
   {
-    "rule": "React-useRef",
-    "path": "node_modules/@design-systems/utils/dist/cjs/utils/focus-lock.js",
-    "reasonCategory": "testCode",
-    "updated": "2022-06-23T23:21:04.555Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@design-systems/utils/dist/esm/utils/focus-lock.js",
-    "reasonCategory": "testCode",
-    "updated": "2022-06-23T23:21:04.555Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@design-systems/utils/src/utils/focus-lock.tsx",
-    "line": "  const trap = React.useRef<HTMLDivElement>(null);",
-    "reasonCategory": "testCode",
-    "updated": "2022-06-23T23:21:04.555Z"
-  },
-  {
-    "rule": "React-createRef",
-    "path": "node_modules/@indutny/frameless-titlebar/dist/index.es.js",
-    "line": "    .map(() => createRef());",
+    "rule": "DOM-innerHTML",
+    "path": "node_modules/@signalapp/quill-cjs/core/editor.js",
+    "line": "      innerHTML",
     "reasonCategory": "usageTrusted",
-    "updated": "2022-06-06T22:58:37.359Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@indutny/frameless-titlebar/dist/index.es.js",
-    "line": "    const ref = useRef(null);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-06-06T22:58:37.359Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@indutny/frameless-titlebar/dist/index.es.js",
-    "line": "    const ref = useRef();",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-06-06T22:58:37.359Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@indutny/frameless-titlebar/dist/index.es.js",
-    "line": "    const activeMenus = useRef((_a = menu === null || menu === void 0 ? void 0 : menu.length) !== null && _a !== void 0 ? _a : 0);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-06-06T22:58:37.359Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@indutny/frameless-titlebar/dist/index.es.js",
-    "line": "    const savedCallback = useRef(onClickAway);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-06-06T22:58:37.359Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@indutny/frameless-titlebar/dist/index.es.js",
-    "line": "    const menuRef = useRef(null);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-06-06T22:58:37.359Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@indutny/frameless-titlebar/dist/index.es.js",
-    "line": "    const scrollRef = useRef(null);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-06-06T22:58:37.359Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@indutny/frameless-titlebar/dist/index.es.js",
-    "line": "    myRef = myRef !== null && myRef !== void 0 ? myRef : useRef(null);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-06-06T22:58:37.359Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@indutny/frameless-titlebar/dist/index.es.js",
-    "line": "    const overflowRef = useRef(null);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-06-06T22:58:37.359Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@indutny/frameless-titlebar/dist/index.es.js",
-    "line": "    const menuBar = useRef(null);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-06-06T22:58:37.359Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@indutny/frameless-titlebar/dist/index.es.js",
-    "line": "    const ref = useRef(null);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-06-06T22:58:37.359Z"
-  },
-  {
-    "rule": "React-createRef",
-    "path": "node_modules/@indutny/frameless-titlebar/dist/index.js",
-    "line": "    .map(() => React.createRef());",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-06-06T22:58:37.359Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@indutny/frameless-titlebar/dist/index.js",
-    "line": "    const ref = React.useRef(null);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-06-06T22:58:37.359Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@indutny/frameless-titlebar/dist/index.js",
-    "line": "    const ref = React.useRef();",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-06-06T22:58:37.359Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@indutny/frameless-titlebar/dist/index.js",
-    "line": "    const activeMenus = React.useRef((_a = menu === null || menu === void 0 ? void 0 : menu.length) !== null && _a !== void 0 ? _a : 0);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-06-06T22:58:37.359Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@indutny/frameless-titlebar/dist/index.js",
-    "line": "    const savedCallback = React.useRef(onClickAway);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-06-06T22:58:37.359Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@indutny/frameless-titlebar/dist/index.js",
-    "line": "    const menuRef = React.useRef(null);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-06-06T22:58:37.359Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@indutny/frameless-titlebar/dist/index.js",
-    "line": "    const scrollRef = React.useRef(null);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-06-06T22:58:37.359Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@indutny/frameless-titlebar/dist/index.js",
-    "line": "    myRef = myRef !== null && myRef !== void 0 ? myRef : React.useRef(null);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-06-06T22:58:37.359Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@indutny/frameless-titlebar/dist/index.js",
-    "line": "    const overflowRef = React.useRef(null);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-06-06T22:58:37.359Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@indutny/frameless-titlebar/dist/index.js",
-    "line": "    const menuBar = React.useRef(null);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-06-06T22:58:37.359Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@indutny/frameless-titlebar/dist/index.js",
-    "line": "    const ref = React.useRef(null);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-06-06T22:58:37.359Z"
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/@protobufjs/inquire/index.js",
-    "line": "        var mod = eval(\"quire\".replace(/^/,\"re\"))(moduleName); // eslint-disable-line no-eval",
-    "reasonCategory": "usageTrusted",
-    "updated": "2018-09-18T19:19:27.699Z",
-    "reasonDetail": "What's being eval'd is a static string"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@react-spring/animated/dist/react-spring-animated.cjs.dev.js",
-    "line": "    const instanceRef = React.useRef(null);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2021-09-27T21:37:06.339Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@react-spring/animated/dist/react-spring-animated.cjs.dev.js",
-    "line": "    const observerRef = React.useRef();",
-    "reasonCategory": "usageTrusted",
-    "updated": "2021-09-27T21:37:06.339Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@react-spring/animated/dist/react-spring-animated.cjs.prod.js",
-    "line": "    const instanceRef = React.useRef(null);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2021-09-27T21:37:06.339Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@react-spring/animated/dist/react-spring-animated.cjs.prod.js",
-    "line": "    const observerRef = React.useRef();",
-    "reasonCategory": "usageTrusted",
-    "updated": "2021-09-27T21:37:06.339Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@react-spring/animated/dist/react-spring-animated.esm.js",
-    "line": "    const instanceRef = useRef(null);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2021-09-27T21:37:06.339Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@react-spring/animated/dist/react-spring-animated.esm.js",
-    "line": "    const observerRef = useRef();",
-    "reasonCategory": "usageTrusted",
-    "updated": "2021-09-27T21:37:06.339Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@react-spring/core/dist/react-spring-core.cjs.dev.js",
-    "line": "  const layoutId = React.useRef(0);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2021-09-27T21:37:06.339Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@react-spring/core/dist/react-spring-core.cjs.dev.js",
-    "line": "  const ctrls = React.useRef([...state.ctrls]);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2021-09-27T21:37:06.339Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@react-spring/core/dist/react-spring-core.cjs.dev.js",
-    "line": "  const usedTransitions = React.useRef(null);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2021-09-27T21:37:06.339Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@react-spring/core/dist/react-spring-core.cjs.dev.js",
-    "line": "  const exitingTransitions = React.useRef(new Map());",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-01-12T23:16:33.623Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@react-spring/core/dist/react-spring-core.cjs.dev.js",
-    "line": "  const forceChange = React.useRef(false);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-01-12T23:16:33.623Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@react-spring/core/dist/react-spring-core.cjs.prod.js",
-    "line": "  const layoutId = React.useRef(0);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2021-09-27T21:37:06.339Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@react-spring/core/dist/react-spring-core.cjs.prod.js",
-    "line": "  const ctrls = React.useRef([...state.ctrls]);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2021-09-27T21:37:06.339Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@react-spring/core/dist/react-spring-core.cjs.prod.js",
-    "line": "  const usedTransitions = React.useRef(null);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2021-09-27T21:37:06.339Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@react-spring/core/dist/react-spring-core.cjs.prod.js",
-    "line": "  const exitingTransitions = React.useRef(new Map());",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-01-12T23:16:33.623Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@react-spring/core/dist/react-spring-core.cjs.prod.js",
-    "line": "  const forceChange = React.useRef(false);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-01-12T23:16:33.623Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@react-spring/core/dist/react-spring-core.esm.js",
-    "line": "  const layoutId = useRef(0);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2021-09-27T21:37:06.339Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@react-spring/core/dist/react-spring-core.esm.js",
-    "line": "  const ctrls = useRef([...state.ctrls]);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2021-09-27T21:37:06.339Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@react-spring/core/dist/react-spring-core.esm.js",
-    "line": "  const usedTransitions = useRef(null);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2021-09-27T21:37:06.339Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@react-spring/core/dist/react-spring-core.esm.js",
-    "line": "  const exitingTransitions = useRef(new Map());",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-01-12T23:16:33.623Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@react-spring/core/dist/react-spring-core.esm.js",
-    "line": "  const forceChange = useRef(false);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-01-12T23:16:33.623Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@react-spring/shared/dist/react-spring-shared.cjs.dev.js",
-    "line": "  const committed = react.useRef();",
-    "reasonCategory": "usageTrusted",
-    "updated": "2021-09-27T21:37:06.339Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@react-spring/shared/dist/react-spring-shared.cjs.dev.js",
-    "line": "  const prevRef = react.useRef();",
-    "reasonCategory": "usageTrusted",
-    "updated": "2021-09-27T21:37:06.339Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@react-spring/shared/dist/react-spring-shared.cjs.dev.js",
-    "line": "  const isMounted = react.useRef(false);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-06-01T22:57:44.591Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@react-spring/shared/dist/react-spring-shared.cjs.prod.js",
-    "line": "  const committed = react.useRef();",
-    "reasonCategory": "usageTrusted",
-    "updated": "2021-09-27T21:37:06.339Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@react-spring/shared/dist/react-spring-shared.cjs.prod.js",
-    "line": "  const prevRef = react.useRef();",
-    "reasonCategory": "usageTrusted",
-    "updated": "2021-09-27T21:37:06.339Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@react-spring/shared/dist/react-spring-shared.cjs.prod.js",
-    "line": "  const isMounted = react.useRef(false);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-06-01T22:57:44.591Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@react-spring/shared/dist/react-spring-shared.esm.js",
-    "line": "  const isMounted = useRef(false);",
-    "reasonCategory": "falseMatch",
-    "updated": "2022-06-01T22:57:44.591Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@react-spring/shared/dist/react-spring-shared.esm.js",
-    "line": "  const committed = useRef();",
-    "reasonCategory": "usageTrusted",
-    "updated": "2021-09-27T21:37:06.339Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/@react-spring/shared/dist/react-spring-shared.esm.js",
-    "line": "  const prevRef = useRef();",
-    "reasonCategory": "usageTrusted",
-    "updated": "2021-09-27T21:37:06.339Z"
+    "updated": "2025-01-10T05:52:01.516Z",
+    "reasonDetail": "Reading contents of DOM"
   },
   {
     "rule": "DOM-innerHTML",
-    "path": "node_modules/@sindresorhus/is/dist/index.js",
-    "line": "    'innerHTML',",
+    "path": "node_modules/@signalapp/quill-cjs/core/editor.js",
+    "line": "    const [start, end] = outerHTML.split(`>${innerHTML}<`);",
     "reasonCategory": "usageTrusted",
-    "updated": "2021-10-06T15:40:12.124Z"
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/@sinonjs/commons/lib/function-name.test.js",
-    "line": "                fn = eval(\"(function*() {})\")().constructor;",
-    "reasonCategory": "testCode",
-    "updated": "2020-10-09T22:28:48.591Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/@testing-library/dom/dist/@testing-library/dom.cjs.js",
-    "line": "  if (!element || !('innerHTML' in element)) {",
-    "reasonCategory": "falseMatch",
-    "updated": "2022-06-23T23:21:04.555Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/@testing-library/dom/dist/@testing-library/dom.cjs.js",
-    "line": "  if (!element.innerHTML) {",
-    "reasonCategory": "falseMatch",
-    "updated": "2022-06-23T23:21:04.555Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/@testing-library/dom/dist/@testing-library/dom.cjs.js",
-    "line": "  console.log(\"Open this URL in your browser\\n\\n\" + getPlaygroundUrl(element.innerHTML));",
-    "reasonCategory": "testCode",
-    "updated": "2022-06-23T23:21:04.555Z"
+    "updated": "2025-01-10T05:52:01.516Z",
+    "reasonDetail": "Reading contents of DOM"
   },
   {
     "rule": "DOM-outerHTML",
-    "path": "node_modules/@testing-library/dom/dist/@testing-library/dom.cjs.js",
-    "line": "  if (!('outerHTML' in dom)) {",
-    "reasonCategory": "falseMatch",
-    "updated": "2022-06-23T23:21:04.555Z"
-  },
-  {
-    "rule": "DOM-outerHTML",
-    "path": "node_modules/@testing-library/dom/dist/@testing-library/dom.cjs.js",
-    "line": "  return maxLength !== undefined && dom.outerHTML.length > maxLength ? debugContent.slice(0, maxLength) + \"...\" : debugContent;",
-    "reasonCategory": "falseMatch",
-    "updated": "2022-06-23T23:21:04.555Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/@testing-library/dom/dist/@testing-library/dom.esm.js",
-    "line": "  if (!element || !('innerHTML' in element)) {",
-    "reasonCategory": "falseMatch",
-    "updated": "2022-06-23T23:21:04.555Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/@testing-library/dom/dist/@testing-library/dom.esm.js",
-    "line": "  if (!element.innerHTML) {",
-    "reasonCategory": "falseMatch",
-    "updated": "2022-06-23T23:21:04.555Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/@testing-library/dom/dist/@testing-library/dom.esm.js",
-    "line": "  console.log(\"Open this URL in your browser\\n\\n\" + getPlaygroundUrl(element.innerHTML));",
+    "path": "node_modules/@signalapp/quill-cjs/core/editor.js",
+    "line": "      outerHTML,",
     "reasonCategory": "usageTrusted",
-    "updated": "2022-06-23T23:21:04.555Z"
+    "updated": "2025-01-10T05:52:01.516Z",
+    "reasonDetail": "Reading contents of DOM"
   },
   {
     "rule": "DOM-outerHTML",
-    "path": "node_modules/@testing-library/dom/dist/@testing-library/dom.esm.js",
-    "line": "  if (!('outerHTML' in dom)) {",
-    "reasonCategory": "falseMatch",
-    "updated": "2022-06-23T23:21:04.555Z"
-  },
-  {
-    "rule": "DOM-outerHTML",
-    "path": "node_modules/@testing-library/dom/dist/@testing-library/dom.esm.js",
-    "line": "  return maxLength !== undefined && dom.outerHTML.length > maxLength ? debugContent.slice(0, maxLength) + \"...\" : debugContent;",
-    "reasonCategory": "falseMatch",
-    "updated": "2022-06-23T23:21:04.555Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/@testing-library/dom/dist/@testing-library/dom.umd.js",
-    "line": "    if (!element || !('innerHTML' in element)) {",
-    "reasonCategory": "falseMatch",
-    "updated": "2022-06-23T23:21:04.555Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/@testing-library/dom/dist/@testing-library/dom.umd.js",
-    "line": "    if (!element.innerHTML) {",
-    "reasonCategory": "falseMatch",
-    "updated": "2022-06-23T23:21:04.555Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/@testing-library/dom/dist/@testing-library/dom.umd.js",
-    "line": "    console.log(\"Open this URL in your browser\\n\\n\" + getPlaygroundUrl(element.innerHTML));",
-    "reasonCategory": "testCode",
-    "updated": "2022-06-23T23:21:04.555Z"
-  },
-  {
-    "rule": "DOM-outerHTML",
-    "path": "node_modules/@testing-library/dom/dist/@testing-library/dom.umd.js",
-    "line": "    if (!('outerHTML' in dom)) {",
-    "reasonCategory": "falseMatch",
-    "updated": "2022-06-23T23:21:04.555Z"
-  },
-  {
-    "rule": "DOM-outerHTML",
-    "path": "node_modules/@testing-library/dom/dist/@testing-library/dom.umd.js",
-    "line": "    return maxLength !== undefined && dom.outerHTML.length > maxLength ? debugContent.slice(0, maxLength) + \"...\" : debugContent;",
-    "reasonCategory": "testCode",
-    "updated": "2022-06-23T23:21:04.555Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/@testing-library/dom/dist/@testing-library/dom.umd.min.js",
-    "reasonCategory": "testCode",
-    "updated": "2022-06-23T23:21:04.555Z"
-  },
-  {
-    "rule": "DOM-outerHTML",
-    "path": "node_modules/@testing-library/dom/dist/@testing-library/dom.umd.min.js",
-    "reasonCategory": "testCode",
-    "updated": "2022-06-23T23:21:04.555Z"
-  },
-  {
-    "rule": "DOM-outerHTML",
-    "path": "node_modules/@testing-library/dom/dist/pretty-dom.js",
-    "line": "  if (!('outerHTML' in dom)) {",
-    "reasonCategory": "testCode",
-    "updated": "2022-06-23T23:21:04.555Z"
-  },
-  {
-    "rule": "DOM-outerHTML",
-    "path": "node_modules/@testing-library/dom/dist/pretty-dom.js",
-    "line": "  return maxLength !== undefined && dom.outerHTML.length > maxLength ? `${debugContent.slice(0, maxLength)}...` : debugContent;",
-    "reasonCategory": "testCode",
-    "updated": "2022-06-23T23:21:04.555Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/@testing-library/dom/dist/screen.js",
-    "line": "  if (!element || !('innerHTML' in element)) {",
-    "reasonCategory": "testCode",
-    "updated": "2022-06-23T23:21:04.555Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/@testing-library/dom/dist/screen.js",
-    "line": "  if (!element.innerHTML) {",
-    "reasonCategory": "testCode",
-    "updated": "2022-06-23T23:21:04.555Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/@testing-library/dom/dist/screen.js",
-    "line": "  console.log(`Open this URL in your browser\\n\\n${getPlaygroundUrl(element.innerHTML)}`);",
-    "reasonCategory": "testCode",
-    "updated": "2022-06-23T23:21:04.555Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/@testing-library/jest-dom/dist/to-be-empty-dom-element.js",
-    "line": "      return [this.utils.matcherHint(`${this.isNot ? '.not' : ''}.toBeEmptyDOMElement`, 'element', ''), '', 'Received:', `  ${this.utils.printReceived(element.innerHTML)}`].join('\\n');",
-    "reasonCategory": "testCode",
-    "updated": "2022-06-23T23:21:04.555Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/@testing-library/jest-dom/dist/to-be-empty.js",
-    "line": "    pass: element.innerHTML === '',",
-    "reasonCategory": "testCode",
-    "updated": "2022-06-23T23:21:04.555Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/@testing-library/jest-dom/dist/to-be-empty.js",
-    "line": "      return [this.utils.matcherHint(`${this.isNot ? '.not' : ''}.toBeEmpty`, 'element', ''), '', 'Received:', `  ${this.utils.printReceived(element.innerHTML)}`].join('\\n');",
-    "reasonCategory": "testCode",
-    "updated": "2022-06-23T23:21:04.555Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/@testing-library/jest-dom/dist/to-contain-html.js",
-    "line": "  div.innerHTML = htmlText;",
-    "reasonCategory": "testCode",
-    "updated": "2022-06-23T23:21:04.555Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/@testing-library/jest-dom/dist/to-contain-html.js",
-    "line": "  return div.innerHTML;",
-    "reasonCategory": "testCode",
-    "updated": "2022-06-23T23:21:04.555Z"
-  },
-  {
-    "rule": "DOM-outerHTML",
-    "path": "node_modules/@testing-library/jest-dom/dist/to-contain-html.js",
-    "line": "    pass: container.outerHTML.includes(getNormalizedHtml(container, htmlText)),",
-    "reasonCategory": "testCode",
-    "updated": "2022-06-23T23:21:04.555Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/@testing-library/user-event/dist/select-options.js",
-    "line": "      const matchingOption = allOptions.find(o => o.value === val || o.innerHTML === val);",
-    "reasonCategory": "testCode",
-    "updated": "2022-06-23T23:21:04.555Z"
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/@tootallnate/quickjs-emscripten/dist/context.js",
-    "line": "     * Like [`eval(code)`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval#Description).",
-    "reasonCategory": "falseMatch",
-    "updated": "2023-08-29T19:25:52.732Z"
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/agentkeepalive/node_modules/depd/index.js",
-    "line": "  var deprecatedfn = eval('(function (' + args + ') {\\n' +",
+    "path": "node_modules/@signalapp/quill-cjs/core/editor.js",
+    "line": "    const [start, end] = outerHTML.split(`>${innerHTML}<`);",
     "reasonCategory": "usageTrusted",
-    "updated": "2022-12-13T00:55:48.389Z"
+    "updated": "2025-01-10T05:52:01.516Z",
+    "reasonDetail": "Reading contents of DOM"
+  },
+  {
+    "rule": "DOM-outerHTML",
+    "path": "node_modules/@signalapp/quill-cjs/core/editor.js",
+    "line": "  return blot.domNode instanceof Element ? blot.domNode.outerHTML : '';",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-01-10T05:52:01.516Z",
+    "reasonDetail": "Reading contents of DOM"
+  },
+  {
+    "rule": "DOM-innerHTML",
+    "path": "node_modules/@signalapp/quill-cjs/core/quill.js",
+    "line": "    this.container.innerHTML = '';",
+    "reasonCategory": "usageTrusted",
+    "updated": "2020-10-13T18:36:57.012Z",
+    "reasonDetail": "necessary for quill"
+  },
+  {
+    "rule": "DOM-innerHTML",
+    "path": "node_modules/@signalapp/quill-cjs/core/quill.js",
+    "line": "    const html = this.container.innerHTML.trim();",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-01-10T05:52:01.516Z",
+    "reasonDetail": "Reading contents of DOM"
+  },
+  {
+    "rule": "DOM-innerHTML",
+    "path": "node_modules/@signalapp/quill-cjs/dist/quill.core.js",
+    "reasonCategory": "notExercisedByOurApp",
+    "updated": "2025-01-22T02:55:11.616Z"
+  },
+  {
+    "rule": "DOM-outerHTML",
+    "path": "node_modules/@signalapp/quill-cjs/dist/quill.core.js",
+    "reasonCategory": "notExercisedByOurApp",
+    "updated": "2025-01-22T02:55:11.616Z"
+  },
+  {
+    "rule": "DOM-innerHTML",
+    "path": "node_modules/@signalapp/quill-cjs/dist/quill.js",
+    "reasonCategory": "notExercisedByOurApp",
+    "updated": "2025-01-22T02:55:11.616Z"
+  },
+  {
+    "rule": "DOM-outerHTML",
+    "path": "node_modules/@signalapp/quill-cjs/dist/quill.js",
+    "reasonCategory": "notExercisedByOurApp",
+    "updated": "2025-01-22T02:55:11.616Z"
+  },
+  {
+    "rule": "DOM-innerHTML",
+    "path": "node_modules/@signalapp/quill-cjs/modules/normalizeExternalHTML/normalizers/msWord.js",
+    "line": "      li.innerHTML = listItem.element.innerHTML;",
+    "reasonCategory": "notExercisedByOurApp",
+    "updated": "2025-01-10T05:52:01.516Z"
+  },
+  {
+    "rule": "DOM-innerHTML",
+    "path": "node_modules/@signalapp/quill-cjs/modules/normalizeExternalHTML/normalizers/msWord.js",
+    "line": "  const html = doc.documentElement.innerHTML;",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-01-10T05:52:01.516Z",
+    "reasonDetail": "Reading contents of DOM"
+  },
+  {
+    "rule": "DOM-innerHTML",
+    "path": "node_modules/@signalapp/quill-cjs/modules/syntax.js",
+    "line": "    container.innerHTML = highlight(this.options.hljs, language, text);",
+    "reasonCategory": "notExercisedByOurApp",
+    "updated": "2025-01-10T05:52:01.516Z"
+  },
+  {
+    "rule": "DOM-innerHTML",
+    "path": "node_modules/@signalapp/quill-cjs/themes/base.js",
+    "line": "          button.innerHTML = icons[name][''] + icons[name].rtl;",
+    "reasonCategory": "notExercisedByOurApp",
+    "updated": "2025-01-10T05:52:01.516Z"
+  },
+  {
+    "rule": "DOM-innerHTML",
+    "path": "node_modules/@signalapp/quill-cjs/themes/base.js",
+    "line": "          button.innerHTML = icons[name];",
+    "reasonCategory": "usageTrusted",
+    "updated": "2020-10-13T18:36:57.012Z",
+    "reasonDetail": "necessary for quill"
+  },
+  {
+    "rule": "DOM-innerHTML",
+    "path": "node_modules/@signalapp/quill-cjs/themes/base.js",
+    "line": "            button.innerHTML = icons[name][value];",
+    "reasonCategory": "usageTrusted",
+    "updated": "2020-10-13T18:36:57.012Z",
+    "reasonDetail": "necessary for quill"
+  },
+  {
+    "rule": "DOM-innerHTML",
+    "path": "node_modules/@signalapp/quill-cjs/ui/color-picker.js",
+    "line": "    this.label.innerHTML = label;",
+    "reasonCategory": "usageTrusted",
+    "updated": "2020-10-13T18:36:57.012Z",
+    "reasonDetail": "necessary for quill"
+  },
+  {
+    "rule": "DOM-innerHTML",
+    "path": "node_modules/@signalapp/quill-cjs/ui/icon-picker.js",
+    "line": "      if (this.label.innerHTML === item.innerHTML) return;",
+    "reasonCategory": "notExercisedByOurApp",
+    "updated": "2025-01-10T05:52:01.516Z"
+  },
+  {
+    "rule": "DOM-innerHTML",
+    "path": "node_modules/@signalapp/quill-cjs/ui/icon-picker.js",
+    "line": "      item.innerHTML = icons[item.getAttribute('data-value') || ''];",
+    "reasonCategory": "usageTrusted",
+    "updated": "2020-10-13T18:36:57.012Z",
+    "reasonDetail": "necessary for quill"
+  },
+  {
+    "rule": "DOM-innerHTML",
+    "path": "node_modules/@signalapp/quill-cjs/ui/icon-picker.js",
+    "line": "    this.label.innerHTML = item.innerHTML;",
+    "reasonCategory": "usageTrusted",
+    "updated": "2020-10-13T18:36:57.012Z",
+    "reasonDetail": "necessary for quill"
+  },
+  {
+    "rule": "DOM-innerHTML",
+    "path": "node_modules/@signalapp/quill-cjs/ui/picker.js",
+    "line": "    label.innerHTML = DropdownIcon;",
+    "reasonCategory": "usageTrusted",
+    "updated": "2020-10-13T18:36:57.012Z",
+    "reasonDetail": "necessary for quill"
+  },
+  {
+    "rule": "DOM-innerHTML",
+    "path": "node_modules/@signalapp/quill-cjs/ui/tooltip.js",
+    "line": "    this.root.innerHTML = this.constructor.TEMPLATE;",
+    "reasonCategory": "usageTrusted",
+    "updated": "2020-10-13T18:36:57.012Z",
+    "reasonDetail": "necessary for quill"
   },
   {
     "rule": "DOM-innerHTML",
@@ -650,6 +202,27 @@
     "updated": "2021-04-13T00:52:21.453Z"
   },
   {
+    "rule": "DOM-outerHTML",
+    "path": "node_modules/axe-core/axe.js",
+    "line": "      if (!(element !== null && element !== void 0 && element.outerHTML)) {",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-11-13T23:33:49.776Z"
+  },
+  {
+    "rule": "DOM-outerHTML",
+    "path": "node_modules/axe-core/axe.js",
+    "line": "        var outerHTML = node.outerHTML;",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-11-13T23:33:49.776Z"
+  },
+  {
+    "rule": "DOM-outerHTML",
+    "path": "node_modules/axe-core/axe.js",
+    "line": "        node = cache_default.get(outerHTML, function() {",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-11-13T23:33:49.776Z"
+  },
+  {
     "rule": "DOM-innerHTML",
     "path": "node_modules/axe-core/axe.min.js",
     "reasonCategory": "usageTrusted",
@@ -658,126 +231,259 @@
   {
     "rule": "DOM-outerHTML",
     "path": "node_modules/axe-core/axe.min.js",
-    "reasonCategory": "usageTrusted",
-    "updated": "2021-04-13T17:31:15.352Z"
-  },
-  {
-    "rule": "DOM-outerHTML",
-    "path": "node_modules/axe-core/lib/core/utils/dq-element.js",
-    "line": "\tvar source = element.outerHTML;",
-    "reasonCategory": "usageTrusted",
-    "updated": "2021-04-13T00:52:21.453Z"
-  },
-  {
-    "rule": "DOM-outerHTML",
-    "path": "node_modules/axe-core/lib/core/utils/dq-element.js",
-    "line": " * grab the source (outerHTML) and offer an array for storing frame paths",
-    "reasonCategory": "usageTrusted",
-    "updated": "2021-04-13T00:52:21.453Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/axe-core/lib/core/utils/pollyfills.js",
-    "line": "\tstyle.innerHTML = usePointer",
-    "reasonCategory": "usageTrusted",
-    "updated": "2021-04-13T17:31:15.352Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/axe-core/lib/core/utils/valid-langs.js",
-    "line": "const str = document.querySelector('pre').innerHTML;",
     "reasonCategory": "usageTrusted",
     "updated": "2021-04-13T17:31:15.352Z"
   },
   {
     "rule": "eval",
-    "path": "node_modules/config/lib/config.js",
-    "line": "      configObject = VisionmediaYaml.eval(util.stripYamlComments(content));",
-    "reasonCategory": "falseMatch",
-    "updated": "2018-09-15T00:38:04.183Z"
-  },
-  {
-    "rule": "thenify-multiArgs",
-    "path": "node_modules/default-browser-id/node_modules/pify/index.js",
-    "line": "\t\t\t\t} else if (opts.multiArgs) {",
+    "path": "node_modules/config/parser.js",
+    "line": "      return VisionmediaYaml.eval(Parser.stripYamlComments(content));",
     "reasonCategory": "usageTrusted",
-    "updated": "2023-04-20T16:43:40.643Z"
+    "updated": "2024-11-14T01:39:46.132Z"
   },
   {
-    "rule": "DOM-outerHTML",
-    "path": "node_modules/domutils/node_modules/dom-serializer/lib/esm/index.js",
-    "line": " * Can be thought of as the equivalent of the `outerHTML` of the passed node(s).",
-    "reasonCategory": "falseMatch",
-    "updated": "2023-01-11T23:51:00.603Z"
-  },
-  {
-    "rule": "DOM-outerHTML",
-    "path": "node_modules/domutils/node_modules/dom-serializer/lib/index.js",
-    "line": " * Can be thought of as the equivalent of the `outerHTML` of the passed node(s).",
-    "reasonCategory": "falseMatch",
-    "updated": "2023-01-11T23:51:00.603Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/element-resize-detector/dist/element-resize-detector.js",
-    "line": "            div.innerHTML = \"<!--[if gt IE \" + (++v) + \"]><i></i><![endif]-->\";",
+    "rule": "React-useRef",
+    "path": "node_modules/framer-motion/dist/cjs/index.js",
+    "line": "    var visualElementRef = React.useRef(undefined);",
     "reasonCategory": "usageTrusted",
-    "updated": "2022-06-01T22:57:44.591Z"
+    "updated": "2025-02-19T20:14:46.879Z"
   },
   {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/element-resize-detector/dist/element-resize-detector.js",
-    "line": "            styleElement.innerHTML = style;",
+    "rule": "React-useRef",
+    "path": "node_modules/framer-motion/dist/cjs/index.js",
+    "line": "    var ref = React.useRef(null);",
     "reasonCategory": "usageTrusted",
-    "updated": "2022-06-01T22:57:44.591Z"
+    "updated": "2025-02-19T20:14:46.879Z"
   },
   {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/element-resize-detector/dist/element-resize-detector.min.js",
+    "rule": "React-useRef",
+    "path": "node_modules/framer-motion/dist/cjs/index.js",
+    "line": " * const ref = useRef(null)",
     "reasonCategory": "usageTrusted",
-    "updated": "2022-06-01T22:57:44.591Z"
+    "updated": "2025-02-19T20:14:46.879Z"
   },
   {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/element-resize-detector/src/browser-detector.js",
-    "line": "            div.innerHTML = \"<!--[if gt IE \" + (++v) + \"]><i></i><![endif]-->\";",
+    "rule": "React-useRef",
+    "path": "node_modules/framer-motion/dist/cjs/index.js",
+    "line": "    var isPressing = React.useRef(false);",
     "reasonCategory": "usageTrusted",
-    "updated": "2022-06-01T22:57:44.591Z"
+    "updated": "2025-02-19T20:14:46.879Z"
   },
   {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/element-resize-detector/src/detection-strategy/scroll.js",
-    "line": "            styleElement.innerHTML = style;",
+    "rule": "React-useRef",
+    "path": "node_modules/framer-motion/dist/cjs/index.js",
+    "line": "    var cancelPointerEndListeners = React.useRef(null);",
     "reasonCategory": "usageTrusted",
-    "updated": "2022-06-01T22:57:44.591Z"
+    "updated": "2025-02-19T20:14:46.879Z"
   },
   {
-    "rule": "React-ref",
-    "path": "node_modules/esquery/dist/esquery.esm.min.js",
-    "reasonCategory": "falseMatch",
-    "updated": "2020-08-26T00:10:28.628Z",
-    "reasonDetail": "isn't react"
+    "rule": "React-useRef",
+    "path": "node_modules/framer-motion/dist/cjs/index.js",
+    "line": "    var state = React.useRef({",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
   },
   {
-    "rule": "React-ref",
-    "path": "node_modules/esquery/dist/esquery.min.js",
-    "reasonCategory": "falseMatch",
-    "updated": "2020-08-26T00:10:28.628Z",
-    "reasonDetail": "isn't react"
+    "rule": "React-useRef",
+    "path": "node_modules/framer-motion/dist/cjs/index.js",
+    "line": "    var panSession = React.useRef(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
   },
   {
-    "rule": "React-findDOMNode",
-    "path": "node_modules/focus-trap-react/dist/focus-trap-react.js",
-    "line": "        var focusTrapElementDOMNodes = this.focusTrapElements.map( // NOTE: `findDOMNode()` does not support CSS selectors; it'll just return",
-    "reasonCategory": "exampleCode",
-    "updated": "2021-10-01T23:53:26.107Z"
+    "rule": "React-useRef",
+    "path": "node_modules/framer-motion/dist/cjs/index.js",
+    "line": "    var isMounted = React.useRef(false);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
   },
   {
-    "rule": "React-findDOMNode",
-    "path": "node_modules/focus-trap-react/src/focus-trap-react.js",
-    "line": "        // NOTE: `findDOMNode()` does not support CSS selectors; it'll just return",
-    "reasonCategory": "exampleCode",
-    "updated": "2021-10-01T23:53:26.107Z"
+    "rule": "React-useRef",
+    "path": "node_modules/framer-motion/dist/cjs/index.js",
+    "line": "    var presentChildren = React.useRef(childrenToRender);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/framer-motion/dist/cjs/index.js",
+    "line": "    var allChildren = React.useRef(new Map()).current;",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/framer-motion/dist/cjs/index.js",
+    "line": "    var isInitialRender = React.useRef(true);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/framer-motion/dist/cjs/index.js",
+    "line": "    var context = React.useRef(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/framer-motion/dist/cjs/index.js",
+    "line": "    var loadedRenderer = React.useRef(undefined);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/framer-motion/dist/cjs/index.js",
+    "line": "    var isReordering = React.useRef(false);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/framer-motion/dist/cjs/index.js",
+    "line": "    var measuredLayout = React.useRef(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/framer-motion/dist/cjs/index.js",
+    "line": "    var activeSpringAnimation = React.useRef(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/framer-motion/dist/cjs/index.js",
+    "line": "    var index = React.useRef(0);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/framer-motion/dist/framer-motion.dev.js",
+    "line": "        var visualElementRef = React.useRef(undefined);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/framer-motion/dist/framer-motion.dev.js",
+    "line": "        var ref = React.useRef(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/framer-motion/dist/framer-motion.dev.js",
+    "line": "     * const ref = useRef(null)",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/framer-motion/dist/framer-motion.dev.js",
+    "line": "        var isPressing = React.useRef(false);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/framer-motion/dist/framer-motion.dev.js",
+    "line": "        var cancelPointerEndListeners = React.useRef(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/framer-motion/dist/framer-motion.dev.js",
+    "line": "        var state = React.useRef({",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/framer-motion/dist/framer-motion.dev.js",
+    "line": "        var panSession = React.useRef(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/framer-motion/dist/framer-motion.dev.js",
+    "line": "        var isMounted = React.useRef(false);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/framer-motion/dist/framer-motion.dev.js",
+    "line": "        var presentChildren = React.useRef(childrenToRender);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/framer-motion/dist/framer-motion.dev.js",
+    "line": "        var allChildren = React.useRef(new Map()).current;",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/framer-motion/dist/framer-motion.dev.js",
+    "line": "        var isInitialRender = React.useRef(true);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/framer-motion/dist/framer-motion.dev.js",
+    "line": "        var context = React.useRef(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/framer-motion/dist/framer-motion.dev.js",
+    "line": "        var loadedRenderer = React.useRef(undefined);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/framer-motion/dist/framer-motion.dev.js",
+    "line": "        var isReordering = React.useRef(false);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/framer-motion/dist/framer-motion.dev.js",
+    "line": "        var measuredLayout = React.useRef(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/framer-motion/dist/framer-motion.dev.js",
+    "line": "        var activeSpringAnimation = React.useRef(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/framer-motion/dist/framer-motion.dev.js",
+    "line": "        var index = React.useRef(0);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/framer-motion/dist/framer-motion.js",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
   },
   {
     "rule": "DOM-innerHTML",
@@ -824,53 +530,17 @@
   },
   {
     "rule": "DOM-innerHTML",
-    "path": "node_modules/html-minifier-terser/node_modules/terser/dist/bundle.min.js",
-    "reasonCategory": "falseMatch",
-    "updated": "2022-07-26T23:41:36.800Z",
-    "reasonDetail": "Part of keyword list for preservation in final minified build"
-  },
-  {
-    "rule": "DOM-outerHTML",
-    "path": "node_modules/html-minifier-terser/node_modules/terser/dist/bundle.min.js",
-    "reasonCategory": "falseMatch",
-    "updated": "2022-07-26T23:41:36.800Z",
-    "reasonDetail": "Part of keyword list for preservation in final minified build"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/html-minifier-terser/node_modules/terser/tools/domprops.js",
-    "line": "    \"innerHTML\",",
-    "reasonCategory": "falseMatch",
-    "updated": "2022-07-26T23:41:36.800Z",
-    "reasonDetail": "Part of keyword list for preservation in final minified build"
-  },
-  {
-    "rule": "DOM-outerHTML",
-    "path": "node_modules/html-minifier-terser/node_modules/terser/tools/domprops.js",
-    "line": "    \"outerHTML\",",
-    "reasonCategory": "falseMatch",
-    "updated": "2022-07-26T23:41:36.800Z",
-    "reasonDetail": "Part of keyword list for preservation in final minified build"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/intl-tel-input/build/js/intlTelInput-jquery.js",
-    "line": "                    this.selectedDialCode.innerHTML = dialCode;",
-    "reasonCategory": "usageTrusted",
-    "updated": "2021-12-01T01:31:12.757Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/intl-tel-input/build/js/intlTelInput-jquery.min.js",
+    "path": "node_modules/intl-tel-input/build/js/intlTelInput.js",
+    "line": "                        this.selectedDialCode.innerHTML = dialCode;",
     "reasonCategory": "usageTrusted",
     "updated": "2021-12-01T01:31:12.757Z"
   },
   {
     "rule": "DOM-innerHTML",
     "path": "node_modules/intl-tel-input/build/js/intlTelInput.js",
-    "line": "                        this.selectedDialCode.innerHTML = dialCode;",
+    "line": "      this.countryList.innerHTML = \"\";",
     "reasonCategory": "usageTrusted",
-    "updated": "2021-12-01T01:31:12.757Z"
+    "updated": "2024-11-16T00:33:41.092Z"
   },
   {
     "rule": "DOM-innerHTML",
@@ -880,339 +550,79 @@
   },
   {
     "rule": "DOM-innerHTML",
-    "path": "node_modules/intl-tel-input/src/js/intlTelInput.js",
+    "path": "node_modules/intl-tel-input/build/js/intlTelInputWithUtils.js",
+    "line": "      this.countryList.innerHTML = \"\";",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-11-16T00:33:41.092Z"
+  },
+  {
+    "rule": "DOM-innerHTML",
+    "path": "node_modules/intl-tel-input/build/js/intlTelInputWithUtils.js",
+    "line": "        this.selectedDialCode.innerHTML = dialCode;",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-11-16T00:33:41.092Z"
+  },
+  {
+    "rule": "DOM-innerHTML",
+    "path": "node_modules/intl-tel-input/build/js/intlTelInputWithUtils.min.js",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-11-16T00:33:41.092Z"
+  },
+  {
+    "rule": "DOM-innerHTML",
+    "path": "node_modules/intl-tel-input/react/build/IntlTelInput.js",
+    "line": "    this.countryList.innerHTML = \"\";",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-11-16T00:33:41.092Z"
+  },
+  {
+    "rule": "DOM-innerHTML",
+    "path": "node_modules/intl-tel-input/react/build/IntlTelInput.js",
     "line": "      this.selectedDialCode.innerHTML = dialCode;",
     "reasonCategory": "usageTrusted",
-    "updated": "2021-12-01T01:31:12.757Z"
-  },
-  {
-    "rule": "DOM-document.write(",
-    "path": "node_modules/is-function/test.js",
-    "line": "        iframe.contentWindow.document.write([",
-    "reasonCategory": "testCode",
-    "updated": "2022-06-01T22:57:44.591Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/jsdoc/templates/default/static/scripts/prettify/prettify.js",
-    "reasonCategory": "testCode",
-    "updated": "2023-07-12T01:02:31.061Z"
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/loader-runner/lib/loadLoader.js",
-    "line": "\t\t\tvar modulePromise = eval(\"import(\" + JSON.stringify(loaderUrl.toString()) + \")\");",
-    "reasonCategory": "usageTrusted",
-    "updated": "2021-04-05T20:48:36.065Z"
+    "updated": "2024-11-16T00:33:41.092Z"
   },
   {
     "rule": "React-useRef",
-    "path": "node_modules/lottie-react/build/index.es.js",
-    "line": "  var animationInstanceRef = useRef();",
+    "path": "node_modules/intl-tel-input/react/build/IntlTelInput.js",
+    "line": "  const inputRef = useRef(null);",
     "reasonCategory": "usageTrusted",
-    "updated": "2023-06-29T17:01:25.145Z"
+    "updated": "2024-11-16T00:33:41.092Z"
   },
   {
     "rule": "React-useRef",
-    "path": "node_modules/lottie-react/build/index.es.js",
-    "line": "  var animationContainer = useRef(null);",
+    "path": "node_modules/intl-tel-input/react/build/IntlTelInput.js",
+    "line": "  const itiRef = useRef(null);",
     "reasonCategory": "usageTrusted",
-    "updated": "2023-06-29T17:01:25.145Z"
+    "updated": "2024-11-16T00:33:41.092Z"
+  },
+  {
+    "rule": "DOM-innerHTML",
+    "path": "node_modules/intl-tel-input/react/build/IntlTelInputWithUtils.js",
+    "line": "    this.countryList.innerHTML = \"\";",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-11-16T00:33:41.092Z"
+  },
+  {
+    "rule": "DOM-innerHTML",
+    "path": "node_modules/intl-tel-input/react/build/IntlTelInputWithUtils.js",
+    "line": "      this.selectedDialCode.innerHTML = dialCode;",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-11-16T00:33:41.092Z"
   },
   {
     "rule": "React-useRef",
-    "path": "node_modules/lottie-react/build/index.js",
-    "line": "  var animationInstanceRef = React.useRef();",
+    "path": "node_modules/intl-tel-input/react/build/IntlTelInputWithUtils.js",
+    "line": "  const inputRef = useRef(null);",
     "reasonCategory": "usageTrusted",
-    "updated": "2023-06-29T17:01:25.145Z"
+    "updated": "2024-11-16T00:33:41.092Z"
   },
   {
     "rule": "React-useRef",
-    "path": "node_modules/lottie-react/build/index.js",
-    "line": "  var animationContainer = React.useRef(null);",
+    "path": "node_modules/intl-tel-input/react/build/IntlTelInputWithUtils.js",
+    "line": "  const itiRef = useRef(null);",
     "reasonCategory": "usageTrusted",
-    "updated": "2023-06-29T17:01:25.145Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/lottie-react/build/index.min.js",
-    "reasonCategory": "usageTrusted",
-    "updated": "2023-06-29T17:01:25.145Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/lottie-react/build/index.umd.js",
-    "line": "    var animationInstanceRef = React.useRef();",
-    "reasonCategory": "usageTrusted",
-    "updated": "2023-06-29T17:01:25.145Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/lottie-react/build/index.umd.js",
-    "line": "    var animationContainer = React.useRef(null);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2023-06-29T17:01:25.145Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/lottie-react/build/index.umd.min.js",
-    "reasonCategory": "usageTrusted",
-    "updated": "2023-06-29T17:01:25.145Z"
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/lottie-web/build/player/cjs/lottie.min.js",
-    "line": "    var expression_function = eval('[function _expression_function(){' + val + ';scoped_bm_rt=$bm_rt}]')[0]; // eslint-disable-line no-eval",
-    "reasonCategory": "notExercisedByOurApp",
-    "updated": "2023-06-29T17:01:25.145Z"
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/lottie-web/build/player/cjs/lottie_canvas.min.js",
-    "line": "    var expression_function = eval('[function _expression_function(){' + val + ';scoped_bm_rt=$bm_rt}]')[0]; // eslint-disable-line no-eval",
-    "reasonCategory": "notExercisedByOurApp",
-    "updated": "2023-06-29T17:01:25.145Z"
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/lottie-web/build/player/cjs/lottie_html.min.js",
-    "line": "    var expression_function = eval('[function _expression_function(){' + val + ';scoped_bm_rt=$bm_rt}]')[0]; // eslint-disable-line no-eval",
-    "reasonCategory": "notExercisedByOurApp",
-    "updated": "2023-06-29T17:01:25.145Z"
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/lottie-web/build/player/cjs/lottie_svg.min.js",
-    "line": "    var expression_function = eval('[function _expression_function(){' + val + ';scoped_bm_rt=$bm_rt}]')[0]; // eslint-disable-line no-eval",
-    "reasonCategory": "notExercisedByOurApp",
-    "updated": "2023-06-29T17:01:25.145Z"
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/lottie-web/build/player/esm/lottie.min.js",
-    "line": "    var expression_function = eval('[function _expression_function(){' + val + ';scoped_bm_rt=$bm_rt}]')[0]; // eslint-disable-line no-eval",
-    "reasonCategory": "notExercisedByOurApp",
-    "updated": "2023-06-29T17:01:25.145Z"
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/lottie-web/build/player/esm/lottie_canvas.min.js",
-    "line": "    var expression_function = eval('[function _expression_function(){' + val + ';scoped_bm_rt=$bm_rt}]')[0]; // eslint-disable-line no-eval",
-    "reasonCategory": "notExercisedByOurApp",
-    "updated": "2023-06-29T17:01:25.145Z"
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/lottie-web/build/player/esm/lottie_html.min.js",
-    "line": "    var expression_function = eval('[function _expression_function(){' + val + ';scoped_bm_rt=$bm_rt}]')[0]; // eslint-disable-line no-eval",
-    "reasonCategory": "notExercisedByOurApp",
-    "updated": "2023-06-29T17:01:25.145Z"
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/lottie-web/build/player/esm/lottie_svg.min.js",
-    "line": "    var expression_function = eval('[function _expression_function(){' + val + ';scoped_bm_rt=$bm_rt}]')[0]; // eslint-disable-line no-eval",
-    "reasonCategory": "notExercisedByOurApp",
-    "updated": "2023-06-29T17:01:25.145Z"
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/lottie-web/build/player/lottie.js",
-    "line": "      var expression_function = eval('[function _expression_function(){' + val + ';scoped_bm_rt=$bm_rt}]')[0]; // eslint-disable-line no-eval",
-    "reasonCategory": "notExercisedByOurApp",
-    "updated": "2023-06-29T17:01:25.145Z"
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/lottie-web/build/player/lottie.min.js",
-    "reasonCategory": "notExercisedByOurApp",
-    "updated": "2023-06-29T17:01:25.145Z"
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/lottie-web/build/player/lottie_canvas.js",
-    "line": "      var expression_function = eval('[function _expression_function(){' + val + ';scoped_bm_rt=$bm_rt}]')[0]; // eslint-disable-line no-eval",
-    "reasonCategory": "notExercisedByOurApp",
-    "updated": "2023-06-29T17:01:25.145Z"
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/lottie-web/build/player/lottie_canvas.min.js",
-    "reasonCategory": "notExercisedByOurApp",
-    "updated": "2023-06-29T17:01:25.145Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/lottie-web/build/player/lottie_canvas_worker.js",
-    "line": "            animation.container.innerHTML = '';",
-    "reasonCategory": "notExercisedByOurApp",
-    "updated": "2023-06-29T17:01:25.145Z"
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/lottie-web/build/player/lottie_canvas_worker.js",
-    "line": "      var expression_function = eval('[function _expression_function(){' + val + ';scoped_bm_rt=$bm_rt}]')[0]; // eslint-disable-line no-eval",
-    "reasonCategory": "notExercisedByOurApp",
-    "updated": "2023-06-29T17:01:25.145Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/lottie-web/build/player/lottie_canvas_worker.min.js",
-    "reasonCategory": "notExercisedByOurApp",
-    "updated": "2023-06-29T17:01:25.145Z"
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/lottie-web/build/player/lottie_canvas_worker.min.js",
-    "reasonCategory": "notExercisedByOurApp",
-    "updated": "2023-06-29T17:01:25.145Z"
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/lottie-web/build/player/lottie_html.js",
-    "line": "      var expression_function = eval('[function _expression_function(){' + val + ';scoped_bm_rt=$bm_rt}]')[0]; // eslint-disable-line no-eval",
-    "reasonCategory": "notExercisedByOurApp",
-    "updated": "2023-06-29T17:01:25.145Z"
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/lottie-web/build/player/lottie_html.min.js",
-    "reasonCategory": "notExercisedByOurApp",
-    "updated": "2023-06-29T17:01:25.145Z"
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/lottie-web/build/player/lottie_svg.js",
-    "line": "      var expression_function = eval('[function _expression_function(){' + val + ';scoped_bm_rt=$bm_rt}]')[0]; // eslint-disable-line no-eval",
-    "reasonCategory": "notExercisedByOurApp",
-    "updated": "2023-06-29T17:01:25.145Z"
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/lottie-web/build/player/lottie_svg.min.js",
-    "reasonCategory": "notExercisedByOurApp",
-    "updated": "2023-06-29T17:01:25.145Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/lottie-web/build/player/lottie_worker.js",
-    "line": "            animation.container.innerHTML = '';",
-    "reasonCategory": "notExercisedByOurApp",
-    "updated": "2023-06-29T17:01:25.145Z"
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/lottie-web/build/player/lottie_worker.js",
-    "line": "      var expression_function = eval('[function _expression_function(){' + val + ';scoped_bm_rt=$bm_rt}]')[0]; // eslint-disable-line no-eval",
-    "reasonCategory": "notExercisedByOurApp",
-    "updated": "2023-06-29T17:01:25.145Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/lottie-web/build/player/lottie_worker.min.js",
-    "reasonCategory": "notExercisedByOurApp",
-    "updated": "2023-06-29T17:01:25.145Z"
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/lottie-web/build/player/lottie_worker.min.js",
-    "reasonCategory": "notExercisedByOurApp",
-    "updated": "2023-06-29T17:01:25.145Z"
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/lottie-web/player/js/utils/expressions/ExpressionManager.js",
-    "line": "    var expression_function = eval('[function _expression_function(){' + val + ';scoped_bm_rt=$bm_rt}]')[0]; // eslint-disable-line no-eval",
-    "reasonCategory": "notExercisedByOurApp",
-    "updated": "2023-06-29T17:01:25.145Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/lottie-web/player/js/worker_wrapper.js",
-    "line": "            animation.container.innerHTML = '';",
-    "reasonCategory": "notExercisedByOurApp",
-    "updated": "2023-06-29T17:01:25.145Z"
-  },
-  {
-    "rule": "thenify-multiArgs",
-    "path": "node_modules/make-dir/node_modules/pify/index.js",
-    "line": "\t\tif (options.multiArgs) {",
-    "reasonCategory": "usageTrusted",
-    "updated": "2023-08-21T18:28:53.361Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/min-document/serialize.js",
-    "line": "        } else if (elem.innerHTML) {",
-    "reasonCategory": "usageTrusted",
-    "updated": "2018-09-15T00:38:04.183Z",
-    "reasonDetail": "Getting the value, not setting it"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/min-document/serialize.js",
-    "line": "        key !== \"textContent\" && key !== \"innerText\" && key !== \"namespaceURI\" &&  key !== \"innerHTML\"",
-    "reasonCategory": "usageTrusted",
-    "updated": "2018-09-15T00:38:04.183Z",
-    "reasonDetail": "Getting the value, not setting it"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/min-document/serialize.js",
-    "line": "            strings.push(elem.innerHTML)",
-    "reasonCategory": "usageTrusted",
-    "updated": "2020-09-11T17:24:56.124Z",
-    "reasonDetail": "Read, not write"
-  },
-  {
-    "rule": "thenify-multiArgs",
-    "path": "node_modules/p-event/index.js",
-    "line": "\t\t\tmultiArgs: false,",
-    "reasonCategory": "falseMatch",
-    "updated": "2022-06-04T00:50:49.405Z"
-  },
-  {
-    "rule": "thenify-multiArgs",
-    "path": "node_modules/p-event/index.js",
-    "line": "\t\t\tconst value = options.multiArgs ? args : args[0];",
-    "reasonCategory": "falseMatch",
-    "updated": "2022-06-04T00:50:49.405Z"
-  },
-  {
-    "rule": "thenify-multiArgs",
-    "path": "node_modules/p-event/index.js",
-    "line": "\t\tmultiArgs: false,",
-    "reasonCategory": "falseMatch",
-    "updated": "2022-06-04T00:50:49.405Z"
-  },
-  {
-    "rule": "thenify-multiArgs",
-    "path": "node_modules/p-event/index.js",
-    "line": "\t\tconst value = options.multiArgs ? args : args[0];",
-    "reasonCategory": "falseMatch",
-    "updated": "2022-06-04T00:50:49.405Z"
-  },
-  {
-    "rule": "thenify-multiArgs",
-    "path": "node_modules/p-event/index.js",
-    "line": "\t\terror = options.multiArgs ? args : args[0];",
-    "reasonCategory": "falseMatch",
-    "updated": "2022-06-04T00:50:49.405Z"
-  },
-  {
-    "rule": "thenify-multiArgs",
-    "path": "node_modules/p-event/index.js",
-    "line": "\t\tconst value = options.multiArgs ? args : args[0];",
-    "reasonCategory": "falseMatch",
-    "updated": "2022-06-04T00:50:49.405Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/parse-entities/decode-entity.browser.js",
-    "line": "  el.innerHTML = entity",
-    "reasonCategory": "usageTrusted",
-    "updated": "2020-08-25T16:59:46.588Z",
-    "reasonDetail": "Ephemeral element"
+    "updated": "2024-11-16T00:33:41.092Z"
   },
   {
     "rule": "thenify-multiArgs",
@@ -1227,6 +637,13 @@
     "line": "\t\t\t\tif (opts.multiArgs) {",
     "reasonCategory": "falseMatch",
     "updated": "2018-09-19T18:06:35.446Z"
+  },
+  {
+    "rule": "eval",
+    "path": "node_modules/pino/test/fixtures/eval/index.js",
+    "line": "eval(`",
+    "reasonCategory": "testCode",
+    "updated": "2024-06-24T19:19:28.335Z"
   },
   {
     "rule": "eval",
@@ -1291,710 +708,297 @@
   },
   {
     "rule": "DOM-innerHTML",
-    "path": "node_modules/quill/core/quill.js",
-    "line": "    let html = this.container.innerHTML.trim();",
+    "path": "node_modules/react-blurhash/docs/demo.f335462148ad584661d8.js",
     "reasonCategory": "usageTrusted",
-    "updated": "2020-10-13T18:36:57.012Z",
-    "reasonDetail": "necessary for quill"
+    "updated": "2024-11-14T18:53:33.345Z"
   },
   {
     "rule": "DOM-innerHTML",
-    "path": "node_modules/quill/core/quill.js",
-    "line": "    this.container.innerHTML = '';",
+    "path": "node_modules/react-blurhash/docs/demo.f335462148ad584661d8.js",
     "reasonCategory": "usageTrusted",
-    "updated": "2020-10-13T18:36:57.012Z",
-    "reasonDetail": "necessary for quill"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/quill/dist/quill.core.js",
-    "line": "        this.container.innerHTML = html.replace(/\\>\\r?\\n +\\</g, '><'); // Remove spaces between tags",
-    "reasonCategory": "notExercisedByOurApp",
-    "updated": "2023-05-17T16:29:59.196Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/quill/dist/quill.core.js",
-    "line": "      this.container.innerHTML = '';",
-    "reasonCategory": "notExercisedByOurApp",
-    "updated": "2023-05-17T16:29:59.196Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/quill/dist/quill.core.js",
-    "line": "    var html = this.container.innerHTML.trim();",
-    "reasonCategory": "usageTrusted",
-    "updated": "2020-10-13T18:36:57.012Z",
-    "reasonDetail": "necessary for quill"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/quill/dist/quill.core.js",
-    "line": "    this.container.innerHTML = '';",
-    "reasonCategory": "usageTrusted",
-    "updated": "2020-10-13T18:36:57.012Z",
-    "reasonDetail": "necessary for quill"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/quill/dist/quill.core.js",
-    "line": "      debug.log('convert', this.container.innerHTML, delta);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2020-10-13T18:36:57.012Z",
-    "reasonDetail": "necessary for quill"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/quill/dist/quill.core.js",
-    "line": "      this.container.innerHTML = '';",
-    "reasonCategory": "usageTrusted",
-    "updated": "2020-10-13T18:36:57.012Z",
-    "reasonDetail": "necessary for quill"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/quill/dist/quill.js",
-    "line": "        // this.container.innerHTML = html.replace(/\\>\\r?\\n +\\</g, '><'); // Remove spaces between tags",
-    "reasonCategory": "falseMatch",
-    "updated": "2023-05-17T01:41:49.734Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/quill/dist/quill.js",
-    "line": "      //  this.container.innerHTML = '';",
-    "reasonCategory": "falseMatch",
-    "updated": "2023-05-17T01:41:49.734Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/quill/dist/quill.js",
-    "line": "      // this.container.innerHTML = '';",
-    "reasonCategory": "falseMatch",
-    "updated": "2023-05-17T01:41:49.734Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/quill/dist/quill.js",
-    "line": "    var html = this.container.innerHTML.trim();",
-    "reasonCategory": "usageTrusted",
-    "updated": "2020-10-13T18:36:57.012Z",
-    "reasonDetail": "necessary for quill"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/quill/dist/quill.js",
-    "line": "      label.innerHTML = _dropdown2.default;",
-    "reasonCategory": "usageTrusted",
-    "updated": "2020-10-13T18:36:57.012Z",
-    "reasonDetail": "necessary for quill"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/quill/dist/quill.js",
-    "line": "            button.innerHTML = icons[name][''] + icons[name]['rtl'];",
-    "reasonCategory": "usageTrusted",
-    "updated": "2020-10-13T18:36:57.012Z",
-    "reasonDetail": "necessary for quill"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/quill/dist/quill.js",
-    "line": "            button.innerHTML = icons[name];",
-    "reasonCategory": "usageTrusted",
-    "updated": "2020-10-13T18:36:57.012Z",
-    "reasonDetail": "necessary for quill"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/quill/dist/quill.js",
-    "line": "              button.innerHTML = icons[name][value];",
-    "reasonCategory": "usageTrusted",
-    "updated": "2020-10-13T18:36:57.012Z",
-    "reasonDetail": "necessary for quill"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/quill/dist/quill.js",
-    "line": "        this.container.innerHTML = '';",
-    "reasonCategory": "usageTrusted",
-    "updated": "2020-10-13T18:36:57.012Z",
-    "reasonDetail": "necessary for quill"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/quill/dist/quill.js",
-    "line": "      debug.log('convert', this.container.innerHTML, delta);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2020-10-13T18:36:57.012Z",
-    "reasonDetail": "necessary for quill"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/quill/dist/quill.js",
-    "line": "    _this.label.innerHTML = label;",
-    "reasonCategory": "usageTrusted",
-    "updated": "2020-10-13T18:36:57.012Z",
-    "reasonDetail": "necessary for quill"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/quill/dist/quill.js",
-    "line": "      item.innerHTML = icons[item.getAttribute('data-value') || ''];",
-    "reasonCategory": "usageTrusted",
-    "updated": "2020-10-13T18:36:57.012Z",
-    "reasonDetail": "necessary for quill"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/quill/dist/quill.js",
-    "line": "      this.label.innerHTML = item.innerHTML;",
-    "reasonCategory": "usageTrusted",
-    "updated": "2020-10-13T18:36:57.012Z",
-    "reasonDetail": "necessary for quill"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/quill/dist/quill.js",
-    "line": "    this.root.innerHTML = this.constructor.TEMPLATE;",
-    "reasonCategory": "usageTrusted",
-    "updated": "2020-10-13T18:36:57.012Z",
-    "reasonDetail": "necessary for quill"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/quill/dist/quill.js",
-    "line": "          this.domNode.innerHTML = _highlight(text);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2020-10-13T18:36:57.012Z",
-    "reasonDetail": "necessary for quill"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/quill/dist/quill.min.js",
-    "reasonCategory": "usageTrusted",
-    "updated": "2020-10-13T18:36:57.012Z",
-    "reasonDetail": "necessary for quill"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/quill/modules/clipboard.js",
-    "line": "      this.container.innerHTML = html.replace(/\\>\\r?\\n +\\</g, '><'); // Remove spaces between tags",
-    "reasonCategory": "usageTrusted",
-    "updated": "2020-10-13T18:36:57.012Z",
-    "reasonDetail": "necessary for quill"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/quill/modules/clipboard.js",
-    "line": "      this.container.innerHTML = '';",
-    "reasonCategory": "usageTrusted",
-    "updated": "2020-10-13T18:36:57.012Z",
-    "reasonDetail": "necessary for quill"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/quill/modules/clipboard.js",
-    "line": "    this.container.innerHTML = '';",
-    "reasonCategory": "usageTrusted",
-    "updated": "2020-10-13T18:36:57.012Z",
-    "reasonDetail": "necessary for quill"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/quill/modules/clipboard.js",
-    "line": "    debug.log('convert', this.container.innerHTML, delta);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2021-12-01T01:31:12.757Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/quill/modules/syntax.js",
-    "line": "        this.domNode.innerHTML = highlight(text);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2020-10-13T18:36:57.012Z",
-    "reasonDetail": "necessary for quill"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/quill/themes/base.js",
-    "line": "          button.innerHTML = icons[name][''] + icons[name]['rtl'];",
-    "reasonCategory": "usageTrusted",
-    "updated": "2020-10-13T18:36:57.012Z",
-    "reasonDetail": "necessary for quill"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/quill/themes/base.js",
-    "line": "          button.innerHTML = icons[name];",
-    "reasonCategory": "usageTrusted",
-    "updated": "2020-10-13T18:36:57.012Z",
-    "reasonDetail": "necessary for quill"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/quill/themes/base.js",
-    "line": "            button.innerHTML = icons[name][value];",
-    "reasonCategory": "usageTrusted",
-    "updated": "2020-10-13T18:36:57.012Z",
-    "reasonDetail": "necessary for quill"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/quill/ui/color-picker.js",
-    "line": "    this.label.innerHTML = label;",
-    "reasonCategory": "usageTrusted",
-    "updated": "2020-10-13T18:36:57.012Z",
-    "reasonDetail": "necessary for quill"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/quill/ui/icon-picker.js",
-    "line": "      item.innerHTML = icons[item.getAttribute('data-value') || ''];",
-    "reasonCategory": "usageTrusted",
-    "updated": "2020-10-13T18:36:57.012Z",
-    "reasonDetail": "necessary for quill"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/quill/ui/icon-picker.js",
-    "line": "    this.label.innerHTML = item.innerHTML;",
-    "reasonCategory": "usageTrusted",
-    "updated": "2020-10-13T18:36:57.012Z",
-    "reasonDetail": "necessary for quill"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/quill/ui/picker.js",
-    "line": "    label.innerHTML = DropdownIcon;",
-    "reasonCategory": "usageTrusted",
-    "updated": "2020-10-13T18:36:57.012Z",
-    "reasonDetail": "necessary for quill"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/quill/ui/tooltip.js",
-    "line": "    this.root.innerHTML = this.constructor.TEMPLATE;",
-    "reasonCategory": "usageTrusted",
-    "updated": "2020-10-13T18:36:57.012Z",
-    "reasonDetail": "necessary for quill"
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/raw-body/node_modules/depd/index.js",
-    "line": "  var deprecatedfn = eval('(function (' + args + ') {\\n' +",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-12-13T00:55:48.389Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/react-blurhash/docs/demo.1d83eeb63aeb90e0cf0e.js",
-    "reasonCategory": "notExercisedByOurApp",
-    "updated": "2022-06-04T00:50:49.405Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/react-blurhash/docs/demo.1d83eeb63aeb90e0cf0e.js",
-    "reasonCategory": "notExercisedByOurApp",
-    "updated": "2022-06-04T00:50:49.405Z"
+    "updated": "2024-11-14T18:53:33.345Z"
   },
   {
     "rule": "React-dangerouslySetInnerHTML",
-    "path": "node_modules/react-blurhash/docs/demo.1d83eeb63aeb90e0cf0e.js",
-    "reasonCategory": "notExercisedByOurApp",
-    "updated": "2022-06-04T00:50:49.405Z"
+    "path": "node_modules/react-blurhash/docs/demo.f335462148ad584661d8.js",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-11-14T18:53:33.345Z"
   },
   {
     "rule": "React-dangerouslySetInnerHTML",
-    "path": "node_modules/react-blurhash/docs/demo.1d83eeb63aeb90e0cf0e.js",
-    "reasonCategory": "notExercisedByOurApp",
-    "updated": "2022-06-04T00:50:49.405Z"
-  },
-  {
-    "rule": "React-dangerouslySetInnerHTML",
-    "path": "node_modules/react-blurhash/docs/demo.1d83eeb63aeb90e0cf0e.js",
-    "reasonCategory": "notExercisedByOurApp",
-    "updated": "2022-06-04T00:50:49.405Z"
+    "path": "node_modules/react-blurhash/docs/demo.f335462148ad584661d8.js",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-11-14T18:53:33.345Z"
   },
   {
     "rule": "React-ref",
-    "path": "node_modules/react-blurhash/docs/demo.1d83eeb63aeb90e0cf0e.js",
-    "reasonCategory": "notExercisedByOurApp",
-    "updated": "2022-06-04T00:50:49.405Z"
+    "path": "node_modules/react-blurhash/docs/demo.f335462148ad584661d8.js",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-11-14T18:53:33.345Z"
   },
   {
     "rule": "React-ref",
-    "path": "node_modules/react-blurhash/docs/demo.1d83eeb63aeb90e0cf0e.js",
-    "reasonCategory": "notExercisedByOurApp",
-    "updated": "2022-06-04T00:50:49.405Z"
+    "path": "node_modules/react-blurhash/docs/demo.f335462148ad584661d8.js",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-11-14T18:53:33.345Z"
   },
   {
     "rule": "React-useRef",
-    "path": "node_modules/react-blurhash/docs/demo.1d83eeb63aeb90e0cf0e.js",
-    "reasonCategory": "notExercisedByOurApp",
-    "updated": "2022-06-04T00:50:49.405Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/react-colorful/dist/index.esmodule.js",
+    "path": "node_modules/react-blurhash/docs/demo.f335462148ad584661d8.js",
     "reasonCategory": "usageTrusted",
-    "updated": "2022-06-04T00:50:49.405Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/react-colorful/dist/index.js",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-06-04T00:50:49.405Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/react-colorful/dist/index.js",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-06-04T00:50:49.405Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/react-colorful/dist/index.module.js",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-06-04T00:50:49.405Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/react-colorful/dist/index.umd.js",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-06-04T00:50:49.405Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/react-colorful/dist/index.umd.js",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-06-04T00:50:49.405Z"
-  },
-  {
-    "rule": "React-createRef",
-    "path": "node_modules/react-inspector/dist/umd/react-inspector.js",
-    "line": "function createRef() {",
-    "reasonCategory": "falseMatch",
-    "updated": "2022-06-04T00:50:49.405Z"
-  },
-  {
-    "rule": "React-createRef",
-    "path": "node_modules/react-inspector/dist/umd/react-inspector.js",
-    "reasonCategory": "falseMatch",
-    "updated": "2022-06-04T00:50:49.405Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/react-inspector/dist/umd/react-inspector.js",
-    "line": "var useLayoutEffect=function(a,b){return Z().useLayoutEffect(a,b)};var useMemo=function(a,b){return Z().useMemo(a,b)};var useReducer=function(a,b,c){return Z().useReducer(a,b,c)};var useRef=function(a){return Z().useRef(a)};var useState=function(a){return Z().useState(a)};var version=\"16.14.0\";",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-06-04T00:50:49.405Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/react-inspector/dist/umd/react-inspector.js",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-06-04T00:50:49.405Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/react-inspector/dist/umd/react-inspector.js",
-    "line": "function useRef(initialValue) {",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-06-04T00:50:49.405Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "node_modules/react-inspector/dist/umd/react-inspector.js",
-    "line": "  return dispatcher.useRef(initialValue);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-06-04T00:50:49.405Z"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/react-quill/dist/react-quill.js",
-    "reasonCategory": "usageTrusted",
-    "updated": "2020-10-13T18:36:57.012Z",
-    "reasonDetail": "necessary for react-quill"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/react-quill/dist/react-quill.js",
-    "reasonCategory": "usageTrusted",
-    "updated": "2020-10-13T18:36:57.012Z",
-    "reasonDetail": "necessary for react-quill"
-  },
-  {
-    "rule": "React-findDOMNode",
-    "path": "node_modules/react-quill/dist/react-quill.js",
-    "reasonCategory": "usageTrusted",
-    "updated": "2020-10-13T18:36:57.012Z",
-    "reasonDetail": "necessary for react-quill"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/react-quill/lib/index.js",
-    "line": "                (_b = (_a = _this).onEditorChangeText) === null || _b === void 0 ? void 0 : _b.call(_a, _this.editor.root.innerHTML, rangeOrDelta, source, _this.unprivilegedEditor);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2020-10-13T18:36:57.012Z",
-    "reasonDetail": "necessary for react-quill"
-  },
-  {
-    "rule": "DOM-innerHTML",
-    "path": "node_modules/react-quill/lib/index.js",
-    "line": "            getHTML: function () { return e.root.innerHTML; },",
-    "reasonCategory": "usageTrusted",
-    "updated": "2020-10-13T18:36:57.012Z",
-    "reasonDetail": "necessary for react-quill"
-  },
-  {
-    "rule": "React-findDOMNode",
-    "path": "node_modules/react-quill/lib/index.js",
-    "line": "        var element = react_dom_1.default.findDOMNode(this.editingArea);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2020-10-13T18:36:57.012Z",
-    "reasonDetail": "necessary for react-quill"
-  },
-  {
-    "rule": "React-findDOMNode",
-    "path": "node_modules/react-sizeme/dist/react-sizeme.js",
-    "line": "          var found = this.element && ReactDOM__default['default'].findDOMNode(this.element);",
-    "reasonCategory": "falseMatch",
-    "updated": "2022-06-04T00:50:49.405Z"
-  },
-  {
-    "rule": "React-findDOMNode",
-    "path": "node_modules/react-sizeme/dist/react-sizeme.min.js",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-06-04T00:50:49.405Z"
+    "updated": "2024-11-14T18:53:33.345Z"
   },
   {
     "rule": "React-useRef",
     "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.browser.cjs.js",
-    "line": "  var libRef = React.useRef(null);",
+    "line": "  var libRef = React__namespace.useRef(null);",
     "reasonCategory": "usageTrusted",
-    "updated": "2022-06-16T23:23:32.306Z"
+    "updated": "2024-11-16T00:31:42.167Z"
   },
   {
     "rule": "React-useRef",
     "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.browser.cjs.js",
-    "line": "  var heightRef = React.useRef(0);",
+    "line": "  var heightRef = React__namespace.useRef(0);",
     "reasonCategory": "usageTrusted",
-    "updated": "2022-06-16T23:23:32.306Z"
+    "updated": "2024-11-16T00:31:42.167Z"
   },
   {
     "rule": "React-useRef",
     "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.browser.cjs.js",
-    "line": "  var measurementsCacheRef = React.useRef();",
+    "line": "  var measurementsCacheRef = React__namespace.useRef();",
     "reasonCategory": "usageTrusted",
-    "updated": "2022-06-16T23:23:32.306Z"
+    "updated": "2024-11-16T00:31:42.167Z"
   },
   {
     "rule": "React-useRef",
-    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.browser.esm.js",
-    "line": "  var libRef = useRef(null);",
+    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.browser.development.cjs.js",
+    "line": "  var libRef = React__namespace.useRef(null);",
     "reasonCategory": "usageTrusted",
-    "updated": "2022-06-16T23:23:32.306Z"
+    "updated": "2024-11-16T00:31:42.167Z"
   },
   {
     "rule": "React-useRef",
-    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.browser.esm.js",
-    "line": "  var heightRef = useRef(0);",
+    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.browser.development.cjs.js",
+    "line": "  var heightRef = React__namespace.useRef(0);",
     "reasonCategory": "usageTrusted",
-    "updated": "2022-06-16T23:23:32.306Z"
+    "updated": "2024-11-16T00:31:42.167Z"
   },
   {
     "rule": "React-useRef",
-    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.browser.esm.js",
-    "line": "  var measurementsCacheRef = useRef();",
+    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.browser.development.cjs.js",
+    "line": "  var measurementsCacheRef = React__namespace.useRef();",
     "reasonCategory": "usageTrusted",
-    "updated": "2022-06-16T23:23:32.306Z"
+    "updated": "2024-11-16T00:31:42.167Z"
   },
   {
     "rule": "React-useRef",
-    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.cjs.dev.js",
+    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.browser.development.esm.js",
     "line": "  var libRef = React.useRef(null);",
     "reasonCategory": "usageTrusted",
-    "updated": "2022-06-16T23:23:32.306Z"
+    "updated": "2024-11-16T00:31:42.167Z"
   },
   {
     "rule": "React-useRef",
-    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.cjs.dev.js",
+    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.browser.development.esm.js",
     "line": "  var heightRef = React.useRef(0);",
     "reasonCategory": "usageTrusted",
-    "updated": "2022-06-16T23:23:32.306Z"
+    "updated": "2024-11-16T00:31:42.167Z"
   },
   {
     "rule": "React-useRef",
-    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.cjs.dev.js",
+    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.browser.development.esm.js",
     "line": "  var measurementsCacheRef = React.useRef();",
     "reasonCategory": "usageTrusted",
-    "updated": "2022-06-16T23:23:32.306Z"
+    "updated": "2024-11-16T00:31:42.167Z"
   },
   {
     "rule": "React-useRef",
-    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.cjs.prod.js",
+    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.browser.esm.js",
     "line": "  var libRef = React.useRef(null);",
     "reasonCategory": "usageTrusted",
-    "updated": "2022-06-16T23:23:32.306Z"
+    "updated": "2024-11-16T00:31:42.167Z"
   },
   {
     "rule": "React-useRef",
-    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.cjs.prod.js",
+    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.browser.esm.js",
     "line": "  var heightRef = React.useRef(0);",
     "reasonCategory": "usageTrusted",
-    "updated": "2022-06-16T23:23:32.306Z"
+    "updated": "2024-11-16T00:31:42.167Z"
   },
   {
     "rule": "React-useRef",
-    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.cjs.prod.js",
+    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.browser.esm.js",
     "line": "  var measurementsCacheRef = React.useRef();",
     "reasonCategory": "usageTrusted",
-    "updated": "2022-06-16T23:23:32.306Z"
+    "updated": "2024-11-16T00:31:42.167Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.cjs.js",
+    "line": "  var libRef = React__namespace.useRef(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-11-16T00:31:42.167Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.cjs.js",
+    "line": "  React__namespace.useRef(0);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-11-16T00:31:42.167Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.cjs.js",
+    "line": "  React__namespace.useRef();",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-11-16T00:31:42.167Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.development.cjs.js",
+    "line": "  var libRef = React__namespace.useRef(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-11-16T00:31:42.167Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.development.cjs.js",
+    "line": "  React__namespace.useRef(0);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-11-16T00:31:42.167Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.development.cjs.js",
+    "line": "  React__namespace.useRef();",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-11-16T00:31:42.167Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.development.esm.js",
+    "line": "  var libRef = React.useRef(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-11-16T00:31:42.167Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.development.esm.js",
+    "line": "  React.useRef(0);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-11-16T00:31:42.167Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.development.esm.js",
+    "line": "  React.useRef();",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-11-16T00:31:42.167Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.development.worker.cjs.js",
+    "line": "  var libRef = React__namespace.useRef(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-11-16T00:31:42.167Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.development.worker.cjs.js",
+    "line": "  React__namespace.useRef(0);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-11-16T00:31:42.167Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.development.worker.cjs.js",
+    "line": "  React__namespace.useRef();",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-11-16T00:31:42.167Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.development.worker.esm.js",
+    "line": "  var libRef = React.useRef(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-11-16T00:31:42.167Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.development.worker.esm.js",
+    "line": "  React.useRef(0);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-11-16T00:31:42.167Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.development.worker.esm.js",
+    "line": "  React.useRef();",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-11-16T00:31:42.167Z"
   },
   {
     "rule": "React-useRef",
     "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.esm.js",
-    "line": "  var libRef = useRef(null);",
+    "line": "  var libRef = React.useRef(null);",
     "reasonCategory": "usageTrusted",
-    "updated": "2022-06-16T23:23:32.306Z"
+    "updated": "2024-11-16T00:31:42.167Z"
   },
   {
     "rule": "React-useRef",
     "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.esm.js",
-    "line": "  var heightRef = useRef(0);",
+    "line": "  React.useRef(0);",
     "reasonCategory": "usageTrusted",
-    "updated": "2022-06-16T23:23:32.306Z"
+    "updated": "2024-11-16T00:31:42.167Z"
   },
   {
     "rule": "React-useRef",
     "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.esm.js",
-    "line": "  var measurementsCacheRef = useRef();",
+    "line": "  React.useRef();",
     "reasonCategory": "usageTrusted",
-    "updated": "2022-06-16T23:23:32.306Z"
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/source-map-support/source-map-support.js",
-    "line": "  // Most eval() calls are in this format",
-    "reasonCategory": "falseMatch",
-    "updated": "2020-04-30T22:35:27.860Z"
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/source-map-support/source-map-support.js",
-    "line": "  // Parse nested eval() calls using recursion",
-    "reasonCategory": "falseMatch",
-    "updated": "2020-04-30T22:35:27.860Z"
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/source-map-support/source-map-support.js",
-    "line": "  // passed to eval() ending in \"//# sourceURL=...\" will return the source file",
-    "reasonCategory": "falseMatch",
-    "updated": "2020-04-30T22:35:27.860Z"
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/source-map-support/source-map-support.js",
-    "line": "  // Code called using eval() needs special handling",
-    "reasonCategory": "falseMatch",
-    "updated": "2020-04-30T22:35:27.860Z"
+    "updated": "2024-11-16T00:31:42.167Z"
   },
   {
     "rule": "React-useRef",
-    "path": "node_modules/use-composed-ref/dist/use-composed-ref.cjs.js",
-    "line": "  var prevUserRef = React.useRef();",
+    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.worker.cjs.js",
+    "line": "  var libRef = React__namespace.useRef(null);",
     "reasonCategory": "usageTrusted",
-    "updated": "2022-06-16T23:23:32.306Z"
+    "updated": "2024-11-16T00:31:42.167Z"
   },
   {
     "rule": "React-useRef",
-    "path": "node_modules/use-composed-ref/dist/use-composed-ref.esm.js",
-    "line": "  var prevUserRef = useRef();",
+    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.worker.cjs.js",
+    "line": "  React__namespace.useRef(0);",
     "reasonCategory": "usageTrusted",
-    "updated": "2022-06-16T23:23:32.306Z"
+    "updated": "2024-11-16T00:31:42.167Z"
   },
   {
     "rule": "React-useRef",
-    "path": "node_modules/use-latest/dist/use-latest.cjs.dev.js",
-    "line": "  var ref = React__namespace.useRef(value);",
+    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.worker.cjs.js",
+    "line": "  React__namespace.useRef();",
     "reasonCategory": "usageTrusted",
-    "updated": "2022-06-16T23:23:32.306Z"
+    "updated": "2024-11-16T00:31:42.167Z"
   },
   {
     "rule": "React-useRef",
-    "path": "node_modules/use-latest/dist/use-latest.cjs.prod.js",
-    "line": "  var ref = React__namespace.useRef(value);",
+    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.worker.esm.js",
+    "line": "  var libRef = React.useRef(null);",
     "reasonCategory": "usageTrusted",
-    "updated": "2022-06-16T23:23:32.306Z"
+    "updated": "2024-11-16T00:31:42.167Z"
   },
   {
     "rule": "React-useRef",
-    "path": "node_modules/use-latest/dist/use-latest.esm.js",
-    "line": "  var ref = React.useRef(value);",
+    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.worker.esm.js",
+    "line": "  React.useRef(0);",
     "reasonCategory": "usageTrusted",
-    "updated": "2022-06-16T23:23:32.306Z"
+    "updated": "2024-11-16T00:31:42.167Z"
   },
   {
-    "rule": "eval",
-    "path": "node_modules/workerpool/dist/worker.js",
-    "line": "var requireFoolWebpack = eval('typeof require !== \\'undefined\\'' + ' ? require' + ' : function (module) { throw new Error(\\'Module \" + module + \" not found.\\') }');",
+    "rule": "React-useRef",
+    "path": "node_modules/react-textarea-autosize/dist/react-textarea-autosize.worker.esm.js",
+    "line": "  React.useRef();",
     "reasonCategory": "usageTrusted",
-    "updated": "2021-09-16T20:26:31.296Z",
-    "reasonDetail": "Dev-only dependency."
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/workerpool/dist/workerpool.js",
-    "reasonCategory": "usageTrusted",
-    "updated": "2021-09-16T20:26:31.296Z",
-    "reasonDetail": "Dev-only dependency."
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/workerpool/dist/workerpool.js",
-    "line": "var requireFoolWebpack = eval('typeof require !== \\'undefined\\' ' + '? require ' + ': function (module) { throw new Error(\\'Module \" + module + \" not found.\\') }');",
-    "reasonCategory": "usageTrusted",
-    "updated": "2021-09-16T20:26:31.296Z",
-    "reasonDetail": "Dev-only dependency."
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/workerpool/dist/workerpool.js",
-    "line": "var requireFoolWebpack = eval('typeof require !== \\'undefined\\'' + ' ? require' + ' : function (module) { throw new Error(\\'Module \" + module + \" not found.\\') }');",
-    "reasonCategory": "usageTrusted",
-    "updated": "2021-09-16T20:26:31.296Z",
-    "reasonDetail": "Dev-only dependency."
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/workerpool/dist/workerpool.min.js",
-    "reasonCategory": "usageTrusted",
-    "updated": "2021-09-16T20:26:31.296Z",
-    "reasonDetail": "Dev-only dependency."
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/workerpool/src/generated/embeddedWorker.js",
-    "reasonCategory": "usageTrusted",
-    "updated": "2021-09-16T20:26:31.296Z",
-    "reasonDetail": "Dev-only dependency."
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/workerpool/src/requireFoolWebpack.js",
-    "line": "var requireFoolWebpack = eval(",
-    "reasonCategory": "usageTrusted",
-    "updated": "2021-09-16T20:26:31.296Z",
-    "reasonDetail": "Dev-only dependency."
-  },
-  {
-    "rule": "eval",
-    "path": "node_modules/workerpool/src/worker.js",
-    "line": "var requireFoolWebpack = eval(",
-    "reasonCategory": "usageTrusted",
-    "updated": "2021-09-16T20:26:31.296Z",
-    "reasonDetail": "Dev-only dependency."
+    "updated": "2024-11-16T00:31:42.167Z"
   },
   {
     "rule": "React-useRef",
@@ -2003,6 +1007,21 @@
     "reasonCategory": "usageTrusted",
     "updated": "2021-12-10T23:24:03.829Z",
     "reasonDetail": "Doesn't touch the DOM."
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/AutoSizeInput.tsx",
+    "line": "  const hiddenRef = useRef<HTMLSpanElement | null>(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-01-11T16:58:57.146Z",
+    "reasonDetail": "Needs access to a hidden span element to get its width"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/AutoSizeTextArea.tsx",
+    "line": "  const ownRef = useRef<HTMLTextAreaElement | null>(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-03-26T17:14:14.370Z"
   },
   {
     "rule": "React-useRef",
@@ -2035,6 +1054,13 @@
   },
   {
     "rule": "React-useRef",
+    "path": "ts/components/CallManager.tsx",
+    "line": "  const imageDataCache = React.useRef<CallingImageDataCache>(new Map());",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-05-06T20:18:59.647Z"
+  },
+  {
+    "rule": "React-useRef",
     "path": "ts/components/CallNeedPermissionScreen.tsx",
     "line": "  const autoCloseAtRef = useRef<number>(Date.now() + AUTO_CLOSE_MS);",
     "reasonCategory": "usageTrusted",
@@ -2042,25 +1068,105 @@
   },
   {
     "rule": "React-useRef",
+    "path": "ts/components/CallReactionBurst.tsx",
+    "line": "  const timeouts = useRef<Map<string, NodeJS.Timeout>>(new Map());",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-01-06T00:59:20.678Z",
+    "reasonDetail": "For hiding call reaction bursts after timeouts."
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/CallReactionBurst.tsx",
+    "line": "  const burstsShown = useRef<Set<string>>(new Set());",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-01-06T00:59:20.678Z",
+    "reasonDetail": "In wrapping function, track bursts so we can hide on unmount."
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/CallReactionBurst.tsx",
+    "line": "  const shownBursts = useRef<Set<string>>(new Set());",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-01-06T00:59:20.678Z",
+    "reasonDetail": "Keep track of shown reaction bursts."
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/CallReactionBurstEmoji.tsx",
+    "line": "  const containerRef = React.useRef<HTMLDivElement | null>(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-01-06T00:59:20.678Z",
+    "reasonDetail": "For determining position of container for animations."
+  },
+  {
+    "rule": "React-useRef",
     "path": "ts/components/CallScreen.tsx",
-    "line": "  const localVideoRef = useRef<HTMLVideoElement | null>(null);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2021-12-01T01:31:12.757Z"
+    "line": "  const burstsShown = useRef<Map<string, number>>(new Map());",
+    "reasonCategory": "sageTrusted",
+    "updated": "2024-01-06T00:59:20.678Z",
+    "reasonDetail": "Recent bursts shown for burst behavior like throttling."
   },
   {
     "rule": "React-useRef",
-    "path": "ts/components/CallingLobby.tsx",
-    "line": "  const localVideoRef = React.useRef<null | HTMLVideoElement>(null);",
+    "path": "ts/components/CallScreen.tsx",
+    "line": "  const toastRegionRef = useRef<HTMLDivElement>(null);",
     "reasonCategory": "usageTrusted",
-    "updated": "2021-07-30T16:57:33.618Z"
+    "updated": "2023-11-14T23:29:51.425Z",
+    "reasonDetail": "For calling reactions toasts"
   },
   {
     "rule": "React-useRef",
-    "path": "ts/components/CallingPip.tsx",
-    "line": "  const localVideoRef = React.useRef(null);",
+    "path": "ts/components/CallScreen.tsx",
+    "line": "  const reactionPickerRef = React.useRef<null | HTMLDivElement>(null);",
     "reasonCategory": "usageTrusted",
-    "updated": "2020-10-26T19:12:24.410Z",
-    "reasonDetail": "Used to get the local video element for rendering."
+    "updated": "2023-11-14T23:29:51.425Z",
+    "reasonDetail": "To render the reaction picker in the CallScreen"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/CallScreen.tsx",
+    "line": "  const burstRegionRef = useRef<HTMLDivElement>(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2023-12-21T11:13:56.623Z",
+    "reasonDetail": "Calling reactions bursts"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/CallScreen.tsx",
+    "line": "  const reactionsShown = useRef<",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-01-06T00:59:20.678Z",
+    "reasonDetail": "Recent reactions shown for reactions burst"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/CallScreen.tsx",
+    "line": "  const reactButtonRef = React.useRef<null | HTMLDivElement>(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-01-16T22:59:06.336Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/CallScreen.tsx",
+    "line": "  const reactionPickerContainerRef = React.useRef<null | HTMLDivElement>(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-01-16T22:59:06.336Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/CallingPendingParticipants.tsx",
+    "line": "  const expandedListRef = useRef<HTMLDivElement>(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-06-28T01:22:22.509Z",
+    "reasonDetail": "For outside click handling"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/CallingPendingParticipants.tsx",
+    "line": "  const lastParticipantRef = React.useRef<ConversationType | undefined>();",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-09-20T02:11:27.851Z",
+    "reasonDetail": "For fading out, to keep showing the last known participant"
   },
   {
     "rule": "React-useRef",
@@ -2071,26 +1177,73 @@
   },
   {
     "rule": "React-useRef",
-    "path": "ts/components/CallingToastManager.tsx",
-    "line": "  const timeoutRef = useRef<NodeJS.Timeout | null>(null);",
+    "path": "ts/components/CallingToast.tsx",
+    "line": "  const shownToasts = React.useRef<Set<string>>(new Set());",
     "reasonCategory": "usageTrusted",
-    "updated": "2021-07-30T16:57:33.618Z"
+    "updated": "2023-10-04T20:50:45.297Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/CallingToast.tsx",
+    "line": "  const timeouts = React.useRef<Map<string, TimeoutType>>(new Map());",
+    "reasonCategory": "usageTrusted",
+    "updated": "2023-10-10T17:05:02.468Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/CallingToast.tsx",
+    "line": "  const timeoutsStatus = React.useRef<'active' | 'paused'>('active');",
+    "reasonCategory": "usageTrusted",
+    "updated": "2023-10-10T17:05:02.468Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/CallingToast.tsx",
+    "line": "  const toastsShown = useRef<Set<string>>(new Set());",
+    "reasonCategory": "usageTrusted",
+    "updated": "2023-10-10T17:05:02.468Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/CallingToast.tsx",
+    "line": "  const toastId = useRef<string>(uuid());",
+    "reasonCategory": "usageTrusted",
+    "updated": "2023-11-14T16:52:45.342Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/CallingToastManager.tsx",
+    "line": "  const toastRegionRef = useRef<HTMLDivElement>(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2023-10-26T13:57:41.860Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/CallingToastManager.tsx",
+    "line": "  const toastLastShownAt = useRef<number>(0);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-01-12T18:56:18.138Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/CallingToastManager.tsx",
+    "line": "  const handsForLastShownToast = useRef<Set<number>>(new Set());",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-01-12T18:56:18.138Z"
   },
   {
     "rule": "React-useRef",
     "path": "ts/components/CallsList.tsx",
     "line": "  const infiniteLoaderRef = useRef<InfiniteLoader>(null);",
     "reasonCategory": "usageTrusted",
-    "updated": "2023-08-02T00:21:37.858Z",
-    "reasonDetail": "<optional>"
+    "updated": "2023-08-02T00:21:37.858Z"
   },
   {
     "rule": "React-useRef",
     "path": "ts/components/CallsList.tsx",
     "line": "  const listRef = useRef<List>(null);",
     "reasonCategory": "usageTrusted",
-    "updated": "2023-08-02T00:21:37.858Z",
-    "reasonDetail": "<optional>"
+    "updated": "2023-08-02T00:21:37.858Z"
   },
   {
     "rule": "React-useRef",
@@ -2098,6 +1251,55 @@
     "line": "  const prevOptionsRef = useRef<CallHistoryFilterOptions | null>(null);",
     "reasonCategory": "usageTrusted",
     "updated": "2023-08-18T19:09:30.283Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/CallsList.tsx",
+    "line": "  const getCallHistoryGroupsCountRef = useRef(getCallHistoryGroupsCount);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2023-11-27T20:25:10.634Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/CallsList.tsx",
+    "line": "  const getCallHistoryGroupsRef = useRef(getCallHistoryGroups);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2023-11-27T20:25:10.634Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/CallsList.tsx",
+    "line": "  const searchStateItemsRef = useRef<ReadonlyArray<CallHistoryGroup> | null>(",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-05-16T02:10:00.652Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/CallsList.tsx",
+    "line": "  const peekQueueRef = useRef<Set<string>>(new Set());",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-05-16T02:10:00.652Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/CallsList.tsx",
+    "line": "  const peekQueueArgsRef = useRef<Map<string, PeekNotConnectedGroupCallType>>(",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-05-16T02:10:00.652Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/CallsList.tsx",
+    "line": "  const inactiveCallLinksPeekedAtRef = useRef<Map<string, number>>(new Map());",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-05-16T02:10:00.652Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/CallsList.tsx",
+    "line": "  const peekQueueTimerRef = useRef<NodeJS.Timeout | null>(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-05-16T02:10:00.652Z"
   },
   {
     "rule": "React-useRef",
@@ -2183,13 +1385,6 @@
     "reasonCategory": "usageTrusted",
     "updated": "2022-06-25T00:06:19.860Z",
     "reasonDetail": "Not used for DOM manipulation"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "ts/components/CompositionInput.tsx",
-    "line": "  const scrollerRefInner = React.useRef<HTMLDivElement>(null);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-10-03T16:06:12.837Z"
   },
   {
     "rule": "React-useRef",
@@ -2378,6 +1573,14 @@
   },
   {
     "rule": "React-useRef",
+    "path": "ts/components/Lightbox.tsx",
+    "line": "  const downloadToastTimeout = useRef<NodeJS.Timeout | number | undefined>();",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-01-06T03:53:58.093Z",
+    "reasonDetail": "usageTrusted"
+  },
+  {
+    "rule": "React-useRef",
     "path": "ts/components/ListView.tsx",
     "line": "  const listRef = useRef<null | List>(null);",
     "reasonCategory": "usageTrusted",
@@ -2458,10 +1661,10 @@
   },
   {
     "rule": "React-useRef",
-    "path": "ts/components/SafetyNumberOnboarding.tsx",
-    "line": "  const lottieRef = useRef<LottieRefCurrentProps | null>(null);",
+    "path": "ts/components/SafetyTipsModal.tsx",
+    "line": "  const scrollEndTimer = useRef<NodeJS.Timeout | null>(null);",
     "reasonCategory": "usageTrusted",
-    "updated": "2023-06-29T17:01:25.145Z"
+    "updated": "2024-03-08T01:48:15.330Z"
   },
   {
     "rule": "React-useRef",
@@ -2487,16 +1690,16 @@
   {
     "rule": "React-useRef",
     "path": "ts/components/StandaloneRegistration.tsx",
-    "line": "  const pluginRef = useRef<Plugin | undefined>();",
+    "line": "  const elemRef = useRef<HTMLInputElement | null>(null);",
     "reasonCategory": "usageTrusted",
-    "updated": "2021-11-24T20:55:14.943Z"
+    "updated": "2021-11-30T10:15:33.662Z"
   },
   {
     "rule": "React-useRef",
     "path": "ts/components/StandaloneRegistration.tsx",
-    "line": "  const elemRef = useRef<HTMLInputElement | null>(null);",
+    "line": "  const pluginRef = useRef<Iti | undefined>();",
     "reasonCategory": "usageTrusted",
-    "updated": "2021-11-30T10:15:33.662Z"
+    "updated": "2024-11-16T00:33:41.092Z"
   },
   {
     "rule": "React-useRef",
@@ -2507,24 +1710,10 @@
   },
   {
     "rule": "React-useRef",
-    "path": "ts/components/StoryViewer.tsx",
-    "line": "  const progressBarRef = useRef<HTMLDivElement>(null);",
+    "path": "ts/components/StoryProgressSegment.tsx",
+    "line": "  const onFinishRef = useRef(onFinish);",
     "reasonCategory": "usageTrusted",
-    "updated": "2022-10-13T15:18:21.267Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "ts/components/StoryViewer.tsx",
-    "line": "  const animationRef = useRef<Animation | null>(null);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-10-13T15:18:21.267Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "ts/components/StoryViewer.tsx",
-    "line": "  const onFinishRef = useRef<(() => void) | null>(null);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2022-10-13T15:18:21.267Z"
+    "updated": "2024-08-13T20:48:09.226Z"
   },
   {
     "rule": "React-useRef",
@@ -2597,20 +1786,25 @@
     "updated": "2023-08-10T00:23:35.320Z"
   },
   {
-    "rule": "React-createRef",
-    "path": "ts/components/conversation/ConversationHeader.tsx",
-    "line": "    this.menuTriggerRef = React.createRef();",
+    "rule": "React-useRef",
+    "path": "ts/components/conversation/CallingNotification.tsx",
+    "line": "    const menuTriggerRef = React.useRef<ContextMenuTriggerType | null>(null);",
     "reasonCategory": "usageTrusted",
-    "updated": "2020-05-20T20:10:43.540Z",
-    "reasonDetail": "Used to reference popup menu"
+    "updated": "2023-12-08T20:28:57.595Z"
   },
   {
-    "rule": "React-createRef",
+    "rule": "React-useRef",
     "path": "ts/components/conversation/ConversationHeader.tsx",
-    "line": "    this.headerRef = React.createRef();",
+    "line": "  const menuTriggerRef = useRef<any>(null);",
     "reasonCategory": "usageTrusted",
-    "updated": "2021-01-18T22:24:05.937Z",
-    "reasonDetail": "Used to reference popup menu boundaries element"
+    "updated": "2024-03-15T18:29:48.327Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/conversation/ConversationHeader.tsx",
+    "line": "  const headerRef = useRef<HTMLDivElement>(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-03-15T18:29:48.327Z"
   },
   {
     "rule": "React-useRef",
@@ -2660,7 +1854,7 @@
   {
     "rule": "React-createRef",
     "path": "ts/components/conversation/Message.tsx",
-    "line": "  private metadataRef: React.RefObject<HTMLDivElement> = React.createRef();",
+    "line": "  #metadataRef: React.RefObject<HTMLDivElement> = React.createRef();",
     "reasonCategory": "usageTrusted",
     "updated": "2023-06-30T22:12:49.259Z",
     "reasonDetail": "Used for excluding the message metadata from triple-click selections."
@@ -2684,9 +1878,17 @@
   {
     "rule": "React-useRef",
     "path": "ts/components/conversation/TimelineMessage.tsx",
-    "line": "  const menuTriggerRef = useRef<Trigger | null>(null);",
+    "line": "  const menuTriggerRef = useRef<ContextMenuTriggerType | null>(null);",
     "reasonCategory": "usageTrusted",
-    "updated": "2022-11-03T14:21:47.456Z"
+    "updated": "2023-12-08T20:28:57.595Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/conversation/TypingBubble.tsx",
+    "line": "  const prevTypingContactIds = React.useRef<",
+    "reasonCategory": "usageTrusted",
+    "updated": "2023-09-28T21:48:57.488Z",
+    "reasonDetail": "Used to track change of typing contacts while a conversation is actively viewed."
   },
   {
     "rule": "React-useRef",
@@ -2719,7 +1921,7 @@
   {
     "rule": "React-useRef",
     "path": "ts/components/conversation/conversation-details/EditConversationAttributesModal.tsx",
-    "line": "  const startingAvatarPathRef = useRef<undefined | string>(externalAvatarPath);",
+    "line": "  const startingAvatarUrlRef = useRef<undefined | string>(externalAvatarUrl);",
     "reasonCategory": "usageTrusted",
     "updated": "2021-07-30T16:57:33.618Z"
   },
@@ -2730,6 +1932,38 @@
     "reasonCategory": "usageTrusted",
     "updated": "2019-11-01T22:46:33.013Z",
     "reasonDetail": "Used for setting focus only"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/conversation/media-gallery/MediaGallery.tsx",
+    "line": "  const loadingRef = useRef<boolean>(false);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-09-03T00:45:23.978Z",
+    "reasonDetail": "A boolean to help us avoid making too many 'load more' requests"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/conversation/media-gallery/MediaGallery.tsx",
+    "line": "  const intersectionObserver = useRef<IntersectionObserver | null>(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-09-03T00:45:23.978Z",
+    "reasonDetail": "A non-modifying reference to IntersectionObserver"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/conversation/media-gallery/MediaGallery.tsx",
+    "line": "  const scrollObserverRef = useRef<HTMLDivElement | null>(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-09-03T00:45:23.978Z",
+    "reasonDetail": "A non-modifying reference to the DOM"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/conversation/media-gallery/MediaGallery.tsx",
+    "line": "  const tabViewRef = useRef<TabViews>(TabViews.Media);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-09-03T00:45:23.978Z",
+    "reasonDetail": "Because we need the current tab value outside the callback"
   },
   {
     "rule": "React-useRef",
@@ -2748,11 +1982,129 @@
   },
   {
     "rule": "React-useRef",
-    "path": "ts/components/installScreen/InstallScreenChoosingDeviceNameStep.tsx",
-    "line": "  const hasFocusedRef = useRef<boolean>(false);",
+    "path": "ts/components/fun/base/FunImage.tsx",
+    "line": "  const imageRef = useRef<HTMLImageElement>(null);",
     "reasonCategory": "usageTrusted",
-    "updated": "2021-12-06T23:07:28.947Z",
-    "reasonDetail": "Doesn't touch the DOM."
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/fun/base/FunScroller.tsx",
+    "line": "  const scrollerRef = useRef<HTMLDivElement>(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/fun/base/FunScroller.tsx",
+    "line": "  const scrollerInnerRef = useRef<HTMLDivElement>(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/fun/base/FunScroller.tsx",
+    "line": "  const observerRef = useRef<IntersectionObserver | null>(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/fun/base/FunScroller.tsx",
+    "line": "  const onScrollChangeRef = useRef(props.onScrollSectionChange);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/fun/base/FunScroller.tsx",
+    "line": "  const ref = useRef<HTMLDivElement>(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/fun/base/FunSubNav.tsx",
+    "line": "  const outerRef = useRef<HTMLDivElement>(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/fun/base/FunSubNav.tsx",
+    "line": "  const innerRef = useRef<HTMLDivElement>(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/fun/base/FunSubNav.tsx",
+    "line": "  const ref = useRef<HTMLDivElement>(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/fun/data/infinite.ts",
+    "line": "  const loaderRef = useRef(options.loader);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/fun/data/infinite.ts",
+    "line": "  const hasNextPageRef = useRef(options.hasNextPage);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/fun/data/infinite.ts",
+    "line": "  const querySignalRef = useRef<AbortSignal | null>(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/fun/data/infinite.ts",
+    "line": "  const stateRef = useRef(state);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/fun/keyboard/FunKeyboard.tsx",
+    "line": "  const keyboardRef = useRef(props.keyboard);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/fun/keyboard/FunKeyboard.tsx",
+    "line": "  const onStateChangeRef = useRef(props.onStateChange);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/fun/panels/FunPanelEmojis.tsx",
+    "line": "  const scrollerRef = useRef<HTMLDivElement>(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/fun/panels/FunPanelGifs.tsx",
+    "line": "  const scrollerRef = useRef<HTMLDivElement>(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/components/fun/panels/FunPanelStickers.tsx",
+    "line": "  const scrollerRef = useRef<HTMLDivElement>(null);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2025-02-19T20:14:46.879Z"
   },
   {
     "rule": "React-useRef",
@@ -2764,10 +2116,25 @@
   },
   {
     "rule": "React-useRef",
+    "path": "ts/hooks/useEmojiSearch.ts",
+    "line": "  const searchRef = useRef(defaultSearch);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2024-03-16T18:34:38.165Z",
+    "reasonDetail": "Quill requires an immutable reference to the search function"
+  },
+  {
+    "rule": "React-useRef",
     "path": "ts/hooks/useIntersectionObserver.ts",
     "line": "  const unobserveRef = useRef<(() => unknown) | null>(null);",
     "reasonCategory": "usageTrusted",
     "updated": "2021-09-17T20:16:37.959Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/hooks/useIsMounted.ts",
+    "line": "  const isMounted = useRef(false);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2023-10-04T20:50:45.297Z"
   },
   {
     "rule": "React-useRef",
@@ -2803,6 +2170,13 @@
     "line": "  const lastFocusedRef = React.useRef<HTMLElement | null>(null);",
     "reasonCategory": "usageTrusted",
     "updated": "2021-10-22T00:52:39.251Z"
+  },
+  {
+    "rule": "React-useRef",
+    "path": "ts/hooks/useScrollLock.tsx",
+    "line": "  const onUserInterruptRef = useRef(onUserInterrupt);",
+    "reasonCategory": "usageTrusted",
+    "updated": "2023-09-19T17:05:51.321Z"
   },
   {
     "rule": "React-useRef",
@@ -2852,13 +2226,6 @@
     "line": "  const onScrollChangeRef = useRef<ScrollChangeHandler>(onScrollChange);",
     "reasonCategory": "usageTrusted",
     "updated": "2023-07-25T21:55:26.191Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "ts/hooks/useScrollLock.tsx",
-    "line": "  const onUserInterruptRef = useRef(onUserInterrupt);",
-    "reasonCategory": "usageTrusted",
-    "updated": "2023-09-19T17:05:51.321Z"
   },
   {
     "rule": "React-useRef",
@@ -2926,14 +2293,6 @@
     "line": "  const wasAnimatedRef = useRef(wasAnimated);",
     "reasonCategory": "usageTrusted",
     "updated": "2023-08-20T22:14:52.008Z"
-  },
-  {
-    "rule": "React-useRef",
-    "path": "ts/state/smart/InstallScreen.tsx",
-    "line": "  const chooseDeviceNamePromiseWrapperRef = useRef(explodePromise<string>());",
-    "reasonCategory": "usageTrusted",
-    "updated": "2021-12-06T23:07:28.947Z",
-    "reasonDetail": "Doesn't touch the DOM."
   },
   {
     "rule": "DOM-innerHTML",

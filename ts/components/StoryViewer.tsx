@@ -2,13 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import FocusTrap from 'focus-trap-react';
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import type { UIEvent } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import classNames from 'classnames';
 import type { DraftBodyRanges } from '../types/BodyRange';
 import type { LocalizerType } from '../types/Util';
@@ -29,7 +24,7 @@ import { AnimatedEmojiGalore } from './AnimatedEmojiGalore';
 import { Avatar, AvatarSize } from './Avatar';
 import { ConfirmationDialog } from './ConfirmationDialog';
 import { ContextMenu } from './ContextMenu';
-import { Intl } from './Intl';
+import { I18n } from './I18n';
 import { MessageTimestamp } from './conversation/MessageTimestamp';
 import { SendStatus } from '../messages/MessageSendState';
 import { Spinner } from './Spinner';
@@ -57,6 +52,8 @@ import { strictAssert } from '../util/assert';
 import { MessageBody } from './conversation/MessageBody';
 import { RenderLocation } from './conversation/MessageTextRenderer';
 import { arrow } from '../util/keyboard';
+import { useElementId } from '../hooks/useUniqueId';
+import { StoryProgressSegment } from './StoryProgressSegment';
 
 function renderStrong(parts: Array<JSX.Element | string>) {
   return <strong>{parts}</strong>;
@@ -72,7 +69,7 @@ export type PropsType = {
   group?: Pick<
     ConversationType,
     | 'acceptedMessageRequest'
-    | 'avatarPath'
+    | 'avatarUrl'
     | 'color'
     | 'id'
     | 'name'
@@ -87,8 +84,6 @@ export type PropsType = {
   hasViewReceiptSetting: boolean;
   i18n: LocalizerType;
   isFormattingEnabled: boolean;
-  isFormattingFlagEnabled: boolean;
-  isFormattingSpoilersFlagEnabled: boolean;
   isInternalUser?: boolean;
   isSignalConversation?: boolean;
   isWindowActive: boolean;
@@ -108,6 +103,7 @@ export type PropsType = {
   ) => unknown;
   onUseEmoji: (_: EmojiPickDataType) => unknown;
   onMediaPlaybackStart: () => void;
+  ourConversationId: string | undefined;
   platform: string;
   preferredReactionEmoji: ReadonlyArray<string>;
   queueStoryDownload: (storyId: string) => unknown;
@@ -150,8 +146,6 @@ export function StoryViewer({
   hasViewReceiptSetting,
   i18n,
   isFormattingEnabled,
-  isFormattingFlagEnabled,
-  isFormattingSpoilersFlagEnabled,
   isInternalUser,
   isSignalConversation,
   isWindowActive,
@@ -166,6 +160,7 @@ export function StoryViewer({
   onTextTooLong,
   onUseEmoji,
   onMediaPlaybackStart,
+  ourConversationId,
   platform,
   preferredReactionEmoji,
   queueStoryDownload,
@@ -192,6 +187,8 @@ export function StoryViewer({
     StoryViewType | undefined
   >();
 
+  const [viewerId, viewerSelector] = useElementId('StoryViewer');
+
   const {
     attachment,
     bodyRanges,
@@ -204,7 +201,7 @@ export function StoryViewer({
   } = story;
   const {
     acceptedMessageRequest,
-    avatarPath,
+    avatarUrl,
     color,
     isMe,
     firstName,
@@ -294,71 +291,28 @@ export function StoryViewer({
     };
   }, [attachment, messageId]);
 
-  const progressBarRef = useRef<HTMLDivElement>(null);
-  const animationRef = useRef<Animation | null>(null);
-
-  // Putting this in a ref allows us to call it from the useEffect below without
-  // triggering the effect to re-run every time these values change.
-  const onFinishRef = useRef<(() => void) | null>(null);
-  useEffect(() => {
-    onFinishRef.current = () => {
-      viewStory({
-        storyId: story.messageId,
-        storyViewMode,
-        viewDirection: StoryViewDirectionType.Next,
-      });
-    };
-  }, [story.messageId, storyViewMode, viewStory]);
-
   // This guarantees that we'll have a valid ref to the animation when we need it
   strictAssert(currentIndex != null, "StoryViewer: currentIndex can't be null");
 
-  // We need to be careful about this effect refreshing, it should only run
-  // every time a story changes or its duration changes.
-  useEffect(() => {
-    if (!storyDuration) {
-      return;
-    }
-
-    strictAssert(
-      progressBarRef.current != null,
-      "progressBarRef can't be null"
-    );
-    const target = progressBarRef.current;
-
-    const animation = target.animate(
-      [{ transform: 'translateX(-100%)' }, { transform: 'translateX(0%)' }],
-      {
-        id: 'story-progress-bar',
-        duration: storyDuration,
-        easing: 'linear',
-        fill: 'forwards',
-      }
-    );
-
-    animationRef.current = animation;
-
-    function onFinish() {
-      onFinishRef.current?.();
-    }
-
-    animation.addEventListener('finish', onFinish);
-
-    // Reset the stuff that pauses a story when you switch story views
-    setConfirmDeleteStory(undefined);
-    setHasConfirmHideStory(false);
-    setHasExpandedCaption(false);
-    setIsSpoilerExpanded({});
-    setIsShowingContextMenu(false);
-    setPauseStory(false);
-
-    return () => {
-      animation.removeEventListener('finish', onFinish);
-      animation.cancel();
-    };
-  }, [story.messageId, storyDuration]);
-
   const [pauseStory, setPauseStory] = useState(false);
+  const [pressing, setPressing] = useState(false);
+  const [longPress, setLongPress] = useState(false);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout | undefined;
+    if (pressing) {
+      timer = setTimeout(() => {
+        setLongPress(true);
+      }, 200);
+    } else {
+      setLongPress(false);
+    }
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
+  }, [pressing]);
 
   useEffect(() => {
     if (!isWindowActive) {
@@ -366,9 +320,21 @@ export function StoryViewer({
     }
   }, [isWindowActive]);
 
+  // Reset the stuff that pauses a story when you switch story views
+  useEffect(() => {
+    setConfirmDeleteStory(undefined);
+    setHasConfirmHideStory(false);
+    setHasExpandedCaption(false);
+    setIsSpoilerExpanded({});
+    setIsShowingContextMenu(false);
+    setPauseStory(false);
+    setStoryDuration(undefined);
+  }, [story.messageId]);
+
   const alertElement = renderAlert();
 
   const shouldPauseViewing =
+    storyDuration == null ||
     Boolean(alertElement) ||
     Boolean(confirmDeleteStory) ||
     currentViewTarget != null ||
@@ -377,15 +343,8 @@ export function StoryViewer({
     hasExpandedCaption ||
     isShowingContextMenu ||
     pauseStory ||
-    Boolean(reactionEmoji);
-
-  useEffect(() => {
-    if (shouldPauseViewing) {
-      animationRef.current?.pause();
-    } else {
-      animationRef.current?.play();
-    }
-  }, [shouldPauseViewing, story.messageId, storyDuration]);
+    Boolean(reactionEmoji) ||
+    pressing;
 
   useEffect(() => {
     markStoryRead(messageId);
@@ -559,7 +518,9 @@ export function StoryViewer({
         onClick: () => setCurrentViewTarget(StoryViewTargetType.Details),
       },
       {
-        icon: 'StoryListItem__icon--hide',
+        icon: isHidden
+          ? 'StoryListItem__icon--unhide'
+          : 'StoryListItem__icon--hide',
         label: isHidden
           ? i18n('icu:StoryListItem__unhide')
           : i18n('icu:StoryListItem__hide'),
@@ -597,9 +558,49 @@ export function StoryViewer({
     retryMessageSend(messageId);
   }
 
+  function isDescendentEvent(event: UIEvent) {
+    // Can occur when the user clicks on the overlay of an open modal
+    return event.currentTarget.contains(event.target as Node);
+  }
+
+  // .StoryViewer has events to pause the story, but certain elements it
+  // contains should not trigger that behavior.
+  const stopPauseBubblingProps = {
+    onMouseDown: (event: UIEvent) => event.stopPropagation(),
+    onKeyDown: (event: UIEvent) => event.stopPropagation(),
+  };
+
   return (
-    <FocusTrap focusTrapOptions={{ clickOutsideDeactivates: true }}>
-      <div className="StoryViewer">
+    <FocusTrap
+      focusTrapOptions={{
+        clickOutsideDeactivates: true,
+        initialFocus: viewerSelector,
+      }}
+    >
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
+      <div
+        className="StoryViewer"
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+        tabIndex={0}
+        id={viewerId}
+        onMouseDown={event => {
+          if (isDescendentEvent(event)) {
+            setPressing(true);
+          }
+        }}
+        onDragStart={() => setPressing(false)}
+        onMouseUp={() => setPressing(false)}
+        onKeyDown={event => {
+          if (isDescendentEvent(event) && event.code === 'Space') {
+            setPressing(true);
+          }
+        }}
+        onKeyUp={event => {
+          if (event.code === 'Space') {
+            setPressing(false);
+          }
+        }}
+      >
         {alertElement}
         <div
           className="StoryViewer__overlay"
@@ -667,7 +668,19 @@ export function StoryViewer({
             )}
           </div>
 
-          <div className="StoryViewer__protection StoryViewer__protection--bottom" />
+          <div
+            className={classNames(
+              'StoryViewer__protection',
+              'StoryViewer__protection--bottom',
+              {
+                'StoryViewer__protection--has-caption': caption != null,
+              }
+            )}
+          />
+
+          {hasExpandedCaption && (
+            <div className="StoryViewer__protection StoryViewer__protection--whole" />
+          )}
 
           {canNavigateRight && (
             <button
@@ -724,7 +737,7 @@ export function StoryViewer({
               <div className="StoryViewer__meta__playback-bar__container">
                 <Avatar
                   acceptedMessageRequest={acceptedMessageRequest}
-                  avatarPath={avatarPath}
+                  avatarUrl={avatarUrl}
                   badge={undefined}
                   color={getAvatarColor(color)}
                   conversationType="direct"
@@ -738,7 +751,7 @@ export function StoryViewer({
                 {group && (
                   <Avatar
                     acceptedMessageRequest={group.acceptedMessageRequest}
-                    avatarPath={group.avatarPath}
+                    avatarUrl={group.avatarUrl}
                     badge={undefined}
                     className="StoryViewer__meta--group-avatar"
                     color={getAvatarColor(group.color)}
@@ -777,15 +790,20 @@ export function StoryViewer({
                   )}
                 </div>
               </div>
-              <div className="StoryViewer__meta__playback-controls">
+              <div
+                className="StoryViewer__meta__playback-controls"
+                {...stopPauseBubblingProps}
+              >
                 <button
                   aria-label={
-                    pauseStory
+                    pauseStory || longPress
                       ? i18n('icu:StoryViewer__play')
                       : i18n('icu:StoryViewer__pause')
                   }
                   className={
-                    pauseStory ? 'StoryViewer__play' : 'StoryViewer__pause'
+                    pauseStory || longPress
+                      ? 'StoryViewer__play'
+                      : 'StoryViewer__pause'
                   }
                   onClick={() => setPauseStory(!pauseStory)}
                   type="button"
@@ -812,30 +830,25 @@ export function StoryViewer({
                 )}
               </div>
             </div>
-            <div className="StoryViewer__progress">
+            <div className="StoryViewer__progress" {...stopPauseBubblingProps}>
               {Array.from(Array(numStories), (_, index) => (
-                <div className="StoryViewer__progress--container" key={index}>
-                  {currentIndex === index ? (
-                    <div
-                      ref={progressBarRef}
-                      className="StoryViewer__progress--bar"
-                    />
-                  ) : (
-                    <div
-                      className="StoryViewer__progress--bar"
-                      style={
-                        currentIndex < index
-                          ? {}
-                          : {
-                              transform: 'translateX(0%)',
-                            }
-                      }
-                    />
-                  )}
-                </div>
+                <StoryProgressSegment
+                  key={`${story.messageId}-${index}-${currentIndex}`}
+                  index={index}
+                  currentIndex={currentIndex}
+                  duration={storyDuration ?? null}
+                  playing={!shouldPauseViewing}
+                  onFinish={() => {
+                    viewStory({
+                      storyId: story.messageId,
+                      storyViewMode,
+                      viewDirection: StoryViewDirectionType.Next,
+                    });
+                  }}
+                />
               ))}
             </div>
-            <div className="StoryViewer__actions">
+            <div className="StoryViewer__actions" {...stopPauseBubblingProps}>
               {sendStatus === ResolvedSendStatus.Failed &&
                 !wasManuallyRetried && (
                   <button
@@ -882,7 +895,7 @@ export function StoryViewer({
                           <>{i18n('icu:StoryViewer__views-off')}</>
                         )}
                         {isSent && hasViewReceiptSetting && (
-                          <Intl
+                          <I18n
                             i18n={i18n}
                             id="icu:MyStories__views--strong"
                             components={{
@@ -893,7 +906,7 @@ export function StoryViewer({
                         )}
                         {(isSent || viewCount > 0) && replyCount > 0 && ' '}
                         {replyCount > 0 && (
-                          <Intl
+                          <I18n
                             i18n={i18n}
                             id="icu:MyStories__replies"
                             components={{ replyCount, strong: renderStrong }}
@@ -946,8 +959,6 @@ export function StoryViewer({
             i18n={i18n}
             platform={platform}
             isFormattingEnabled={isFormattingEnabled}
-            isFormattingFlagEnabled={isFormattingFlagEnabled}
-            isFormattingSpoilersFlagEnabled={isFormattingSpoilersFlagEnabled}
             isInternalUser={isInternalUser}
             group={group}
             onClose={() => setCurrentViewTarget(null)}
@@ -969,6 +980,7 @@ export function StoryViewer({
             onSetSkinTone={onSetSkinTone}
             onTextTooLong={onTextTooLong}
             onUseEmoji={onUseEmoji}
+            ourConversationId={ourConversationId}
             preferredReactionEmoji={preferredReactionEmoji}
             recentEmojis={recentEmojis}
             renderEmojiPicker={renderEmojiPicker}

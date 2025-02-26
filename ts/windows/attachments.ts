@@ -5,15 +5,14 @@ import { ipcRenderer } from 'electron';
 import { isString, isTypedArray } from 'lodash';
 import { join, normalize, basename } from 'path';
 import fse from 'fs-extra';
-import getGuid from 'uuid/v4';
-
-import { getRandomBytes } from '../Crypto';
-import * as Bytes from '../Bytes';
+import { v4 as getGuid } from 'uuid';
 
 import { isPathInside } from '../util/isPathInside';
 import { writeWindowsZoneIdentifier } from '../util/windowsZoneIdentifier';
 import OS from '../util/os/osMain';
+import { getRelativePath, createName } from '../util/attachmentPath';
 
+export * from '../util/ensureAttachmentIsReencryptable';
 export * from '../../app/attachments';
 
 type FSAttrType = {
@@ -32,7 +31,7 @@ try {
   window.SignalContext.log?.info('x-attr dependency did not load successfully');
 }
 
-export const createReader = (
+export const createPlaintextReader = (
   root: string
 ): ((relativePath: string) => Promise<Uint8Array>) => {
   if (!isString(root)) {
@@ -52,18 +51,6 @@ export const createReader = (
     return fse.readFile(normalized);
   };
 };
-
-export const getRelativePath = (name: string): string => {
-  if (!isString(name)) {
-    throw new TypeError("'name' must be a string");
-  }
-
-  const prefix = name.slice(0, 2);
-  return join(prefix, name);
-};
-
-export const createName = (suffix = ''): string =>
-  `${Bytes.toHex(getRandomBytes(32))}${suffix}`;
 
 export const copyIntoAttachmentsDirectory = (
   root: string
@@ -128,7 +115,7 @@ export const createWriterForNew = (
   };
 };
 
-export const createWriterForExisting = (
+const createWriterForExisting = (
   root: string
 ): ((options: { data?: Uint8Array; path?: string }) => Promise<string>) => {
   if (!isString(root)) {
@@ -244,14 +231,31 @@ async function writeWithAttributes(
 export const saveAttachmentToDisk = async ({
   data,
   name,
+  baseDir,
 }: {
   data: Uint8Array;
   name: string;
+  /**
+   * Base directory for saving the attachment.
+   * If omitted, a dialog will be opened to let the user choose a directory
+   */
+  baseDir?: string;
 }): Promise<null | { fullPath: string; name: string }> => {
-  const { canceled, filePath } = await showSaveDialog(name);
+  let filePath;
 
-  if (canceled || !filePath) {
-    return null;
+  if (!baseDir) {
+    const { canceled, filePath: dialogFilePath } = await showSaveDialog(name);
+    if (canceled) {
+      return null;
+    }
+    if (!dialogFilePath) {
+      throw new Error(
+        "saveAttachmentToDisk: Dialog wasn't canceled, but returned path to attachment is null!"
+      );
+    }
+    filePath = dialogFilePath;
+  } else {
+    filePath = join(baseDir, name);
   }
 
   await writeWithAttributes(filePath, data);

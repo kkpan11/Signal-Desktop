@@ -8,6 +8,12 @@ import type { WindowsNotificationData } from '../ts/services/notifications';
 
 import { NotificationType } from '../ts/services/notifications';
 import { missingCaseError } from '../ts/util/missingCaseError';
+import {
+  cancelPresentingRoute,
+  showConversationRoute,
+  showWindowRoute,
+  startCallLobbyRoute,
+} from '../ts/util/signalRoutes';
 
 function pathToUri(path: string) {
   return `file:///${encodeURI(path.replace(/\\/g, '/'))}`;
@@ -27,14 +33,13 @@ const Text = (props: { id: string; children: React.ReactNode }) =>
   React.createElement('text', props);
 const Image = (props: { id: string; src: string; 'hint-crop': string }) =>
   React.createElement('image', props);
+const Audio = (props: { src: string }) => React.createElement('audio', props);
 
 export function renderWindowsToast({
   avatarPath,
   body,
-  conversationId,
   heading,
-  messageId,
-  storyId,
+  token,
   type,
 }: WindowsNotificationData): string {
   // Note: with these templates, the first <text> is one line, bolded
@@ -47,25 +52,24 @@ export function renderWindowsToast({
   const template = avatarPath ? 'ToastImageAndText02' : 'ToastText02';
   let launch: URL;
 
+  let audio: React.ReactNode | undefined;
+
   // Note:
   //   1) this maps to the notify() function in services/notifications.ts
   //   2) this also maps to the url-handling in main.ts
   if (type === NotificationType.Message || type === NotificationType.Reaction) {
-    launch = new URL('sgnl://show-conversation');
-    launch.searchParams.set('conversationId', conversationId);
-    if (messageId) {
-      launch.searchParams.set('messageId', messageId);
-    }
-    if (storyId) {
-      launch.searchParams.set('storyId', storyId);
-    }
+    launch = showConversationRoute.toAppUrl({
+      token,
+    });
+    audio = <Audio src="ms-winsoundevent:Notification.IM" />;
   } else if (type === NotificationType.IncomingGroupCall) {
-    launch = new URL(`sgnl://start-call-lobby`);
-    launch.searchParams.set('conversationId', conversationId);
+    launch = startCallLobbyRoute.toAppUrl({
+      token,
+    });
   } else if (type === NotificationType.IncomingCall) {
-    launch = new URL('sgnl://show-window');
+    launch = showWindowRoute.toAppUrl({});
   } else if (type === NotificationType.IsPresenting) {
-    launch = new URL('sgnl://set-is-presenting');
+    launch = cancelPresentingRoute.toAppUrl({});
   } else {
     throw missingCaseError(type);
   }
@@ -79,6 +83,7 @@ export function renderWindowsToast({
           <Text id="2">{body}</Text>
         </Binding>
       </Visual>
+      {audio}
     </Toast>
   );
 }

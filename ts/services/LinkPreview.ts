@@ -3,6 +3,7 @@
 
 import { debounce, omit } from 'lodash';
 
+import { CallLinkRootKey } from '@signalapp/ringrtc';
 import type { LinkPreviewWithHydratedData } from '../types/message/LinkPreviews';
 import type {
   LinkPreviewImage,
@@ -15,6 +16,7 @@ import * as Errors from '../types/errors';
 import type { StickerPackType as StickerPackDBType } from '../sql/Interface';
 import type { MIMEType } from '../types/MIME';
 import * as Bytes from '../Bytes';
+import { sha256 } from '../Crypto';
 import * as LinkPreview from '../types/LinkPreview';
 import * as Stickers from '../types/Stickers';
 import * as VisualAttachment from '../types/VisualAttachment';
@@ -28,6 +30,9 @@ import { imageToBlurHash } from '../util/imageToBlurHash';
 import { maybeParseUrl } from '../util/url';
 import { sniffImageMimeType } from '../util/sniffImageMimeType';
 import { drop } from '../util/drop';
+import { calling } from './calling';
+import { getKeyFromCallLink } from '../util/callLinks';
+import { getRoomIdFromCallLink } from '../util/callLinksRingrtc';
 
 const LINK_PREVIEW_TIMEOUT = 60 * SECOND;
 
@@ -65,10 +70,6 @@ function _maybeGrabLinkPreview(
   // Do nothing if we're offline
   const { messaging } = window.textsecure;
   if (!messaging) {
-    return;
-  }
-  // If we're behind a user-configured proxy, we don't support link previews
-  if (window.isBehindProxy()) {
     return;
   }
 
@@ -164,6 +165,7 @@ export async function addLinkPreview(
   window.reduxActions.linkPreviews.addLinkPreview(
     {
       url,
+      isCallLink: false,
     },
     source,
     conversationId
@@ -220,6 +222,7 @@ export async function addLinkPreview(
         date: dropNull(result.date),
         domain: LinkPreview.getDomain(result.url),
         isStickerPack: LinkPreview.isStickerPack(result.url),
+        isCallLink: LinkPreview.isCallLink(result.url),
       },
       source,
       conversationId
@@ -264,27 +267,27 @@ export function getLinkPreviewForSend(
 export function sanitizeLinkPreview(
   item: LinkPreviewResult | LinkPreviewWithHydratedData
 ): LinkPreviewWithHydratedData {
-  if (item.image) {
-    // We eliminate the ObjectURL here, unneeded for send or save
-    return {
-      ...item,
-      image: omit(item.image, 'url'),
-      title: dropNull(item.title),
-      description: dropNull(item.description),
-      date: dropNull(item.date),
-      domain: LinkPreview.getDomain(item.url),
-      isStickerPack: LinkPreview.isStickerPack(item.url),
-    };
-  }
-
-  return {
+  const isCallLink = LinkPreview.isCallLink(item.url);
+  const base: LinkPreviewWithHydratedData = {
     ...item,
     title: dropNull(item.title),
     description: dropNull(item.description),
     date: dropNull(item.date),
     domain: LinkPreview.getDomain(item.url),
     isStickerPack: LinkPreview.isStickerPack(item.url),
+    isCallLink,
+    callLinkRoomId: isCallLink ? getRoomIdFromCallLink(item.url) : undefined,
   };
+
+  if (item.image) {
+    // We eliminate the ObjectURL here, unneeded for send or save
+    return {
+      ...base,
+      image: omit(item.image, 'url'),
+    };
+  }
+
+  return base;
 }
 
 async function getPreview(
@@ -302,6 +305,9 @@ async function getPreview(
   }
   if (LinkPreview.isGroupLink(url)) {
     return getGroupPreview(url, abortSignal);
+  }
+  if (LinkPreview.isCallLink(url)) {
+    return getCallLinkPreview(url, abortSignal);
   }
 
   // This is already checked elsewhere, but we want to be extra-careful.
@@ -341,6 +347,7 @@ async function getPreview(
           type: fullSizeImage.contentType,
         }),
         fileName: title,
+        highQuality: true,
       });
 
       const data = await fileToBytes(withBlob.file);
@@ -357,6 +364,7 @@ async function getPreview(
         data,
         size: data.byteLength,
         ...dimensions,
+        plaintextHash: Bytes.toHex(sha256(data)),
         contentType: stringToMIMEType(withBlob.file.type),
         blurHash,
       };
@@ -442,8 +450,8 @@ async function getStickerPackPreview(
     const sticker = pack.stickers[coverStickerId];
     const data =
       pack.status === 'ephemeral'
-        ? await window.Signal.Migrations.readTempData(sticker.path)
-        : await window.Signal.Migrations.readStickerData(sticker.path);
+        ? await window.Signal.Migrations.readTempData(sticker)
+        : await window.Signal.Migrations.readStickerData(sticker);
 
     if (abortSignal.aborted) {
       return null;
@@ -518,8 +526,10 @@ async function getGroupPreview(
   }
 
   const title =
-    window.Signal.Groups.decryptGroupTitle(result.title, secretParams) ||
-    window.i18n('icu:unknownGroup');
+    window.Signal.Groups.decryptGroupTitle(
+      dropNull(result.title),
+      secretParams
+    ) || window.i18n('icu:unknownGroup');
   const description = window.i18n('icu:GroupV2--join--group-metadata--full', {
     memberCount: result?.memberCount ?? 0,
   });
@@ -559,5 +569,28 @@ async function getGroupPreview(
     image,
     title,
     url,
+  };
+}
+
+async function getCallLinkPreview(
+  url: string,
+  _abortSignal: Readonly<AbortSignal>
+): Promise<null | LinkPreviewResult> {
+  const keyString = getKeyFromCallLink(url);
+  const callLinkRootKey = CallLinkRootKey.parse(keyString);
+  const callLinkState = await calling.readCallLink(callLinkRootKey);
+  if (callLinkState == null || callLinkState.revoked) {
+    return null;
+  }
+
+  return {
+    url,
+    title:
+      callLinkState.name === ''
+        ? window.i18n('icu:calling__call-link-default-title')
+        : callLinkState.name,
+    description: window.i18n('icu:message--call-link-description'),
+    image: undefined,
+    date: null,
   };
 }

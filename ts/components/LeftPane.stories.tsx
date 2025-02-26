@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import * as React from 'react';
-
 import { action } from '@storybook/addon-actions';
-import { boolean, select } from '@storybook/addon-knobs';
-
+import type { Meta } from '@storybook/react';
 import type { PropsType } from './LeftPane';
-import { LeftPane, LeftPaneMode } from './LeftPane';
+import { LeftPane } from './LeftPane';
 import { CaptchaDialog } from './CaptchaDialog';
 import { CrashReportDialog } from './CrashReportDialog';
+import { ToastManager } from './ToastManager';
 import type { PropsType as DialogNetworkStatusPropsType } from './DialogNetworkStatus';
 import { DialogExpiredBuild } from './DialogExpiredBuild';
 import { DialogNetworkStatus } from './DialogNetworkStatus';
@@ -22,6 +21,7 @@ import { MessageSearchResult } from './conversationList/MessageSearchResult';
 import { setupI18n } from '../util/setupI18n';
 import { DurationInSeconds, DAY } from '../util/durations';
 import enMessages from '../../_locales/en/messages.json';
+import { LeftPaneMode } from '../types/leftPane';
 import { ThemeType } from '../types/Util';
 import {
   getDefaultConversation,
@@ -45,7 +45,9 @@ type OverridePropsType = Partial<PropsType> & {
 
 export default {
   title: 'Components/LeftPane',
-};
+  argTypes: {},
+  args: {},
+} satisfies Meta<PropsType>;
 
 const defaultConversations: Array<ConversationType> = [
   getDefaultConversation({
@@ -60,6 +62,8 @@ const defaultConversations: Array<ConversationType> = [
 ];
 
 const defaultSearchProps = {
+  filterByUnread: false,
+  isSearchingGlobally: true,
   searchConversation: undefined,
   searchDisabled: false,
   searchTerm: 'hello',
@@ -77,6 +81,13 @@ const defaultGroups: Array<GroupListItemConversationType> = [
   }),
 ];
 
+const backupMediaDownloadProgress = {
+  downloadedBytes: 1024,
+  totalBytes: 4098,
+  downloadBannerDismissed: false,
+  isIdle: false,
+  isPaused: false,
+};
 const defaultArchivedConversations: Array<ConversationType> = [
   getDefaultConversation({
     id: 'michelle-archive-convo',
@@ -100,6 +111,7 @@ const pinnedConversations: Array<ConversationType> = [
 
 const defaultModeSpecificProps = {
   ...defaultSearchProps,
+  filterByUnread: false,
   mode: LeftPaneMode.Inbox as const,
   pinnedConversations,
   conversations: defaultConversations,
@@ -126,11 +138,7 @@ const useProps = (overrideProps: OverridePropsType = {}): PropsType => {
     };
   }
 
-  const isUpdateDownloaded = boolean('isUpdateDownloaded', false);
-  const isContactManagementEnabled = boolean(
-    'isContactManagementEnabled',
-    true
-  );
+  const isUpdateDownloaded = false;
 
   return {
     otherTabsUnreadStats: {
@@ -138,47 +146,55 @@ const useProps = (overrideProps: OverridePropsType = {}): PropsType => {
       unreadMentionsCount: 0,
       markedUnread: false,
     },
+    backupMediaDownloadProgress: {
+      downloadBannerDismissed: false,
+      isIdle: false,
+      isPaused: false,
+      totalBytes: 0,
+      downloadedBytes: 0,
+    },
     clearConversationSearch: action('clearConversationSearch'),
     clearGroupCreationError: action('clearGroupCreationError'),
-    clearSearch: action('clearSearch'),
+    clearSearchQuery: action('clearSearchQuery'),
     closeMaximumGroupSizeModal: action('closeMaximumGroupSizeModal'),
     closeRecommendedGroupSizeModal: action('closeRecommendedGroupSizeModal'),
     composeDeleteAvatarFromDisk: action('composeDeleteAvatarFromDisk'),
     composeReplaceAvatar: action('composeReplaceAvatar'),
     composeSaveAvatarToDisk: action('composeSaveAvatarToDisk'),
     createGroup: action('createGroup'),
+    dismissBackupMediaDownloadBanner: action(
+      'dismissBackupMediaDownloadBanner'
+    ),
+    pauseBackupMediaDownload: action('pauseBackupMediaDownload'),
+    resumeBackupMediaDownload: action('resumeBackupMediaDownload'),
+    cancelBackupMediaDownload: action('cancelBackupMediaDownload'),
+    endConversationSearch: action('endConversationSearch'),
+    endSearch: action('endSearch'),
     getPreferredBadge: () => undefined,
     hasFailedStorySends: false,
     hasPendingUpdate: false,
     i18n,
-    isMacOS: boolean('isMacOS', false),
+    isMacOS: false,
     preferredWidthFromStorage: 320,
-    regionCode: 'US',
-    challengeStatus: select(
-      'challengeStatus',
-      ['idle', 'required', 'pending'],
-      'idle'
-    ),
-    crashReportCount: select('challengeReportCount', [0, 1], 0),
+    challengeStatus: 'idle',
+    crashReportCount: 0,
 
-    hasNetworkDialog: boolean('hasNetworkDialog', false),
-    hasExpiredDialog: boolean('hasExpiredDialog', false),
-    hasRelinkDialog: boolean('hasRelinkDialog', false),
-    hasUpdateDialog: boolean('hasUpdateDialog', false),
-    unsupportedOSDialogType: select(
-      'unsupportedOSDialogType',
-      ['error', 'warning', undefined],
-      undefined
-    ),
+    hasNetworkDialog: false,
+    hasExpiredDialog: false,
+    hasRelinkDialog: false,
+    hasUpdateDialog: false,
+    unsupportedOSDialogType: undefined,
+    usernameCorrupted: false,
+    usernameLinkCorrupted: false,
     isUpdateDownloaded,
-    isContactManagementEnabled,
-    navTabsCollapsed: boolean('navTabsCollapsed', false),
+    navTabsCollapsed: false,
 
     setChallengeStatus: action('setChallengeStatus'),
     lookupConversationWithoutServiceId:
       makeFakeLookupConversationWithoutServiceId(),
     showUserNotFoundModal: action('showUserNotFoundModal'),
     setIsFetchingUUID,
+    preloadConversation: action('preloadConversation'),
     showConversation: action('showConversation'),
     blockConversation: action('blockConversation'),
     onOutgoingAudioCallInConversation: action(
@@ -210,6 +226,7 @@ const useProps = (overrideProps: OverridePropsType = {}): PropsType => {
         i18n={i18n}
         socketStatus={SocketStatus.CLOSED}
         isOnline={false}
+        isOutage={false}
         manualReconnect={action('manualReconnect')}
         {...overrideProps.dialogNetworkStatus}
         {...props}
@@ -249,7 +266,7 @@ const useProps = (overrideProps: OverridePropsType = {}): PropsType => {
       <CrashReportDialog
         i18n={i18n}
         isPending={false}
-        uploadCrashReports={action('uploadCrashReports')}
+        writeCrashReportsToLog={action('writeCrashReportsToLog')}
         eraseCrashReports={action('eraseCrashReports')}
       />
     ),
@@ -262,11 +279,30 @@ const useProps = (overrideProps: OverridePropsType = {}): PropsType => {
         {...props}
       />
     ),
+    renderToastManager: ({ containerWidthBreakpoint }) => (
+      <ToastManager
+        OS="unused"
+        hideToast={action('hideToast')}
+        i18n={i18n}
+        onShowDebugLog={action('onShowDebugLog')}
+        onUndoArchive={action('onUndoArchive')}
+        openFileInFolder={action('openFileInFolder')}
+        showAttachmentNotAvailableModal={action(
+          'showAttachmentNotAvailableModal'
+        )}
+        toast={undefined}
+        megaphone={undefined}
+        containerWidthBreakpoint={containerWidthBreakpoint}
+        isInFullScreenCall={false}
+      />
+    ),
     selectedConversationId: undefined,
     targetedMessageId: undefined,
+    openUsernameReservationModal: action('openUsernameReservationModal'),
     savePreferredLeftPaneWidth: action('savePreferredLeftPaneWidth'),
     searchInConversation: action('searchInConversation'),
     setComposeSearchTerm: action('setComposeSearchTerm'),
+    setComposeSelectedRegion: action('setComposeSelectedRegion'),
     setComposeGroupAvatar: action('setComposeGroupAvatar'),
     setComposeGroupName: action('setComposeGroupName'),
     setComposeGroupExpireTimer: action('setComposeGroupExpireTimer'),
@@ -274,6 +310,8 @@ const useProps = (overrideProps: OverridePropsType = {}): PropsType => {
     showInbox: action('showInbox'),
     startComposing: action('startComposing'),
     showChooseGroupMembers: action('showChooseGroupMembers'),
+    showFindByUsername: action('showFindByUsername'),
+    showFindByPhoneNumber: action('showFindByPhoneNumber'),
     startSearch: action('startSearch'),
     startSettingGroupMetadata: action('startSettingGroupMetadata'),
     theme: React.useContext(StorybookThemeContext),
@@ -282,6 +320,8 @@ const useProps = (overrideProps: OverridePropsType = {}): PropsType => {
       'toggleConversationInChooseMembers'
     ),
     toggleNavTabsCollapse: action('toggleNavTabsCollapse'),
+    toggleProfileEditor: action('toggleProfileEditor'),
+    updateFilterByUnread: action('updateFilterByUnread'),
     updateSearchTerm: action('updateSearchTerm'),
 
     ...overrideProps,
@@ -315,9 +355,80 @@ export function InboxNoConversations(): JSX.Element {
   );
 }
 
-InboxNoConversations.story = {
-  name: 'Inbox: no conversations',
-};
+export function InboxBackupMediaDownload(): JSX.Element {
+  return (
+    <LeftPaneInContainer
+      {...useProps({
+        backupMediaDownloadProgress,
+      })}
+    />
+  );
+}
+
+export function InboxBackupMediaDownloadWithDialogs(): JSX.Element {
+  return (
+    <LeftPaneInContainer
+      {...useProps({
+        backupMediaDownloadProgress,
+        unsupportedOSDialogType: 'error',
+      })}
+    />
+  );
+}
+export function InboxBackupMediaDownloadWithDialogsAndUnpinnedConversations(): JSX.Element {
+  return (
+    <LeftPaneInContainer
+      {...useProps({
+        backupMediaDownloadProgress,
+        unsupportedOSDialogType: 'error',
+        modeSpecificProps: {
+          ...defaultSearchProps,
+          mode: LeftPaneMode.Inbox,
+          pinnedConversations: [],
+          conversations: defaultConversations,
+          archivedConversations: [],
+          isAboutToSearch: false,
+        },
+      })}
+    />
+  );
+}
+
+export function InboxUsernameCorrupted(): JSX.Element {
+  return (
+    <LeftPaneInContainer
+      {...useProps({
+        modeSpecificProps: {
+          ...defaultSearchProps,
+          mode: LeftPaneMode.Inbox,
+          pinnedConversations: [],
+          conversations: [],
+          archivedConversations: [],
+          isAboutToSearch: false,
+        },
+        usernameCorrupted: true,
+      })}
+    />
+  );
+}
+
+export function InboxUsernameLinkCorrupted(): JSX.Element {
+  return (
+    <LeftPaneInContainer
+      {...useProps({
+        modeSpecificProps: {
+          ...defaultSearchProps,
+          mode: LeftPaneMode.Inbox,
+          pinnedConversations: [],
+          conversations: [],
+          archivedConversations: [],
+          isAboutToSearch: false,
+        },
+        usernameLinkCorrupted: true,
+      })}
+    />
+  );
+}
 
 export function InboxOnlyPinnedConversations(): JSX.Element {
   return (
@@ -336,10 +447,6 @@ export function InboxOnlyPinnedConversations(): JSX.Element {
   );
 }
 
-InboxOnlyPinnedConversations.story = {
-  name: 'Inbox: only pinned conversations',
-};
-
 export function InboxOnlyNonPinnedConversations(): JSX.Element {
   return (
     <LeftPaneInContainer
@@ -356,10 +463,6 @@ export function InboxOnlyNonPinnedConversations(): JSX.Element {
     />
   );
 }
-
-InboxOnlyNonPinnedConversations.story = {
-  name: 'Inbox: only non-pinned conversations',
-};
 
 export function InboxOnlyArchivedConversations(): JSX.Element {
   return (
@@ -378,10 +481,6 @@ export function InboxOnlyArchivedConversations(): JSX.Element {
   );
 }
 
-InboxOnlyArchivedConversations.story = {
-  name: 'Inbox: only archived conversations',
-};
-
 export function InboxPinnedAndArchivedConversations(): JSX.Element {
   return (
     <LeftPaneInContainer
@@ -398,10 +497,6 @@ export function InboxPinnedAndArchivedConversations(): JSX.Element {
     />
   );
 }
-
-InboxPinnedAndArchivedConversations.story = {
-  name: 'Inbox: pinned and archived conversations',
-};
 
 export function InboxNonPinnedAndArchivedConversations(): JSX.Element {
   return (
@@ -420,10 +515,6 @@ export function InboxNonPinnedAndArchivedConversations(): JSX.Element {
   );
 }
 
-InboxNonPinnedAndArchivedConversations.story = {
-  name: 'Inbox: non-pinned and archived conversations',
-};
-
 export function InboxPinnedAndNonPinnedConversations(): JSX.Element {
   return (
     <LeftPaneInContainer
@@ -441,17 +532,27 @@ export function InboxPinnedAndNonPinnedConversations(): JSX.Element {
   );
 }
 
-InboxPinnedAndNonPinnedConversations.story = {
-  name: 'Inbox: pinned and non-pinned conversations',
-};
+export function InboxPinnedAndNonPinnedConversationsWithBackupDownload(): JSX.Element {
+  return (
+    <LeftPaneInContainer
+      {...useProps({
+        modeSpecificProps: {
+          ...defaultSearchProps,
+          mode: LeftPaneMode.Inbox,
+          pinnedConversations,
+          conversations: defaultConversations,
+          archivedConversations: [],
+          isAboutToSearch: false,
+        },
+        backupMediaDownloadProgress,
+      })}
+    />
+  );
+}
 
 export function InboxPinnedNonPinnedAndArchivedConversations(): JSX.Element {
   return <LeftPaneInContainer {...useProps()} />;
 }
-
-InboxPinnedNonPinnedAndArchivedConversations.story = {
-  name: 'Inbox: pinned, non-pinned, and archived conversations',
-};
 
 export function SearchNoResultsWhenSearchingEverywhere(): JSX.Element {
   return (
@@ -463,37 +564,11 @@ export function SearchNoResultsWhenSearchingEverywhere(): JSX.Element {
           conversationResults: emptySearchResultsGroup,
           contactResults: emptySearchResultsGroup,
           messageResults: emptySearchResultsGroup,
-          primarySendsSms: false,
         },
       })}
     />
   );
 }
-
-SearchNoResultsWhenSearchingEverywhere.story = {
-  name: 'Search: no results when searching everywhere',
-};
-
-export function SearchNoResultsWhenSearchingEverywhereSms(): JSX.Element {
-  return (
-    <LeftPaneInContainer
-      {...useProps({
-        modeSpecificProps: {
-          ...defaultSearchProps,
-          mode: LeftPaneMode.Search,
-          conversationResults: emptySearchResultsGroup,
-          contactResults: emptySearchResultsGroup,
-          messageResults: emptySearchResultsGroup,
-          primarySendsSms: true,
-        },
-      })}
-    />
-  );
-}
-
-SearchNoResultsWhenSearchingEverywhereSms.story = {
-  name: 'Search: no results when searching everywhere (SMS)',
-};
 
 export function SearchNoResultsWhenSearchingInAConversation(): JSX.Element {
   return (
@@ -506,16 +581,46 @@ export function SearchNoResultsWhenSearchingInAConversation(): JSX.Element {
           contactResults: emptySearchResultsGroup,
           messageResults: emptySearchResultsGroup,
           searchConversationName: 'Bing Bong',
-          primarySendsSms: false,
         },
       })}
     />
   );
 }
 
-SearchNoResultsWhenSearchingInAConversation.story = {
-  name: 'Search: no results when searching in a conversation',
-};
+export function SearchNoResultsUnreadFilterAndQuery(): JSX.Element {
+  return (
+    <LeftPaneInContainer
+      {...useProps({
+        modeSpecificProps: {
+          ...defaultSearchProps,
+          filterByUnread: true,
+          mode: LeftPaneMode.Search,
+          conversationResults: emptySearchResultsGroup,
+          contactResults: emptySearchResultsGroup,
+          messageResults: emptySearchResultsGroup,
+        },
+      })}
+    />
+  );
+}
+
+export function SearchNoResultsUnreadFilterWithoutQuery(): JSX.Element {
+  return (
+    <LeftPaneInContainer
+      {...useProps({
+        modeSpecificProps: {
+          ...defaultSearchProps,
+          searchTerm: '',
+          filterByUnread: true,
+          mode: LeftPaneMode.Search,
+          conversationResults: emptySearchResultsGroup,
+          contactResults: emptySearchResultsGroup,
+          messageResults: emptySearchResultsGroup,
+        },
+      })}
+    />
+  );
+}
 
 export function SearchAllResultsLoading(): JSX.Element {
   return (
@@ -527,16 +632,11 @@ export function SearchAllResultsLoading(): JSX.Element {
           conversationResults: { isLoading: true },
           contactResults: { isLoading: true },
           messageResults: { isLoading: true },
-          primarySendsSms: false,
         },
       })}
     />
   );
 }
-
-SearchAllResultsLoading.story = {
-  name: 'Search: all results loading',
-};
 
 export function SearchSomeResultsLoading(): JSX.Element {
   return (
@@ -551,16 +651,11 @@ export function SearchSomeResultsLoading(): JSX.Element {
           },
           contactResults: { isLoading: true },
           messageResults: { isLoading: true },
-          primarySendsSms: false,
         },
       })}
     />
   );
 }
-
-SearchSomeResultsLoading.story = {
-  name: 'Search: some results loading',
-};
 
 export function SearchHasConversationsAndContactsButNotMessages(): JSX.Element {
   return (
@@ -575,16 +670,11 @@ export function SearchHasConversationsAndContactsButNotMessages(): JSX.Element {
           },
           contactResults: { isLoading: false, results: defaultConversations },
           messageResults: { isLoading: false, results: [] },
-          primarySendsSms: false,
         },
       })}
     />
   );
 }
-
-SearchHasConversationsAndContactsButNotMessages.story = {
-  name: 'Search: has conversations and contacts, but not messages',
-};
 
 export function SearchAllResults(): JSX.Element {
   return (
@@ -605,16 +695,34 @@ export function SearchAllResults(): JSX.Element {
               { id: 'msg2', type: 'incoming', conversationId: 'bar' },
             ],
           },
-          primarySendsSms: false,
         },
       })}
     />
   );
 }
 
-SearchAllResults.story = {
-  name: 'Search: all results',
-};
+export function SearchAllResultsUnreadFilter(): JSX.Element {
+  return (
+    <LeftPaneInContainer
+      {...useProps({
+        modeSpecificProps: {
+          ...defaultSearchProps,
+          filterByUnread: true,
+          mode: LeftPaneMode.Search,
+          conversationResults: {
+            isLoading: false,
+            results: defaultConversations,
+          },
+          contactResults: { isLoading: false, results: [] },
+          messageResults: {
+            isLoading: false,
+            results: [],
+          },
+        },
+      })}
+    />
+  );
+}
 
 export function ArchiveNoArchivedConversations(): JSX.Element {
   return (
@@ -623,6 +731,7 @@ export function ArchiveNoArchivedConversations(): JSX.Element {
         modeSpecificProps: {
           mode: LeftPaneMode.Archive,
           archivedConversations: [],
+          isSearchingGlobally: false,
           searchConversation: undefined,
           searchTerm: '',
           startSearchCounter: 0,
@@ -631,10 +740,6 @@ export function ArchiveNoArchivedConversations(): JSX.Element {
     />
   );
 }
-
-ArchiveNoArchivedConversations.story = {
-  name: 'Archive: no archived conversations',
-};
 
 export function ArchiveArchivedConversations(): JSX.Element {
   return (
@@ -643,6 +748,7 @@ export function ArchiveArchivedConversations(): JSX.Element {
         modeSpecificProps: {
           mode: LeftPaneMode.Archive,
           archivedConversations: defaultConversations,
+          isSearchingGlobally: false,
           searchConversation: undefined,
           searchTerm: '',
           startSearchCounter: 0,
@@ -651,10 +757,6 @@ export function ArchiveArchivedConversations(): JSX.Element {
     />
   );
 }
-
-ArchiveArchivedConversations.story = {
-  name: 'Archive: archived conversations',
-};
 
 export function ArchiveSearchingAConversation(): JSX.Element {
   return (
@@ -663,6 +765,7 @@ export function ArchiveSearchingAConversation(): JSX.Element {
         modeSpecificProps: {
           mode: LeftPaneMode.Archive,
           archivedConversations: defaultConversations,
+          isSearchingGlobally: false,
           searchConversation: undefined,
           searchTerm: '',
           startSearchCounter: 0,
@@ -671,10 +774,6 @@ export function ArchiveSearchingAConversation(): JSX.Element {
     />
   );
 }
-
-ArchiveSearchingAConversation.story = {
-  name: 'Archive: searching a conversation',
-};
 
 export function ComposeNoResults(): JSX.Element {
   return (
@@ -684,19 +783,15 @@ export function ComposeNoResults(): JSX.Element {
           mode: LeftPaneMode.Compose,
           composeContacts: [],
           composeGroups: [],
-          isUsernamesEnabled: true,
           uuidFetchState: {},
           regionCode: 'US',
           searchTerm: '',
+          username: undefined,
         },
       })}
     />
   );
 }
-
-ComposeNoResults.story = {
-  name: 'Compose: no results',
-};
 
 export function ComposeSomeContactsNoSearchTerm(): JSX.Element {
   return (
@@ -706,19 +801,15 @@ export function ComposeSomeContactsNoSearchTerm(): JSX.Element {
           mode: LeftPaneMode.Compose,
           composeContacts: defaultConversations,
           composeGroups: [],
-          isUsernamesEnabled: true,
           uuidFetchState: {},
           regionCode: 'US',
           searchTerm: '',
+          username: undefined,
         },
       })}
     />
   );
 }
-
-ComposeSomeContactsNoSearchTerm.story = {
-  name: 'Compose: some contacts, no search term',
-};
 
 export function ComposeSomeContactsWithASearchTerm(): JSX.Element {
   return (
@@ -728,19 +819,15 @@ export function ComposeSomeContactsWithASearchTerm(): JSX.Element {
           mode: LeftPaneMode.Compose,
           composeContacts: defaultConversations,
           composeGroups: [],
-          isUsernamesEnabled: true,
           uuidFetchState: {},
           regionCode: 'US',
           searchTerm: 'ar',
+          username: undefined,
         },
       })}
     />
   );
 }
-
-ComposeSomeContactsWithASearchTerm.story = {
-  name: 'Compose: some contacts, with a search term',
-};
 
 export function ComposeSomeGroupsNoSearchTerm(): JSX.Element {
   return (
@@ -750,19 +837,15 @@ export function ComposeSomeGroupsNoSearchTerm(): JSX.Element {
           mode: LeftPaneMode.Compose,
           composeContacts: [],
           composeGroups: defaultGroups,
-          isUsernamesEnabled: true,
           uuidFetchState: {},
           regionCode: 'US',
           searchTerm: '',
+          username: undefined,
         },
       })}
     />
   );
 }
-
-ComposeSomeGroupsNoSearchTerm.story = {
-  name: 'Compose: some groups, no search term',
-};
 
 export function ComposeSomeGroupsWithSearchTerm(): JSX.Element {
   return (
@@ -772,19 +855,15 @@ export function ComposeSomeGroupsWithSearchTerm(): JSX.Element {
           mode: LeftPaneMode.Compose,
           composeContacts: [],
           composeGroups: defaultGroups,
-          isUsernamesEnabled: true,
           uuidFetchState: {},
           regionCode: 'US',
           searchTerm: 'ar',
+          username: undefined,
         },
       })}
     />
   );
 }
-
-ComposeSomeGroupsWithSearchTerm.story = {
-  name: 'Compose: some groups, with search term',
-};
 
 export function ComposeSearchIsValidUsername(): JSX.Element {
   return (
@@ -794,19 +873,15 @@ export function ComposeSearchIsValidUsername(): JSX.Element {
           mode: LeftPaneMode.Compose,
           composeContacts: [],
           composeGroups: [],
-          isUsernamesEnabled: true,
           uuidFetchState: {},
           regionCode: 'US',
           searchTerm: 'someone',
+          username: 'someone',
         },
       })}
     />
   );
 }
-
-ComposeSearchIsValidUsername.story = {
-  name: 'Compose: search is valid username',
-};
 
 export function ComposeSearchIsValidUsernameFetchingUsername(): JSX.Element {
   return (
@@ -816,65 +891,17 @@ export function ComposeSearchIsValidUsernameFetchingUsername(): JSX.Element {
           mode: LeftPaneMode.Compose,
           composeContacts: [],
           composeGroups: [],
-          isUsernamesEnabled: true,
           uuidFetchState: {
             'username:someone': true,
           },
           regionCode: 'US',
           searchTerm: 'someone',
+          username: 'someone',
         },
       })}
     />
   );
 }
-
-ComposeSearchIsValidUsernameFetchingUsername.story = {
-  name: 'Compose: search is valid username, fetching username',
-};
-
-export function ComposeSearchIsValidUsernameButFlagIsNotEnabled(): JSX.Element {
-  return (
-    <LeftPaneInContainer
-      {...useProps({
-        modeSpecificProps: {
-          mode: LeftPaneMode.Compose,
-          composeContacts: [],
-          composeGroups: [],
-          isUsernamesEnabled: false,
-          uuidFetchState: {},
-          regionCode: 'US',
-          searchTerm: 'someone',
-        },
-      })}
-    />
-  );
-}
-
-ComposeSearchIsValidUsernameButFlagIsNotEnabled.story = {
-  name: 'Compose: search is valid username, but flag is not enabled',
-};
-
-export function ComposeSearchIsPartialPhoneNumber(): JSX.Element {
-  return (
-    <LeftPaneInContainer
-      {...useProps({
-        modeSpecificProps: {
-          mode: LeftPaneMode.Compose,
-          composeContacts: [],
-          composeGroups: [],
-          isUsernamesEnabled: false,
-          uuidFetchState: {},
-          regionCode: 'US',
-          searchTerm: '+1(212)555',
-        },
-      })}
-    />
-  );
-}
-
-ComposeSearchIsPartialPhoneNumber.story = {
-  name: 'Compose: search is partial phone number',
-};
 
 export function ComposeSearchIsValidPhoneNumber(): JSX.Element {
   return (
@@ -884,19 +911,15 @@ export function ComposeSearchIsValidPhoneNumber(): JSX.Element {
           mode: LeftPaneMode.Compose,
           composeContacts: [],
           composeGroups: [],
-          isUsernamesEnabled: true,
           uuidFetchState: {},
           regionCode: 'US',
           searchTerm: '2125555454',
+          username: undefined,
         },
       })}
     />
   );
 }
-
-ComposeSearchIsValidPhoneNumber.story = {
-  name: 'Compose: search is valid phone number',
-};
 
 export function ComposeSearchIsValidPhoneNumberFetchingPhoneNumber(): JSX.Element {
   return (
@@ -906,21 +929,17 @@ export function ComposeSearchIsValidPhoneNumberFetchingPhoneNumber(): JSX.Elemen
           mode: LeftPaneMode.Compose,
           composeContacts: [],
           composeGroups: [],
-          isUsernamesEnabled: true,
           uuidFetchState: {
             'e164:+12125555454': true,
           },
           regionCode: 'US',
           searchTerm: '(212)5555454',
+          username: undefined,
         },
       })}
     />
   );
 }
-
-ComposeSearchIsValidPhoneNumberFetchingPhoneNumber.story = {
-  name: 'Compose: search is valid phone number, fetching phone number',
-};
 
 export function ComposeAllKindsOfResultsNoSearchTerm(): JSX.Element {
   return (
@@ -930,19 +949,15 @@ export function ComposeAllKindsOfResultsNoSearchTerm(): JSX.Element {
           mode: LeftPaneMode.Compose,
           composeContacts: defaultConversations,
           composeGroups: defaultGroups,
-          isUsernamesEnabled: true,
           uuidFetchState: {},
           regionCode: 'US',
           searchTerm: '',
+          username: undefined,
         },
       })}
     />
   );
 }
-
-ComposeAllKindsOfResultsNoSearchTerm.story = {
-  name: 'Compose: all kinds of results, no search term',
-};
 
 export function ComposeAllKindsOfResultsWithASearchTerm(): JSX.Element {
   return (
@@ -952,19 +967,15 @@ export function ComposeAllKindsOfResultsWithASearchTerm(): JSX.Element {
           mode: LeftPaneMode.Compose,
           composeContacts: defaultConversations,
           composeGroups: defaultGroups,
-          isUsernamesEnabled: true,
           uuidFetchState: {},
           regionCode: 'US',
           searchTerm: 'someone',
+          username: 'someone',
         },
       })}
     />
   );
 }
-
-ComposeAllKindsOfResultsWithASearchTerm.story = {
-  name: 'Compose: all kinds of results, with a search term',
-};
 
 export function CaptchaDialogRequired(): JSX.Element {
   return (
@@ -985,10 +996,6 @@ export function CaptchaDialogRequired(): JSX.Element {
   );
 }
 
-CaptchaDialogRequired.story = {
-  name: 'Captcha dialog: required',
-};
-
 export function CaptchaDialogPending(): JSX.Element {
   return (
     <LeftPaneInContainer
@@ -1008,30 +1015,24 @@ export function CaptchaDialogPending(): JSX.Element {
   );
 }
 
-CaptchaDialogPending.story = {
-  name: 'Captcha dialog: pending',
-};
-
-export const _CrashReportDialog = (): JSX.Element => (
-  <LeftPaneInContainer
-    {...useProps({
-      modeSpecificProps: {
-        ...defaultSearchProps,
-        mode: LeftPaneMode.Inbox,
-        pinnedConversations,
-        conversations: defaultConversations,
-        archivedConversations: [],
-        isAboutToSearch: false,
-        searchTerm: '',
-      },
-      crashReportCount: 42,
-    })}
-  />
-);
-
-_CrashReportDialog.story = {
-  name: 'Crash report dialog',
-};
+export function _CrashReportDialog(): JSX.Element {
+  return (
+    <LeftPaneInContainer
+      {...useProps({
+        modeSpecificProps: {
+          ...defaultSearchProps,
+          mode: LeftPaneMode.Inbox,
+          pinnedConversations,
+          conversations: defaultConversations,
+          archivedConversations: [],
+          isAboutToSearch: false,
+          searchTerm: '',
+        },
+        crashReportCount: 42,
+      })}
+    />
+  );
+}
 
 export function ChooseGroupMembersPartialPhoneNumber(): JSX.Element {
   return (
@@ -1045,8 +1046,10 @@ export function ChooseGroupMembersPartialPhoneNumber(): JSX.Element {
           groupSizeHardLimit: 1001,
           isShowingRecommendedGroupSizeModal: false,
           isShowingMaximumGroupSizeModal: false,
-          isUsernamesEnabled: true,
+          ourE164: undefined,
+          ourUsername: undefined,
           searchTerm: '+1(212) 555',
+          username: undefined,
           regionCode: 'US',
           selectedContacts: [],
         },
@@ -1054,10 +1057,6 @@ export function ChooseGroupMembersPartialPhoneNumber(): JSX.Element {
     />
   );
 }
-
-ChooseGroupMembersPartialPhoneNumber.story = {
-  name: 'Choose Group Members: Partial phone number',
-};
 
 export function ChooseGroupMembersValidPhoneNumber(): JSX.Element {
   return (
@@ -1071,19 +1070,17 @@ export function ChooseGroupMembersValidPhoneNumber(): JSX.Element {
           groupSizeHardLimit: 1001,
           isShowingRecommendedGroupSizeModal: false,
           isShowingMaximumGroupSizeModal: false,
-          isUsernamesEnabled: true,
+          ourE164: undefined,
+          ourUsername: undefined,
           searchTerm: '+1(212) 555 5454',
           regionCode: 'US',
           selectedContacts: [],
+          username: undefined,
         },
       })}
     />
   );
 }
-
-ChooseGroupMembersValidPhoneNumber.story = {
-  name: 'Choose Group Members: Valid phone number',
-};
 
 export function ChooseGroupMembersUsername(): JSX.Element {
   return (
@@ -1097,19 +1094,17 @@ export function ChooseGroupMembersUsername(): JSX.Element {
           groupSizeHardLimit: 1001,
           isShowingRecommendedGroupSizeModal: false,
           isShowingMaximumGroupSizeModal: false,
-          isUsernamesEnabled: true,
-          searchTerm: '@signal',
+          ourE164: undefined,
+          ourUsername: undefined,
+          searchTerm: 'signal.01',
           regionCode: 'US',
           selectedContacts: [],
+          username: 'signal.01',
         },
       })}
     />
   );
 }
-
-ChooseGroupMembersUsername.story = {
-  name: 'Choose Group Members: username',
-};
 
 export function GroupMetadataNoTimer(): JSX.Element {
   return (
@@ -1131,10 +1126,6 @@ export function GroupMetadataNoTimer(): JSX.Element {
   );
 }
 
-GroupMetadataNoTimer.story = {
-  name: 'Group Metadata: No Timer',
-};
-
 export function GroupMetadataRegularTimer(): JSX.Element {
   return (
     <LeftPaneInContainer
@@ -1155,10 +1146,6 @@ export function GroupMetadataRegularTimer(): JSX.Element {
   );
 }
 
-GroupMetadataRegularTimer.story = {
-  name: 'Group Metadata: Regular Timer',
-};
-
 export function GroupMetadataCustomTimer(): JSX.Element {
   return (
     <LeftPaneInContainer
@@ -1178,10 +1165,6 @@ export function GroupMetadataCustomTimer(): JSX.Element {
     />
   );
 }
-
-GroupMetadataCustomTimer.story = {
-  name: 'Group Metadata: Custom Timer',
-};
 
 export function SearchingConversation(): JSX.Element {
   return (

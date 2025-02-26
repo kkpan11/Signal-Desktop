@@ -3,6 +3,7 @@
 
 import { assert } from 'chai';
 import Long from 'long';
+import { v4 as generateUuid } from 'uuid';
 
 import {
   processDataMessage,
@@ -10,27 +11,33 @@ import {
 } from '../textsecure/processDataMessage';
 import type { ProcessedAttachment } from '../textsecure/Types.d';
 import { SignalService as Proto } from '../protobuf';
-import { IMAGE_GIF } from '../types/MIME';
+import { IMAGE_GIF, IMAGE_JPEG, LONG_MESSAGE } from '../types/MIME';
 import { generateAci } from '../types/ServiceId';
+import { uuidToBytes } from '../util/uuidToBytes';
 
 const ACI_1 = generateAci();
 const FLAGS = Proto.DataMessage.Flags;
 
 const TIMESTAMP = Date.now();
+const CLIENT_UUID = generateUuid();
 
 const UNPROCESSED_ATTACHMENT: Proto.IAttachmentPointer = {
   cdnId: Long.fromNumber(123),
+  clientUuid: uuidToBytes(CLIENT_UUID),
   key: new Uint8Array([1, 2, 3]),
   digest: new Uint8Array([4, 5, 6]),
   contentType: IMAGE_GIF,
+  incrementalMac: new Uint8Array(),
   size: 34,
 };
 
 const PROCESSED_ATTACHMENT: ProcessedAttachment = {
   cdnId: '123',
+  clientUuid: CLIENT_UUID,
   key: 'AQID',
   digest: 'BAUG',
   contentType: IMAGE_GIF,
+  incrementalMac: undefined,
   size: 34,
 };
 
@@ -41,7 +48,10 @@ describe('processDataMessage', () => {
         timestamp: Long.fromNumber(TIMESTAMP),
         ...message,
       },
-      TIMESTAMP
+      TIMESTAMP,
+      {
+        _createName: () => 'random-path',
+      }
     );
 
   it('should process attachments', () => {
@@ -49,7 +59,12 @@ describe('processDataMessage', () => {
       attachments: [UNPROCESSED_ATTACHMENT],
     });
 
-    assert.deepStrictEqual(out.attachments, [PROCESSED_ATTACHMENT]);
+    assert.deepStrictEqual(out.attachments, [
+      {
+        ...PROCESSED_ATTACHMENT,
+        downloadPath: 'random-path',
+      },
+    ]);
   });
 
   it('should process attachments with 0 cdnId', () => {
@@ -66,6 +81,52 @@ describe('processDataMessage', () => {
       {
         ...PROCESSED_ATTACHMENT,
         cdnId: undefined,
+        downloadPath: 'random-path',
+      },
+    ]);
+  });
+
+  it('should move long text attachments to bodyAttachment', () => {
+    const out = check({
+      attachments: [
+        UNPROCESSED_ATTACHMENT,
+        {
+          ...UNPROCESSED_ATTACHMENT,
+          contentType: LONG_MESSAGE,
+        },
+      ],
+    });
+
+    assert.deepStrictEqual(out.attachments, [
+      {
+        ...PROCESSED_ATTACHMENT,
+        downloadPath: 'random-path',
+      },
+    ]);
+    assert.deepStrictEqual(out.bodyAttachment, {
+      ...PROCESSED_ATTACHMENT,
+      downloadPath: 'random-path',
+      contentType: LONG_MESSAGE,
+    });
+  });
+
+  it('should process attachments with incrementalMac/chunkSize', () => {
+    const out = check({
+      attachments: [
+        {
+          ...UNPROCESSED_ATTACHMENT,
+          incrementalMac: new Uint8Array([0, 0, 0]),
+          chunkSize: 2,
+        },
+      ],
+    });
+
+    assert.deepStrictEqual(out.attachments, [
+      {
+        ...PROCESSED_ATTACHMENT,
+        downloadPath: 'random-path',
+        incrementalMac: 'AAAA',
+        chunkSize: 2,
       },
     ]);
   });
@@ -142,7 +203,7 @@ describe('processDataMessage', () => {
       text: 'text',
       attachments: [
         {
-          contentType: 'image/jpeg',
+          contentType: IMAGE_JPEG,
           fileName: 'image.jpg',
           thumbnail: PROCESSED_ATTACHMENT,
         },
@@ -185,7 +246,7 @@ describe('processDataMessage', () => {
         reaction: {
           emoji: '😎',
           targetAuthorAci: ACI_1,
-          targetTimestamp: Long.fromNumber(TIMESTAMP),
+          targetSentTimestamp: Long.fromNumber(TIMESTAMP),
         },
       }).reaction,
       {
@@ -202,7 +263,7 @@ describe('processDataMessage', () => {
           emoji: '😎',
           remove: true,
           targetAuthorAci: ACI_1,
-          targetTimestamp: Long.fromNumber(TIMESTAMP),
+          targetSentTimestamp: Long.fromNumber(TIMESTAMP),
         },
       }).reaction,
       {

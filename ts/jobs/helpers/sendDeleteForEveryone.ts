@@ -132,6 +132,7 @@ export async function sendDeleteForEveryone(
             profileKey,
             recipients: conversation.getRecipients(),
             timestamp,
+            expireTimerVersion: undefined,
           });
           strictAssert(
             proto.dataMessage,
@@ -143,7 +144,7 @@ export async function sendDeleteForEveryone(
               encodedDataMessage: Proto.DataMessage.encode(
                 proto.dataMessage
               ).finish(),
-              destination: conversation.get('e164'),
+              destinationE164: conversation.get('e164'),
               destinationServiceId: conversation.getServiceId(),
               expirationStartTimestamp: null,
               options: sendOptions,
@@ -201,6 +202,7 @@ export async function sendDeleteForEveryone(
                 deletedForEveryoneTimestamp: targetTimestamp,
                 timestamp,
                 expireTimer: undefined,
+                expireTimerVersion: undefined,
                 contentHint,
                 groupId: undefined,
                 profileKey,
@@ -302,9 +304,7 @@ async function updateMessageWithSuccessfulSends(
       deletedForEveryoneSendStatus: {},
       deletedForEveryoneFailed: undefined,
     });
-    await window.Signal.Data.saveMessage(message.attributes, {
-      ourAci: window.textsecure.storage.user.getCheckedAci(),
-    });
+    await window.MessageCache.saveMessage(message.attributes);
 
     return;
   }
@@ -325,9 +325,7 @@ async function updateMessageWithSuccessfulSends(
     deletedForEveryoneSendStatus,
     deletedForEveryoneFailed: undefined,
   });
-  await window.Signal.Data.saveMessage(message.attributes, {
-    ourAci: window.textsecure.storage.user.getCheckedAci(),
-  });
+  await window.MessageCache.saveMessage(message.attributes);
 }
 
 async function updateMessageWithFailure(
@@ -341,7 +339,5 @@ async function updateMessageWithFailure(
   );
 
   message.set({ deletedForEveryoneFailed: true });
-  await window.Signal.Data.saveMessage(message.attributes, {
-    ourAci: window.textsecure.storage.user.getCheckedAci(),
-  });
+  await window.MessageCache.saveMessage(message.attributes);
 }

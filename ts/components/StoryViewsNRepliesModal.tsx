@@ -9,7 +9,7 @@ import React, {
   useState,
 } from 'react';
 import classNames from 'classnames';
-import { noop } from 'lodash';
+import { noop, orderBy } from 'lodash';
 
 import type { DraftBodyRanges } from '../types/BodyRange';
 import type { LocalizerType } from '../types/Util';
@@ -51,9 +51,11 @@ const MESSAGE_DEFAULT_PROPS = {
   isMessageRequestAccepted: true,
   isSelected: false,
   isSelectMode: false,
+  isSMS: false,
   onToggleSelect: shouldNeverBeCalled,
   onReplyToMessage: shouldNeverBeCalled,
   kickOffAttachmentDownload: shouldNeverBeCalled,
+  cancelAttachmentDownload: shouldNeverBeCalled,
   markAttachmentAsCorrupted: shouldNeverBeCalled,
   messageExpanded: shouldNeverBeCalled,
   openGiftBadge: shouldNeverBeCalled,
@@ -63,12 +65,16 @@ const MESSAGE_DEFAULT_PROPS = {
   pushPanelForConversation: shouldNeverBeCalled,
   renderAudioAttachment: () => <div />,
   saveAttachment: shouldNeverBeCalled,
+  saveAttachments: shouldNeverBeCalled,
   scrollToQuotedMessage: shouldNeverBeCalled,
   showConversation: noop,
+  showAttachmentDownloadStillInProgressToast: shouldNeverBeCalled,
+  showAttachmentNotAvailableModal: shouldNeverBeCalled,
   showExpiredIncomingTapToViewToast: shouldNeverBeCalled,
   showExpiredOutgoingTapToViewToast: shouldNeverBeCalled,
   showLightbox: shouldNeverBeCalled,
   showLightboxForViewOnceMedia: shouldNeverBeCalled,
+  showMediaNoLongerAvailableToast: shouldNeverBeCalled,
   startConversation: shouldNeverBeCalled,
   theme: ThemeType.dark,
   viewStory: shouldNeverBeCalled,
@@ -91,8 +97,6 @@ export type PropsType = {
   i18n: LocalizerType;
   platform: string;
   isFormattingEnabled: boolean;
-  isFormattingFlagEnabled: boolean;
-  isFormattingSpoilersFlagEnabled: boolean;
   isInternalUser?: boolean;
   onChangeViewTarget: (target: StoryViewTargetType) => unknown;
   onClose: () => unknown;
@@ -105,6 +109,7 @@ export type PropsType = {
   onSetSkinTone: (tone: number) => unknown;
   onTextTooLong: () => unknown;
   onUseEmoji: (_: EmojiPickDataType) => unknown;
+  ourConversationId: string | undefined;
   preferredReactionEmoji: ReadonlyArray<string>;
   recentEmojis?: ReadonlyArray<string>;
   renderEmojiPicker: (props: RenderEmojiPickerProps) => JSX.Element;
@@ -128,8 +133,6 @@ export function StoryViewsNRepliesModal({
   i18n,
   platform,
   isFormattingEnabled,
-  isFormattingFlagEnabled,
-  isFormattingSpoilersFlagEnabled,
   isInternalUser,
   onChangeViewTarget,
   onClose,
@@ -138,6 +141,7 @@ export function StoryViewsNRepliesModal({
   onSetSkinTone,
   onTextTooLong,
   onUseEmoji,
+  ourConversationId,
   preferredReactionEmoji,
   recentEmojis,
   renderEmojiPicker,
@@ -174,6 +178,10 @@ export function StoryViewsNRepliesModal({
       ? StoryViewsNRepliesTab.Replies
       : StoryViewsNRepliesTab.Views;
   }, [viewTarget]);
+
+  const sortedViews = useMemo(() => {
+    return orderBy(views, 'updatedAt', 'desc');
+  }, [views]);
 
   const onTabChange = (tab: string) => {
     onChangeViewTarget(
@@ -240,9 +248,8 @@ export function StoryViewsNRepliesModal({
               getPreferredBadge={getPreferredBadge}
               i18n={i18n}
               inputApi={inputApiRef}
+              isActive
               isFormattingEnabled={isFormattingEnabled}
-              isFormattingFlagEnabled={isFormattingFlagEnabled}
-              isFormattingSpoilersFlagEnabled={isFormattingSpoilersFlagEnabled}
               moduleClassName="StoryViewsNRepliesModal__input"
               onCloseLinkPreview={noop}
               onEditorStateChange={({ messageText }) => {
@@ -255,6 +262,7 @@ export function StoryViewsNRepliesModal({
                 onReply(...args);
               }}
               onTextTooLong={onTextTooLong}
+              ourConversationId={ourConversationId}
               placeholder={
                 group
                   ? i18n('icu:StoryViewer__reply-group')
@@ -263,9 +271,17 @@ export function StoryViewsNRepliesModal({
                     })
               }
               platform={platform}
+              quotedMessageId={null}
               sendCounter={0}
-              sortedGroupMembers={sortedGroupMembers}
+              skinTone={skinTone ?? null}
+              sortedGroupMembers={sortedGroupMembers ?? null}
               theme={ThemeType.dark}
+              conversationId={null}
+              draftBodyRanges={null}
+              draftEditMessage={null}
+              large={null}
+              shouldHidePopovers={null}
+              linkPreviewResult={null}
             >
               <EmojiButton
                 className="StoryViewsNRepliesModal__emoji-button"
@@ -354,10 +370,10 @@ export function StoryViewsNRepliesModal({
         {i18n('icu:StoryViewsNRepliesModal__read-receipts-off')}
       </div>
     );
-  } else if (views.length) {
+  } else if (sortedViews.length) {
     viewsElement = (
       <div className="StoryViewsNRepliesModal__views">
-        {views.map(view => (
+        {sortedViews.map(view => (
           <div
             className="StoryViewsNRepliesModal__view"
             key={view.recipient.id}
@@ -365,7 +381,7 @@ export function StoryViewsNRepliesModal({
             <div>
               <Avatar
                 acceptedMessageRequest={view.recipient.acceptedMessageRequest}
-                avatarPath={view.recipient.avatarPath}
+                avatarUrl={view.recipient.avatarUrl}
                 badge={undefined}
                 color={getAvatarColor(view.recipient.color)}
                 conversationType="direct"
@@ -439,16 +455,16 @@ export function StoryViewsNRepliesModal({
       <Modal
         modalName="StoryViewsNRepliesModal"
         i18n={i18n}
-        moduleClassName="StoryViewsNRepliesModal"
+        moduleClassName={classNames({
+          StoryViewsNRepliesModal: true,
+          'StoryViewsNRepliesModal--group': Boolean(group),
+        })}
         onClose={onClose}
+        padded={false}
         useFocusTrap={Boolean(composerElement)}
         theme={Theme.Dark}
       >
-        <div
-          className={classNames({
-            'StoryViewsNRepliesModal--group': Boolean(group),
-          })}
-        >
+        <div className="StoryViewsNRepliesModal__content">
           {tabsElement || (
             <>
               {viewsElement || repliesElement}
@@ -547,7 +563,7 @@ function ReplyOrReactionMessage({
           <div className="StoryViewsNRepliesModal__reaction--container">
             <Avatar
               acceptedMessageRequest={reply.author.acceptedMessageRequest}
-              avatarPath={reply.author.avatarPath}
+              avatarUrl={reply.author.avatarUrl}
               badge={getPreferredBadge(reply.author.badges)}
               color={getAvatarColor(reply.author.color)}
               conversationType="direct"
@@ -568,7 +584,9 @@ function ReplyOrReactionMessage({
                   }
                 />
               </div>
-              {i18n('icu:StoryViewsNRepliesModal__reacted')}
+              {reply.author.isMe
+                ? i18n('icu:StoryViewsNRepliesModal__reacted--you')
+                : i18n('icu:StoryViewsNRepliesModal__reacted--someone-else')}
               <MessageTimestamp
                 i18n={i18n}
                 isRelativeTime
@@ -646,9 +664,9 @@ function ReplyOrReactionMessage({
 
   return reply.author.isMe && !reply.deletedForEveryone ? (
     <ContextMenu i18n={i18n} key={reply.id} menuOptions={menuOptions}>
-      {({ openMenu, menuNode }) => (
+      {({ onClick, menuNode }) => (
         <>
-          {renderContent(openMenu)}
+          {renderContent(onClick)}
           {menuNode}
         </>
       )}

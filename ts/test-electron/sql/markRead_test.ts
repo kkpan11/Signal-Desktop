@@ -4,25 +4,28 @@
 import { assert } from 'chai';
 import { v4 as generateUuid } from 'uuid';
 
-import dataInterface from '../../sql/Client';
+import { DataReader, DataWriter } from '../../sql/Client';
 import { generateAci } from '../../types/ServiceId';
 
 import type { ReactionType } from '../../types/Reactions';
+import { ReactionReadStatus } from '../../types/Reactions';
 import { DurationInSeconds } from '../../util/durations';
 import type { MessageAttributesType } from '../../model-types.d';
 import { ReadStatus } from '../../messages/MessageReadStatus';
+import { postSaveUpdates } from '../../util/cleanup';
 
+const { _getAllReactions, _getAllMessages, getTotalUnreadForConversation } =
+  DataReader;
 const {
   _removeAllMessages,
   _removeAllReactions,
-  _getAllReactions,
-  _getAllMessages,
   addReaction,
   saveMessages,
-  getTotalUnreadForConversation,
   getUnreadByConversationAndMarkRead,
   getUnreadReactionsAndMarkRead,
-} = dataInterface;
+} = DataWriter;
+
+const UNREAD_REACTION = { readStatus: ReactionReadStatus.Unread };
 
 describe('sql/markRead', () => {
   beforeEach(async () => {
@@ -124,6 +127,7 @@ describe('sql/markRead', () => {
       {
         forceSave: true,
         ourAci,
+        postSaveUpdates,
       }
     );
 
@@ -288,6 +292,7 @@ describe('sql/markRead', () => {
       {
         forceSave: true,
         ourAci,
+        postSaveUpdates,
       }
     );
 
@@ -390,6 +395,7 @@ describe('sql/markRead', () => {
     await saveMessages([message1, message2, message3, message4, message5], {
       forceSave: true,
       ourAci,
+      postSaveUpdates,
     });
 
     assert.strictEqual(
@@ -516,6 +522,7 @@ describe('sql/markRead', () => {
       {
         forceSave: true,
         ourAci,
+        postSaveUpdates,
       }
     );
     assert.lengthOf(await _getAllMessages(), pad.length + 5);
@@ -528,6 +535,7 @@ describe('sql/markRead', () => {
       messageReceivedAt: message1.received_at,
       targetAuthorAci: generateAci(),
       targetTimestamp: start,
+      timestamp: start,
     };
     const reaction2: ReactionType = {
       conversationId,
@@ -537,6 +545,7 @@ describe('sql/markRead', () => {
       messageReceivedAt: message2.received_at,
       targetAuthorAci: generateAci(),
       targetTimestamp: start,
+      timestamp: start,
     };
     const reaction3: ReactionType = {
       conversationId: generateUuid(),
@@ -546,6 +555,7 @@ describe('sql/markRead', () => {
       messageReceivedAt: message3.received_at,
       targetAuthorAci: generateAci(),
       targetTimestamp: start,
+      timestamp: start,
     };
     const reaction4: ReactionType = {
       conversationId,
@@ -555,6 +565,7 @@ describe('sql/markRead', () => {
       messageReceivedAt: message4.received_at,
       targetAuthorAci: generateAci(),
       targetTimestamp: start,
+      timestamp: start,
     };
     const reaction5: ReactionType = {
       conversationId,
@@ -564,13 +575,14 @@ describe('sql/markRead', () => {
       messageReceivedAt: message5.received_at,
       targetAuthorAci: generateAci(),
       targetTimestamp: start,
+      timestamp: start,
     };
 
-    await addReaction(reaction1);
-    await addReaction(reaction2);
-    await addReaction(reaction3);
-    await addReaction(reaction4);
-    await addReaction(reaction5);
+    await addReaction(reaction1, UNREAD_REACTION);
+    await addReaction(reaction2, UNREAD_REACTION);
+    await addReaction(reaction3, UNREAD_REACTION);
+    await addReaction(reaction4, UNREAD_REACTION);
+    await addReaction(reaction5, UNREAD_REACTION);
 
     assert.lengthOf(await _getAllReactions(), 5);
     const markedRead = await getUnreadReactionsAndMarkRead({
@@ -666,6 +678,7 @@ describe('sql/markRead', () => {
     await saveMessages([message1, message2, message3, message4, message5], {
       forceSave: true,
       ourAci,
+      postSaveUpdates,
     });
     assert.lengthOf(await _getAllMessages(), 5);
 
@@ -677,6 +690,7 @@ describe('sql/markRead', () => {
       messageReceivedAt: message1.received_at,
       targetAuthorAci: generateAci(),
       targetTimestamp: start,
+      timestamp: start,
     };
     const reaction2: ReactionType = {
       conversationId,
@@ -686,6 +700,7 @@ describe('sql/markRead', () => {
       messageReceivedAt: message2.received_at,
       targetAuthorAci: generateAci(),
       targetTimestamp: start,
+      timestamp: start,
     };
     const reaction3: ReactionType = {
       conversationId: generateUuid(),
@@ -695,6 +710,7 @@ describe('sql/markRead', () => {
       messageReceivedAt: message3.received_at,
       targetAuthorAci: generateAci(),
       targetTimestamp: start,
+      timestamp: start,
     };
     const reaction4: ReactionType = {
       conversationId,
@@ -704,6 +720,7 @@ describe('sql/markRead', () => {
       messageReceivedAt: message4.received_at,
       targetAuthorAci: generateAci(),
       targetTimestamp: start,
+      timestamp: start,
     };
     const reaction5: ReactionType = {
       conversationId,
@@ -713,13 +730,14 @@ describe('sql/markRead', () => {
       messageReceivedAt: message5.received_at,
       targetAuthorAci: generateAci(),
       targetTimestamp: start,
+      timestamp: start,
     };
 
-    await addReaction(reaction1);
-    await addReaction(reaction2);
-    await addReaction(reaction3);
-    await addReaction(reaction4);
-    await addReaction(reaction5);
+    await addReaction(reaction1, UNREAD_REACTION);
+    await addReaction(reaction2, UNREAD_REACTION);
+    await addReaction(reaction3, UNREAD_REACTION);
+    await addReaction(reaction4, UNREAD_REACTION);
+    await addReaction(reaction5, UNREAD_REACTION);
 
     assert.lengthOf(await _getAllReactions(), 5);
     const markedRead = await getUnreadReactionsAndMarkRead({
@@ -811,6 +829,7 @@ describe('sql/markRead', () => {
     await saveMessages([message1, message2, message3, message4], {
       forceSave: true,
       ourAci,
+      postSaveUpdates,
     });
 
     assert.lengthOf(await _getAllMessages(), 4);

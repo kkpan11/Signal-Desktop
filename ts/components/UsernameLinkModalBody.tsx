@@ -4,7 +4,6 @@
 import React, { useCallback, useState, useEffect } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import classnames from 'classnames';
-import QR from 'qrcode-generator';
 import { changeDpiBlob } from 'changedpi';
 
 import { SignalService as Proto } from '../protobuf';
@@ -16,16 +15,20 @@ import type { LocalizerType } from '../types/Util';
 import { IMAGE_PNG } from '../types/MIME';
 import { strictAssert } from '../util/assert';
 import { drop } from '../util/drop';
+import { splitText } from '../util/splitText';
+import { loadImage } from '../util/loadImage';
 import { Button, ButtonVariant } from './Button';
 import { Modal } from './Modal';
 import { ConfirmationDialog } from './ConfirmationDialog';
 import { Spinner } from './Spinner';
+import { BrandedQRCode } from './BrandedQRCode';
 
 export type PropsType = Readonly<{
   i18n: LocalizerType;
   link?: string;
   username: string;
   colorId?: number;
+  usernameLinkCorrupted: boolean;
   usernameLinkState: UsernameLinkState;
 
   setUsernameLinkColor: (colorId: number) => void;
@@ -38,117 +41,100 @@ export type PropsType = Readonly<{
 export type ColorMapEntryType = Readonly<{
   fg: string;
   bg: string;
+  tint: string;
 }>;
 
 const ColorEnum = Proto.AccountRecord.UsernameLink.Color;
 
-const DEFAULT_PRESET: ColorMapEntryType = { fg: '#2449c0', bg: '#506ecd' };
+const DEFAULT_PRESET: ColorMapEntryType = {
+  fg: '#2449c0',
+  bg: '#506ecd',
+  tint: '#ecf0fb',
+};
 
 export const COLOR_MAP: ReadonlyMap<number, ColorMapEntryType> = new Map([
   [ColorEnum.BLUE, DEFAULT_PRESET],
-  [ColorEnum.WHITE, { fg: '#000000', bg: '#ffffff' }],
-  [ColorEnum.GREY, { fg: '#464852', bg: '#6a6c74' }],
-  [ColorEnum.OLIVE, { fg: '#73694f', bg: '#a89d7f' }],
-  [ColorEnum.GREEN, { fg: '#55733f', bg: '#829a6e' }],
-  [ColorEnum.ORANGE, { fg: '#d96b2d', bg: '#de7134' }],
-  [ColorEnum.PINK, { fg: '#bb617b', bg: '#e67899' }],
-  [ColorEnum.PURPLE, { fg: '#7651c5', bg: '#9c84cf' }],
+  [ColorEnum.WHITE, { fg: '#000000', bg: '#ffffff', tint: '#f5f5f5' }],
+  [ColorEnum.GREY, { fg: '#464852', bg: '#6a6c75', tint: '#f0f0f1' }],
+  [ColorEnum.OLIVE, { fg: '#73694f', bg: '#aa9c7c', tint: '#f6f5f2' }],
+  [ColorEnum.GREEN, { fg: '#55733f', bg: '#7c9b69', tint: '#f1f5f0' }],
+  [ColorEnum.ORANGE, { fg: '#d96b2d', bg: '#ee691a', tint: '#fef1ea' }],
+  [ColorEnum.PINK, { fg: '#bb617b', bg: '#f77099', tint: '#fef1f5' }],
+  [ColorEnum.PURPLE, { fg: '#7651c5', bg: '#a183d4', tint: '#f5f3fb' }],
 ]);
 
 const CLASS = 'UsernameLinkModalBody';
-const AUTODETECT_TYPE_NUMBER = 0;
-const ERROR_CORRECTION_LEVEL = 'H';
-const CENTER_CUTAWAY_PERCENTAGE = 32 / 184;
 
-const PRINT_WIDTH = 296;
-const DEFAULT_PRINT_HEIGHT = 324;
-const PRINT_SHADOW_BLUR = 4;
-const PRINT_CARD_RADIUS = 24;
-const PRINT_MAX_USERNAME_WIDTH = 222;
-const PRINT_USERNAME_LINE_HEIGHT = 25;
-const PRINT_USERNAME_Y = 269;
+export const PRINT_WIDTH = 424;
+export const PRINT_HEIGHT = 576;
+const PRINT_PIXEL_RATIO = 3;
 const PRINT_QR_SIZE = 184;
-const PRINT_QR_Y = 48;
-const PRINT_QR_PADDING = 16;
-const PRINT_QR_PADDING_RADIUS = 12;
-const PRINT_DPI = 224;
-const PRINT_LOGO_SIZE = 36;
+const PRINT_DPI = 300;
+const BASE_PILL_WIDTH = 296;
+const BASE_PILL_HEIGHT = 324;
+const USERNAME_TOP = 352;
+const USERNAME_MAX_WIDTH = 222;
+const USERNAME_LINE_HEIGHT = 26;
+const USERNAME_FONT = `600 20px/${USERNAME_LINE_HEIGHT}px Inter`;
+const USERNAME_LETTER_SPACING = -0.34;
 
-type BlotchesPropsType = Readonly<{
-  className?: string;
+const HINT_BASE_TOP = 447;
+const HINT_MAX_WIDTH = 296;
+const HINT_LINE_HEIGHT = 17;
+const HINT_FONT = `400 14px/${HINT_LINE_HEIGHT}px Inter`;
+const HINT_LETTER_SPACING = 0;
+
+type ExportedImagePropsType = Readonly<{
   link: string;
-  color: string;
+  colorId: number;
+  usernameLines: number;
 }>;
 
-function Blotches({ className, link, color }: BlotchesPropsType): JSX.Element {
-  const qr = QR(AUTODETECT_TYPE_NUMBER, ERROR_CORRECTION_LEVEL);
-  qr.addData(link);
-  qr.make();
+function ExportedImage({
+  link,
+  colorId,
+  usernameLines,
+}: ExportedImagePropsType): JSX.Element {
+  const { fg, bg, tint } = COLOR_MAP.get(colorId) ?? DEFAULT_PRESET;
 
-  const size = qr.getModuleCount();
-  const center = size / 2;
-  const radius = CENTER_CUTAWAY_PERCENTAGE * size;
+  const isWhiteBackground = colorId === ColorEnum.WHITE;
 
-  function hasPixel(x: number, y: number): boolean {
-    if (x < 0 || y < 0 || x >= size || y >= size) {
-      return false;
-    }
-
-    const distanceFromCenter = Math.sqrt(
-      (x - center + 0.5) ** 2 + (y - center + 0.5) ** 2
-    );
-
-    // Center and 1 dot away should remain clear for the logo placement.
-    if (Math.ceil(distanceFromCenter) <= radius + 2) {
-      return false;
-    }
-
-    return qr.isDark(x, y);
-  }
-
-  const path = [];
-  for (let y = 0; y < size; y += 1) {
-    for (let x = 0; x < size; x += 1) {
-      if (!hasPixel(x, y)) {
-        continue;
-      }
-
-      const onTop = hasPixel(x, y - 1);
-      const onBottom = hasPixel(x, y + 1);
-      const onLeft = hasPixel(x - 1, y);
-      const onRight = hasPixel(x + 1, y);
-
-      const roundTL = !onLeft && !onTop;
-      const roundTR = !onTop && !onRight;
-      const roundBR = !onRight && !onBottom;
-      const roundBL = !onBottom && !onLeft;
-
-      path.push(
-        `M${2 * x} ${2 * y + 1}`,
-        roundTL ? 'a1 1 0 0 1 1 -1' : 'v-1h1',
-        roundTR ? 'a1 1 0 0 1 1 1' : 'h1v1',
-        roundBR ? 'a1 1 0 0 1 -1 1' : 'v1h-1',
-        roundBL ? 'a1 1 0 0 1 -1 -1' : 'h-1v-1',
-        'z'
-      );
-    }
-  }
+  const extraHeight = (usernameLines - 1) * USERNAME_LINE_HEIGHT;
+  const pillHeight = BASE_PILL_HEIGHT + extraHeight;
 
   return (
     <svg
-      className={className}
-      viewBox={`0 0 ${2 * size} ${2 * size}`}
+      style={{ position: 'absolute' }}
+      viewBox={`0 0 ${PRINT_WIDTH} ${PRINT_HEIGHT}`}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <circle
-        cx={size}
-        cy={size}
-        r={radius * 2}
-        stroke={color}
-        strokeWidth={2}
-      />
-      <path d={path.join('')} fill={color} />
+      <rect width={PRINT_WIDTH} height={PRINT_HEIGHT} fill={tint} />
+
+      {/* QR + Username pill */}
+      <g transform="translate(64, 80)">
+        <rect width={BASE_PILL_WIDTH} height={pillHeight} rx="32" fill={bg} />
+
+        {/* QR code with a frame */}
+        <g transform="translate(40, 32)">
+          {isWhiteBackground ? (
+            <rect
+              width="216"
+              height="216"
+              rx="12"
+              fill="white"
+              strokeWidth="2"
+              stroke="#e9e9e9"
+            />
+          ) : (
+            <rect width="216" height="216" rx="12" fill="white" />
+          )}
+
+          <g transform="translate(16, 16)">
+            <BrandedQRCode size={PRINT_QR_SIZE} link={link} color={fg} />
+          </g>
+        </g>
+      </g>
     </svg>
   );
 }
@@ -156,39 +142,29 @@ function Blotches({ className, link, color }: BlotchesPropsType): JSX.Element {
 type CreateCanvasAndContextOptionsType = Readonly<{
   width: number;
   height: number;
-  devicePixelRatio?: number;
 }>;
 
 function createCanvasAndContext({
   width,
   height,
-  devicePixelRatio = window.devicePixelRatio,
 }: CreateCanvasAndContextOptionsType): [
   OffscreenCanvas,
-  OffscreenCanvasRenderingContext2D
+  OffscreenCanvasRenderingContext2D,
 ] {
   const canvas = new OffscreenCanvas(
-    devicePixelRatio * width,
-    devicePixelRatio * height
+    PRINT_PIXEL_RATIO * width,
+    PRINT_PIXEL_RATIO * height
   );
 
   const context = canvas.getContext('2d');
   strictAssert(context, 'Failed to get 2d context');
 
   // Retina support
-  context.scale(devicePixelRatio, devicePixelRatio);
+  context.scale(PRINT_PIXEL_RATIO, PRINT_PIXEL_RATIO);
 
-  // Font config
-  context.font = `600 20px/${PRINT_USERNAME_LINE_HEIGHT}px Inter`;
+  // Common font config
   context.textAlign = 'center';
   context.textBaseline = 'top';
-
-  // Experimental Chrome APIs
-  (
-    context as unknown as {
-      letterSpacing: number;
-    }
-  ).letterSpacing = -0.34;
   (
     context as unknown as {
       textRendering: string;
@@ -200,173 +176,123 @@ function createCanvasAndContext({
   return [canvas, context];
 }
 
-type GetLogoCanvasOptionsType = Readonly<{
-  fgColor: string;
-  imageUrl?: string;
-  devicePixelRatio?: number;
+type CreateTextMeasurerOptionsType = Readonly<{
+  font: string;
+  letterSpacing: number;
+  maxWidth: number;
+  direction: 'ltr' | 'rtl';
 }>;
 
-async function getLogoCanvas({
-  fgColor,
-  imageUrl = 'images/signal-qr-logo.svg',
-  devicePixelRatio,
-}: GetLogoCanvasOptionsType): Promise<OffscreenCanvas> {
-  const img = new Image();
-  await new Promise((resolve, reject) => {
-    img.addEventListener('load', resolve);
-    img.addEventListener('error', () =>
-      reject(new Error('Failed to load image'))
-    );
-    img.src = imageUrl;
-  });
-
-  const [canvas, context] = createCanvasAndContext({
-    width: PRINT_LOGO_SIZE,
-    height: PRINT_LOGO_SIZE,
-    devicePixelRatio,
-  });
-
-  context.fillStyle = fgColor;
-  context.fillRect(0, 0, PRINT_LOGO_SIZE, PRINT_LOGO_SIZE);
-  context.globalCompositeOperation = 'destination-in';
-  context.drawImage(img, 0, 0, PRINT_LOGO_SIZE, PRINT_LOGO_SIZE);
-
-  return canvas;
-}
-
-function splitUsername(username: string): Array<string> {
-  const result = new Array<string>();
-
+function createTextMeasurer({
+  font,
+  letterSpacing,
+  maxWidth,
+  direction,
+}: CreateTextMeasurerOptionsType): (text: string) => boolean {
   const [, context] = createCanvasAndContext({ width: 1, height: 1 });
 
-  // Compute number of lines and height of username
-  for (let i = 0, last = 0; i < username.length; i += 1) {
-    const part = username.slice(last, i);
-    if (context.measureText(part).width > PRINT_MAX_USERNAME_WIDTH) {
-      result.push(username.slice(last, i - 1));
-      last = i - 1;
-    } else if (i === username.length - 1) {
-      result.push(username.slice(last));
+  context.font = font;
+  context.direction = direction;
+  // Experimental Chrome APIs
+  (
+    context as unknown as {
+      letterSpacing: number;
     }
-  }
+  ).letterSpacing = letterSpacing;
 
-  return result;
+  return value => context.measureText(value).width > maxWidth;
 }
 
 type GenerateImageURLOptionsType = Readonly<{
   link: string;
   username: string;
+  hint: string;
+  hintDirection: 'ltr' | 'rtl';
   colorId: number;
-  bgColor: string;
-  fgColor: string;
-
-  // For testing
-  logoUrl?: string;
-  devicePixelRatio?: number;
 }>;
 
 // Exported for testing
 export async function _generateImageBlob({
   link,
   username,
+  hint,
+  hintDirection,
   colorId,
-  bgColor,
-  fgColor,
-  logoUrl,
-  devicePixelRatio,
 }: GenerateImageURLOptionsType): Promise<Blob> {
-  const usernameLines = splitUsername(username);
-  const usernameHeight = PRINT_USERNAME_LINE_HEIGHT * usernameLines.length;
+  const usernameLines = splitText(username, {
+    granularity: 'grapheme',
+    shouldBreak: createTextMeasurer({
+      maxWidth: USERNAME_MAX_WIDTH,
+      font: USERNAME_FONT,
+      letterSpacing: USERNAME_LETTER_SPACING,
+      direction: 'ltr',
+    }),
+  });
+
+  const hintLines = splitText(hint, {
+    granularity: 'word',
+    shouldBreak: createTextMeasurer({
+      maxWidth: HINT_MAX_WIDTH,
+      font: HINT_FONT,
+      letterSpacing: HINT_LETTER_SPACING,
+      direction: hintDirection,
+    }),
+  });
+
+  const [canvas, context] = createCanvasAndContext({
+    width: PRINT_WIDTH,
+    height: PRINT_HEIGHT,
+  });
+
+  const svg = renderToStaticMarkup(
+    <ExportedImage
+      link={link}
+      colorId={colorId}
+      usernameLines={usernameLines.length}
+    />
+  );
+  const svgURL = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+
+  const img = await loadImage(svgURL);
+
+  context.drawImage(img, 0, 0, PRINT_WIDTH, PRINT_HEIGHT);
 
   const isWhiteBackground = colorId === ColorEnum.WHITE;
 
-  const padding = isWhiteBackground ? PRINT_SHADOW_BLUR : 0;
-
-  const totalHeight =
-    DEFAULT_PRINT_HEIGHT - PRINT_USERNAME_LINE_HEIGHT + usernameHeight;
-  const [canvas, context] = createCanvasAndContext({
-    width: PRINT_WIDTH + 2 * padding,
-    height: totalHeight + 2 * padding,
-    devicePixelRatio,
-  });
-
-  // Draw card
   context.save();
-  if (isWhiteBackground) {
-    context.shadowColor = 'rgba(0, 0, 0, 0.08)';
-    context.shadowBlur = PRINT_SHADOW_BLUR;
-  }
-  context.fillStyle = bgColor;
-  context.beginPath();
-  context.roundRect(
-    padding,
-    padding,
-    PRINT_WIDTH,
-    totalHeight,
-    PRINT_CARD_RADIUS
-  );
-  context.fill();
-  context.restore();
-
-  // Draw padding around QR code
-  context.save();
-  context.fillStyle = '#fff';
-  const sizeWithPadding = PRINT_QR_SIZE + 2 * PRINT_QR_PADDING;
-  context.beginPath();
-  context.roundRect(
-    padding + (PRINT_WIDTH - sizeWithPadding) / 2,
-    padding + PRINT_QR_Y - PRINT_QR_PADDING,
-    sizeWithPadding,
-    sizeWithPadding,
-    PRINT_QR_PADDING_RADIUS
-  );
-  context.fill();
-  if (isWhiteBackground) {
-    context.lineWidth = 2;
-    context.strokeStyle = '#e9e9e9';
-    context.stroke();
-  }
-  context.restore();
-
-  // Draw username
+  context.font = USERNAME_FONT;
+  context.direction = 'ltr';
+  // Experimental Chrome APIs
+  (
+    context as unknown as {
+      letterSpacing: number;
+    }
+  ).letterSpacing = USERNAME_LETTER_SPACING;
   context.fillStyle = isWhiteBackground ? '#000' : '#fff';
+
+  const centerX = PRINT_WIDTH / 2;
   for (const [i, line] of usernameLines.entries()) {
-    context.fillText(
-      line,
-      padding + PRINT_WIDTH / 2,
-      PRINT_USERNAME_Y + i * PRINT_USERNAME_LINE_HEIGHT
-    );
+    context.fillText(line, centerX, USERNAME_TOP + i * USERNAME_LINE_HEIGHT);
   }
+  context.restore();
 
-  // Draw logo
-  context.drawImage(
-    await getLogoCanvas({ fgColor, imageUrl: logoUrl, devicePixelRatio }),
-    padding + (PRINT_WIDTH - PRINT_LOGO_SIZE) / 2,
-    padding + PRINT_QR_Y + (PRINT_QR_SIZE - PRINT_LOGO_SIZE) / 2,
-    PRINT_LOGO_SIZE,
-    PRINT_LOGO_SIZE
-  );
+  context.save();
+  context.font = HINT_FONT;
+  context.direction = hintDirection;
+  // Experimental Chrome APIs
+  (
+    context as unknown as {
+      letterSpacing: number;
+    }
+  ).letterSpacing = HINT_LETTER_SPACING;
+  context.fillStyle = 'rgba(60, 60, 69, 0.70)';
 
-  // Draw QR code
-  const svg = renderToStaticMarkup(Blotches({ link, color: fgColor }));
-  const svgURL = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-
-  const img = new Image();
-  await new Promise((resolve, reject) => {
-    img.addEventListener('load', resolve);
-    img.addEventListener('error', () =>
-      reject(new Error('Failed to load image'))
-    );
-    img.src = svgURL;
-  });
-
-  context.drawImage(
-    img,
-    padding + (PRINT_WIDTH - PRINT_QR_SIZE) / 2,
-    PRINT_QR_Y + padding,
-    PRINT_QR_SIZE,
-    PRINT_QR_SIZE
-  );
+  const hintTop =
+    HINT_BASE_TOP + (usernameLines.length - 1) * USERNAME_LINE_HEIGHT;
+  for (const [i, line] of hintLines.entries()) {
+    context.fillText(line, centerX, hintTop + i * HINT_LINE_HEIGHT);
+  }
+  context.restore();
 
   const blob = await canvas.convertToBlob({ type: 'image/png' });
   return changeDpiBlob(blob, PRINT_DPI);
@@ -482,10 +408,17 @@ function UsernameLinkColors({
   );
 }
 
+enum ResetModalVisibility {
+  NotMounted = 'NotMounted',
+  Closed = 'Closed',
+  Open = 'Open',
+}
+
 export function UsernameLinkModalBody({
   i18n,
   link,
   username,
+  usernameLinkCorrupted,
   usernameLinkState,
   colorId: initialColorId = ColorEnum.UNKNOWN,
 
@@ -499,6 +432,10 @@ export function UsernameLinkModalBody({
   const [pngData, setPngData] = useState<Uint8Array | undefined>();
   const [showColors, setShowColors] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [resetModalVisibility, setResetModalVisibility] = useState(
+    ResetModalVisibility.NotMounted
+  );
+  const [showError, setShowError] = useState(false);
   const [colorId, setColorId] = useState(initialColorId);
 
   const { fg: fgColor, bg: bgColor } = COLOR_MAP.get(colorId) ?? DEFAULT_PRESET;
@@ -530,8 +467,8 @@ export function UsernameLinkModalBody({
         link,
         username,
         colorId,
-        bgColor,
-        fgColor,
+        hint: i18n('icu:UsernameLinkModalBody__hint'),
+        hintDirection: i18n.getLocaleDirection(),
       });
       const arrayBuffer = await blob.arrayBuffer();
       if (isAborted) {
@@ -545,7 +482,7 @@ export function UsernameLinkModalBody({
     return () => {
       isAborted = true;
     };
-  }, [link, username, colorId, bgColor, fgColor]);
+  }, [i18n, link, username, colorId, bgColor, fgColor]);
 
   const onSave = useCallback(
     (e: React.MouseEvent) => {
@@ -617,9 +554,50 @@ export function UsernameLinkModalBody({
   }, []);
 
   const onConfirmReset = useCallback(() => {
+    setShowError(false);
     setConfirmReset(false);
     resetUsernameLink();
   }, [resetUsernameLink]);
+
+  const onCloseError = useCallback(() => {
+    if (showError) {
+      onBack();
+    }
+  }, [showError, onBack]);
+
+  useEffect(() => {
+    if (!usernameLinkCorrupted) {
+      return;
+    }
+
+    resetUsernameLink();
+  }, [usernameLinkCorrupted, resetUsernameLink]);
+
+  useEffect(() => {
+    if (usernameLinkState !== UsernameLinkState.Error) {
+      return;
+    }
+
+    setShowError(true);
+  }, [usernameLinkState]);
+
+  const onResetModalClose = useCallback(() => {
+    setResetModalVisibility(ResetModalVisibility.Closed);
+  }, []);
+
+  const isReady = usernameLinkState === UsernameLinkState.Ready;
+  const isResettingLink = usernameLinkCorrupted || !isReady;
+
+  useEffect(() => {
+    setResetModalVisibility(x => {
+      // Initial mount shouldn't show the modal
+      if (x === ResetModalVisibility.NotMounted || isResettingLink) {
+        return ResetModalVisibility.Closed;
+      }
+
+      return ResetModalVisibility.Open;
+    });
+  }, [isResettingLink]);
 
   const info = (
     <>
@@ -627,7 +605,7 @@ export function UsernameLinkModalBody({
         <button
           className={`${CLASS}__actions__save`}
           type="button"
-          disabled={!link}
+          disabled={!link || isResettingLink}
           onClick={onSave}
         >
           <i />
@@ -648,11 +626,19 @@ export function UsernameLinkModalBody({
         <button
           className={classnames(`${CLASS}__link__icon`)}
           type="button"
-          disabled={!link}
+          disabled={!link || isResettingLink}
           onClick={onCopyLink}
           aria-label={i18n('icu:UsernameLinkModalBody__copy')}
         />
-        <div className={classnames(`${CLASS}__link__text`)}>{link}</div>
+        <div
+          className={classnames(`${CLASS}__link__text`, {
+            [`${CLASS}__link__text--resetting`]: isResettingLink,
+          })}
+        >
+          {isResettingLink
+            ? i18n('icu:UsernameLinkModalBody__resetting-link')
+            : link}
+        </div>
       </div>
 
       <div className={classnames(`${CLASS}__help`)}>
@@ -677,6 +663,29 @@ export function UsernameLinkModalBody({
     </>
   );
 
+  let linkImage: JSX.Element | undefined;
+  if (isReady && link) {
+    linkImage = (
+      <svg
+        className={`${CLASS}__card__qr__blotches`}
+        viewBox="0 0 16 16"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <BrandedQRCode size={16} link={link} color={fgColor} />
+      </svg>
+    );
+  } else if (usernameLinkState === UsernameLinkState.Error) {
+    linkImage = <i className={`${CLASS}__card__qr__error-icon`} />;
+  } else {
+    linkImage = (
+      <Spinner
+        moduleClassName={`${CLASS}__card__qr__spinner`}
+        svgSize="small"
+      />
+    );
+  }
+
   return (
     <div className={`${CLASS}__container`}>
       <div className={CLASS}>
@@ -686,33 +695,23 @@ export function UsernameLinkModalBody({
           })}
           ref={onCardRef}
         >
-          <div className={`${CLASS}__card__qr`}>
-            {usernameLinkState === UsernameLinkState.Ready && link ? (
-              <>
-                <Blotches
-                  className={`${CLASS}__card__qr__blotches`}
-                  link={link}
-                  color={fgColor}
-                />
-                <div className={`${CLASS}__card__qr__logo`} />
-              </>
-            ) : (
-              <Spinner
-                moduleClassName={`${CLASS}__card__qr__spinner`}
-                svgSize="small"
-              />
-            )}
-          </div>
+          <div className={`${CLASS}__card__qr`}>{linkImage}</div>
           <div className={`${CLASS}__card__username`}>
-            {!showColors && (
+            {showColors ? (
+              <div className={`${CLASS}__card__username__text`}>{username}</div>
+            ) : (
               <button
-                className={classnames(`${CLASS}__card__username__copy`)}
+                className={`${CLASS}__card__username__copy__button`}
                 type="button"
                 onClick={onCopyUsername}
                 aria-label={i18n('icu:UsernameLinkModalBody__copy')}
-              />
+              >
+                <i />
+                <div className={`${CLASS}__card__username__text`}>
+                  {username}
+                </div>
+              </button>
             )}
-            <div className={`${CLASS}__card__username__text`}>{username}</div>
           </div>
         </div>
 
@@ -730,6 +729,37 @@ export function UsernameLinkModalBody({
             ]}
           >
             {i18n('icu:UsernameLinkModalBody__reset__confirm')}
+          </ConfirmationDialog>
+        )}
+
+        {showError && (
+          <ConfirmationDialog
+            i18n={i18n}
+            dialogName="UsernameLinkModal__error"
+            onClose={onCloseError}
+            cancelButtonVariant={ButtonVariant.Secondary}
+            cancelText={i18n('icu:cancel')}
+            actions={[
+              {
+                action: onConfirmReset,
+                style: 'affirmative',
+                text: i18n('icu:UsernameLinkModalBody__error__fix-now'),
+              },
+            ]}
+          >
+            {i18n('icu:UsernameLinkModalBody__error__text')}
+          </ConfirmationDialog>
+        )}
+
+        {resetModalVisibility === ResetModalVisibility.Open && (
+          <ConfirmationDialog
+            i18n={i18n}
+            dialogName="UsernameLinkModal__error"
+            onClose={onResetModalClose}
+            cancelButtonVariant={ButtonVariant.Secondary}
+            cancelText={i18n('icu:ok')}
+          >
+            {i18n('icu:UsernameLinkModalBody__recovered__text')}
           </ConfirmationDialog>
         )}
 

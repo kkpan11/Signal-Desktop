@@ -5,22 +5,25 @@ import path from 'path';
 import { debounce, isEqual } from 'lodash';
 import type { ThunkAction, ThunkDispatch } from 'redux-thunk';
 import { v4 as generateUuid } from 'uuid';
+import { webUtils } from 'electron';
 
 import type { ReadonlyDeep } from 'type-fest';
 import type {
   AddLinkPreviewActionType,
   RemoveLinkPreviewActionType,
 } from './linkPreviews';
-import type {
-  AttachmentType,
-  AttachmentDraftType,
-  InMemoryAttachmentDraftType,
+import {
+  type AttachmentType,
+  type AttachmentDraftType,
+  type InMemoryAttachmentDraftType,
+  isVideoAttachment,
+  isImageAttachment,
 } from '../../types/Attachment';
+import { DataReader, DataWriter } from '../../sql/Client';
 import type { BoundActionCreatorsMapObject } from '../../hooks/useBoundActions';
 import type { DraftBodyRanges } from '../../types/BodyRange';
-import { BodyRange } from '../../types/BodyRange';
 import type { LinkPreviewType } from '../../types/message/LinkPreviews';
-import type { MessageAttributesType } from '../../model-types.d';
+import type { ReadonlyMessageAttributesType } from '../../model-types.d';
 import type { NoopActionType } from './noop';
 import type { ShowToastActionType } from './toast';
 import type { StateType as RootStateType } from '../reducer';
@@ -32,8 +35,7 @@ import {
 } from './linkPreviews';
 import { LinkPreviewSourceType } from '../../types/LinkPreview';
 import type { AciString } from '../../types/ServiceId';
-import { completeRecording } from './audioRecorder';
-import { RecordingState } from '../../types/AudioRecorder';
+import { completeRecording, getIsRecording } from './audioRecorder';
 import { SHOW_TOAST } from './toast';
 import type { AnyToast } from '../../types/Toast';
 import { ToastType } from '../../types/Toast';
@@ -51,7 +53,7 @@ import {
   suspendLinkPreviews,
 } from '../../services/LinkPreview';
 import {
-  getMaximumAttachmentSizeInKb,
+  getMaximumOutgoingAttachmentSizeInKb,
   getRenderDetailsForLimit,
   KIBIBYTE,
 } from '../../types/AttachmentSize';
@@ -60,7 +62,7 @@ import { getRecipientsByConversation } from '../../util/getRecipientsByConversat
 import { processAttachment } from '../../util/processAttachment';
 import { hasDraftAttachments } from '../../util/hasDraftAttachments';
 import { isFileDangerous } from '../../util/isFileDangerous';
-import { isImage, isVideo, stringToMIMEType } from '../../types/MIME';
+import { stringToMIMEType } from '../../types/MIME';
 import { isNotNil } from '../../util/isNotNil';
 import { replaceIndex } from '../../util/replaceIndex';
 import { resolveAttachmentDraftData } from '../../util/resolveAttachmentDraftData';
@@ -68,8 +70,8 @@ import { resolveDraftAttachmentOnDisk } from '../../util/resolveDraftAttachmentO
 import { shouldShowInvalidMessageToast } from '../../util/shouldShowInvalidMessageToast';
 import { writeDraftAttachment } from '../../util/writeDraftAttachment';
 import { getMessageById } from '../../messages/getMessageById';
-import { canReply } from '../selectors/message';
-import { getContactId } from '../../messages/helpers';
+import { canReply, isNormalBubble } from '../selectors/message';
+import { getAuthorId } from '../../messages/helpers';
 import { getConversationSelector } from '../selectors/conversations';
 import { enqueueReactionForSend } from '../../reactions/enqueueReactionForSend';
 import { useBoundActions } from '../../hooks/useBoundActions';
@@ -88,9 +90,11 @@ import { drop } from '../../util/drop';
 import { strictAssert } from '../../util/assert';
 import { makeQuote } from '../../util/makeQuote';
 import { sendEditedMessage as doSendEditedMessage } from '../../util/sendEditedMessage';
-import { maybeBlockSendForFormattingModal } from '../../util/maybeBlockSendForFormattingModal';
-import { maybeBlockSendForEditWarningModal } from '../../util/maybeBlockSendForEditWarningModal';
 import { Sound, SoundType } from '../../util/Sound';
+import {
+  isImageTypeSupported,
+  isVideoTypeSupported,
+} from '../../util/GoogleChrome';
 
 // State
 // eslint-disable-next-line local-rules/type-alias-readonlydeep
@@ -101,16 +105,17 @@ type ComposerStateByConversationType = {
   linkPreviewLoading: boolean;
   linkPreviewResult?: LinkPreviewType;
   messageCompositionId: string;
-  quotedMessage?: Pick<MessageAttributesType, 'conversationId' | 'quote'>;
+  quotedMessage?: QuotedMessageForComposerType;
   sendCounter: number;
   shouldSendHighQualityAttachments?: boolean;
 };
 
-// eslint-disable-next-line local-rules/type-alias-readonlydeep
-export type QuotedMessageType = Pick<
-  MessageAttributesType,
-  'conversationId' | 'quote'
->;
+export type QuotedMessageForComposerType = ReadonlyDeep<{
+  conversationId: ReadonlyMessageAttributesType['conversationId'];
+  quote: ReadonlyMessageAttributesType['quote'] & {
+    messageId?: string;
+  };
+}>;
 
 // eslint-disable-next-line local-rules/type-alias-readonlydeep
 export type ComposerStateType = {
@@ -205,7 +210,7 @@ export type SetQuotedMessageActionType = {
   type: typeof SET_QUOTED_MESSAGE;
   payload: {
     conversationId: string;
-    quotedMessage?: QuotedMessageType;
+    quotedMessage?: QuotedMessageForComposerType;
   };
 };
 
@@ -240,6 +245,7 @@ export const actions = {
   removeAttachment,
   replaceAttachments,
   resetComposer,
+  saveDraftRecordingIfNeeded,
   scrollToQuotedMessage,
   sendEditedMessage,
   sendMultiMediaMessage,
@@ -333,12 +339,12 @@ function scrollToQuotedMessage({
   ShowToastActionType | ScrollToMessageActionType
 > {
   return async (dispatch, getState) => {
-    const messages = await window.Signal.Data.getMessagesBySentAt(sentAt);
+    const messages = await DataReader.getMessagesBySentAt(sentAt);
     const message = messages.find(item =>
       Boolean(
         item.conversationId === conversationId &&
           authorId &&
-          getContactId(item) === authorId
+          getAuthorId(item) === authorId
       )
     );
 
@@ -360,23 +366,33 @@ function scrollToQuotedMessage({
   };
 }
 
-export function handleLeaveConversation(
-  conversationId: string
-): ThunkAction<void, RootStateType, unknown, never> {
+export function saveDraftRecordingIfNeeded(): ThunkAction<
+  void,
+  RootStateType,
+  unknown,
+  never
+> {
   return (dispatch, getState) => {
-    const { audioRecorder } = getState();
+    const { conversations, audioRecorder } = getState();
+    const { selectedConversationId: conversationId } = conversations;
 
-    if (audioRecorder.recordingState !== RecordingState.Recording) {
+    if (!getIsRecording(audioRecorder) || !conversationId) {
       return;
     }
 
-    // save draft of voice note
     dispatch(
       completeRecording(conversationId, attachment => {
         dispatch(
           addPendingAttachment(conversationId, { ...attachment, pending: true })
         );
         dispatch(addAttachment(conversationId, attachment));
+
+        const conversation = window.ConversationController.get(conversationId);
+        if (!conversation) {
+          throw new Error('saveDraftRecordingIfNeeded: No conversation found');
+        }
+
+        drop(conversation.updateLastMessage());
       })
     );
   };
@@ -384,9 +400,7 @@ export function handleLeaveConversation(
 
 // eslint-disable-next-line local-rules/type-alias-readonlydeep
 type WithPreSendChecksOptions = Readonly<{
-  bodyRanges?: DraftBodyRanges;
   message?: string;
-  isEditedMessage?: boolean;
   voiceNoteAttachment?: InMemoryAttachmentDraftType;
 }>;
 
@@ -410,7 +424,7 @@ async function withPreSendChecks(
     conversation.attributes,
   ]);
 
-  const { bodyRanges, isEditedMessage, message, voiceNoteAttachment } = options;
+  const { message, voiceNoteAttachment } = options;
 
   try {
     dispatch(setComposerDisabledState(conversationId, true));
@@ -427,45 +441,6 @@ async function withPreSendChecks(
     } catch (error) {
       log.error(
         'withPreSendChecks block until verified error:',
-        Errors.toLogFormat(error)
-      );
-      return;
-    }
-
-    try {
-      const hasFormatting = bodyRanges?.some(BodyRange.isFormatting);
-      if (hasFormatting && !window.storage.get('formattingWarningShown')) {
-        const sendAnyway = await maybeBlockSendForFormattingModal();
-        if (!sendAnyway) {
-          dispatch(setComposerDisabledState(conversationId, false));
-          return;
-        }
-        drop(window.storage.put('formattingWarningShown', true));
-      }
-    } catch (error) {
-      log.error(
-        'withPreSendChecks block for formatting modal:',
-        Errors.toLogFormat(error)
-      );
-      return;
-    }
-
-    try {
-      if (
-        isEditedMessage &&
-        !window.storage.get('sendEditWarningShown') &&
-        !window.SignalCI
-      ) {
-        const sendAnyway = await maybeBlockSendForEditWarningModal();
-        if (!sendAnyway) {
-          dispatch(setComposerDisabledState(conversationId, false));
-          return;
-        }
-        drop(window.storage.put('sendEditWarningShown', true));
-      }
-    } catch (error) {
-      log.error(
-        'withPreSendChecks block for send edit warning modal:',
         Errors.toLogFormat(error)
       );
       return;
@@ -504,6 +479,7 @@ async function withPreSendChecks(
 function sendEditedMessage(
   conversationId: string,
   options: WithPreSendChecksOptions & {
+    bodyRanges?: DraftBodyRanges;
     targetMessageId: string;
     quoteAuthorAci?: AciString;
     quoteSentAt?: number;
@@ -528,39 +504,35 @@ function sendEditedMessage(
       targetMessageId,
     } = options;
 
-    await withPreSendChecks(
-      conversationId,
-      { ...options, isEditedMessage: true },
-      dispatch,
-      async () => {
-        try {
-          await doSendEditedMessage(conversationId, {
-            body: message,
-            bodyRanges,
-            preview: getLinkPreviewForSend(message),
-            quoteAuthorAci,
-            quoteSentAt,
-            targetMessageId,
+    await withPreSendChecks(conversationId, options, dispatch, async () => {
+      try {
+        await doSendEditedMessage(conversationId, {
+          body: message,
+          bodyRanges,
+          preview: getLinkPreviewForSend(message),
+          quoteAuthorAci,
+          quoteSentAt,
+          targetMessageId,
+        });
+      } catch (error) {
+        log.error('sendEditedMessage', Errors.toLogFormat(error));
+        if (error.toastType) {
+          dispatch({
+            type: SHOW_TOAST,
+            payload: {
+              toastType: error.toastType,
+            },
           });
-        } catch (error) {
-          log.error('sendEditedMessage', Errors.toLogFormat(error));
-          if (error.toastType) {
-            dispatch({
-              type: SHOW_TOAST,
-              payload: {
-                toastType: error.toastType,
-              },
-            });
-          }
         }
       }
-    );
+    });
   };
 }
 
 function sendMultiMediaMessage(
   conversationId: string,
   options: WithPreSendChecksOptions & {
+    bodyRanges?: DraftBodyRanges;
     draftAttachments?: ReadonlyArray<AttachmentDraftType>;
     timestamp?: number;
   }
@@ -739,11 +711,22 @@ export function setQuoteByMessageId(
   return async (dispatch, getState) => {
     const conversation = window.ConversationController.get(conversationId);
     if (!conversation) {
-      throw new Error('sendStickerMessage: No conversation found');
+      throw new Error('setQuoteByMessageId: No conversation found');
     }
 
     const draftEditMessage = conversation.get('draftEditMessage');
-    if (draftEditMessage) {
+    // We can remove quotes, but we can't add them
+    if (draftEditMessage && messageId) {
+      return;
+    }
+    if (draftEditMessage && draftEditMessage.quote) {
+      conversation.set({
+        draftEditMessage: {
+          ...draftEditMessage,
+          quote: undefined,
+        },
+      });
+      dispatch(setComposerFocus(conversation.id));
       return;
     }
 
@@ -761,7 +744,7 @@ export function setQuoteByMessageId(
       return;
     }
 
-    if (message && !message.isNormalBubble()) {
+    if (message && !isNormalBubble(message.attributes)) {
       return;
     }
 
@@ -783,7 +766,7 @@ export function setQuoteByMessageId(
         timestamp,
       });
 
-      window.Signal.Data.updateConversation(conversation.attributes);
+      await DataWriter.updateConversation(conversation.attributes);
     }
 
     if (message) {
@@ -817,6 +800,7 @@ function addAttachment(
     // We do async operations first so multiple in-process addAttachments don't stomp on
     //   each other.
     const onDisk = await writeDraftAttachment(attachment);
+    const toAdd = { ...onDisk, clientUuid: generateUuid() };
 
     const state = getState();
 
@@ -840,7 +824,7 @@ function addAttachment(
 
     // User has canceled the draft so we don't need to continue processing
     if (!hasDraftAttachmentPending) {
-      await deleteDraftAttachment(onDisk);
+      await deleteDraftAttachment(toAdd);
       return;
     }
 
@@ -853,9 +837,9 @@ function addAttachment(
       log.warn(
         `addAttachment: Failed to find pending attachment with path ${attachment.path}`
       );
-      nextAttachments = [...draftAttachments, onDisk];
+      nextAttachments = [...draftAttachments, toAdd];
     } else {
-      nextAttachments = replaceIndex(draftAttachments, index, onDisk);
+      nextAttachments = replaceIndex(draftAttachments, index, toAdd);
     }
 
     replaceAttachments(conversationId, nextAttachments)(
@@ -883,7 +867,7 @@ function addAttachment(
         });
       }
 
-      window.Signal.Data.updateConversation(conversation.attributes);
+      await DataWriter.updateConversation(conversation.attributes);
     }
   };
 }
@@ -921,7 +905,7 @@ function addPendingAttachment(
     if (conversation) {
       conversation.attributes.draftAttachments = nextAttachments;
       conversation.attributes.draftChanged = true;
-      window.Signal.Data.updateConversation(conversation.attributes);
+      drop(DataWriter.updateConversation(conversation.attributes));
     }
   };
 }
@@ -981,10 +965,6 @@ function onEditorStateChange({
       return;
     }
 
-    if (messageText.length && conversation.throttledBumpTyping) {
-      conversation.throttledBumpTyping();
-    }
-
     debouncedSaveDraft(conversationId, messageText, bodyRanges);
 
     // If we have attachments, don't add link preview
@@ -1012,9 +992,11 @@ function onEditorStateChange({
 function processAttachments({
   conversationId,
   files,
+  flags,
 }: {
   conversationId: string;
   files: ReadonlyArray<File>;
+  flags: number | null;
 }): ThunkAction<
   void,
   RootStateType,
@@ -1042,11 +1024,9 @@ function processAttachments({
       return;
     }
 
-    const state = getState();
-    const isRecording =
-      state.audioRecorder.recordingState === RecordingState.Recording;
+    const { audioRecorder } = getState();
 
-    if (hasLinkPreviewLoaded() || isRecording) {
+    if (hasLinkPreviewLoaded() || getIsRecording(audioRecorder)) {
       return;
     }
 
@@ -1082,9 +1062,10 @@ function processAttachments({
         try {
           const attachment = await processAttachment(file, {
             generateScreenshot: true,
+            flags,
           });
           if (!attachment) {
-            removeAttachment(conversationId, file.path)(
+            removeAttachment(conversationId, webUtils.getPathForFile(file))(
               dispatch,
               getState,
               undefined
@@ -1101,7 +1082,7 @@ function processAttachments({
             'handleAttachmentsProcessing: failed to process attachment:',
             err.stack
           );
-          removeAttachment(conversationId, file.path)(
+          removeAttachment(conversationId, webUtils.getPathForFile(file))(
             dispatch,
             getState,
             undefined
@@ -1145,9 +1126,7 @@ function preProcessAttachment(
 
   const haveNonImageOrVideo = draftAttachments.some(
     (attachment: AttachmentDraftType) => {
-      return (
-        !isImage(attachment.contentType) && !isVideo(attachment.contentType)
-      );
+      return !isImageAttachment(attachment) && !isVideoAttachment(attachment);
     }
   );
   // You can't add another attachment if you already have a non-image staged
@@ -1156,7 +1135,8 @@ function preProcessAttachment(
   }
 
   const fileType = stringToMIMEType(file.type);
-  const imageOrVideo = isImage(fileType) || isVideo(fileType);
+  const imageOrVideo =
+    isImageTypeSupported(fileType) || isVideoTypeSupported(fileType);
 
   // You can't add a non-image attachment if you already have attachments staged
   if (!imageOrVideo && draftAttachments.length > 0) {
@@ -1165,7 +1145,7 @@ function preProcessAttachment(
 
   // Putting this after everything else because the other checks are more
   // important to show to the user.
-  const limitKb = getMaximumAttachmentSizeInKb(getRemoteConfigValue);
+  const limitKb = getMaximumOutgoingAttachmentSizeInKb(getRemoteConfigValue);
   if (file.size / KIBIBYTE > limitKb) {
     return {
       toastType: ToastType.FileSize,
@@ -1186,6 +1166,7 @@ function getPendingAttachment(file: File): AttachmentDraftType | undefined {
 
   return {
     contentType: fileType,
+    clientUuid: generateUuid(),
     fileName,
     size: file.size,
     path: file.name,
@@ -1220,7 +1201,7 @@ function removeAttachment(
     if (conversation) {
       conversation.attributes.draftAttachments = nextAttachments;
       conversation.attributes.draftChanged = true;
-      window.Signal.Data.updateConversation(conversation.attributes);
+      await DataWriter.updateConversation(conversation.attributes);
     }
 
     replaceAttachments(conversationId, nextAttachments)(
@@ -1331,7 +1312,7 @@ function saveDraft(
       draftChanged: true,
       draftBodyRanges: [],
     });
-    window.Signal.Data.updateConversation(conversation.attributes);
+    drop(DataWriter.updateConversation(conversation.attributes));
     return;
   }
 
@@ -1348,6 +1329,10 @@ function saveDraft(
       timestamp = now;
     }
 
+    if (messageText.length && conversation.throttledBumpTyping) {
+      conversation.throttledBumpTyping();
+    }
+
     conversation.set({
       active_at: activeAt,
       draft: messageText,
@@ -1355,7 +1340,7 @@ function saveDraft(
       draftChanged: true,
       timestamp,
     });
-    window.Signal.Data.updateConversation(conversation.attributes);
+    drop(DataWriter.updateConversation(conversation.attributes));
   }
 }
 
@@ -1387,7 +1372,7 @@ function setMediaQualitySetting(
 
 function setQuotedMessage(
   conversationId: string,
-  quotedMessage?: QuotedMessageType
+  quotedMessage?: QuotedMessageForComposerType
 ): SetQuotedMessageActionType {
   return {
     type: SET_QUOTED_MESSAGE,

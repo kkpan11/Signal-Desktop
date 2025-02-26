@@ -13,8 +13,9 @@ import {
 import { calculateAgreement, createKeyPair, generateKeyPair } from '../Curve';
 import { SignalService as Proto } from '../protobuf';
 import { strictAssert } from '../util/assert';
+import { dropNull } from '../util/dropNull';
 
-type ProvisionDecryptResult = {
+export type ProvisionDecryptResult = Readonly<{
   aciKeyPair: KeyPairType;
   pniKeyPair?: KeyPairType;
   number?: string;
@@ -24,18 +25,21 @@ type ProvisionDecryptResult = {
   userAgent?: string;
   readReceipts?: boolean;
   profileKey?: Uint8Array;
-};
+  masterKey?: Uint8Array;
+  accountEntropyPool: string | undefined;
+  mediaRootBackupKey: Uint8Array | undefined;
+  ephemeralBackupKey: Uint8Array | undefined;
+}>;
 
 class ProvisioningCipherInner {
   keyPair?: KeyPairType;
 
-  async decrypt(
-    provisionEnvelope: Proto.ProvisionEnvelope
-  ): Promise<ProvisionDecryptResult> {
+  decrypt(provisionEnvelope: Proto.ProvisionEnvelope): ProvisionDecryptResult {
     strictAssert(
-      provisionEnvelope.publicKey && provisionEnvelope.body,
-      'Missing required fields in ProvisionEnvelope'
+      provisionEnvelope.publicKey,
+      'Missing publicKey in ProvisionEnvelope'
     );
+    strictAssert(provisionEnvelope.body, 'Missing body in ProvisionEnvelope');
     const masterEphemeral = provisionEnvelope.publicKey;
     const message = provisionEnvelope.body;
     if (new Uint8Array(message)[0] !== 1) {
@@ -74,23 +78,32 @@ class ProvisioningCipherInner {
     strictAssert(aci, 'Missing aci in provisioning message');
     strictAssert(pni, 'Missing pni in provisioning message');
 
-    const ret: ProvisionDecryptResult = {
+    return {
       aciKeyPair,
       pniKeyPair,
-      number: provisionMessage.number,
+      number: dropNull(provisionMessage.number),
       aci,
       untaggedPni: pni,
-      provisioningCode: provisionMessage.provisioningCode,
-      userAgent: provisionMessage.userAgent,
-      readReceipts: provisionMessage.readReceipts,
+      provisioningCode: dropNull(provisionMessage.provisioningCode),
+      userAgent: dropNull(provisionMessage.userAgent),
+      readReceipts: provisionMessage.readReceipts ?? false,
+      profileKey: Bytes.isNotEmpty(provisionMessage.profileKey)
+        ? provisionMessage.profileKey
+        : undefined,
+      masterKey: Bytes.isNotEmpty(provisionMessage.masterKey)
+        ? provisionMessage.masterKey
+        : undefined,
+      ephemeralBackupKey: Bytes.isNotEmpty(provisionMessage.ephemeralBackupKey)
+        ? provisionMessage.ephemeralBackupKey
+        : undefined,
+      mediaRootBackupKey: Bytes.isNotEmpty(provisionMessage.mediaRootBackupKey)
+        ? provisionMessage.mediaRootBackupKey
+        : undefined,
+      accountEntropyPool: provisionMessage.accountEntropyPool || undefined,
     };
-    if (provisionMessage.profileKey) {
-      ret.profileKey = provisionMessage.profileKey;
-    }
-    return ret;
   }
 
-  async getPublicKey(): Promise<Uint8Array> {
+  getPublicKey(): Uint8Array {
     if (!this.keyPair) {
       this.keyPair = generateKeyPair();
     }
@@ -113,7 +126,7 @@ export default class ProvisioningCipher {
 
   decrypt: (
     provisionEnvelope: Proto.ProvisionEnvelope
-  ) => Promise<ProvisionDecryptResult>;
+  ) => ProvisionDecryptResult;
 
-  getPublicKey: () => Promise<Uint8Array>;
+  getPublicKey: () => Uint8Array;
 }

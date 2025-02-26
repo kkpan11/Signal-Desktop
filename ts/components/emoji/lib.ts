@@ -3,8 +3,8 @@
 
 // Camelcase disabled due to emoji-datasource using snake_case
 /* eslint-disable camelcase */
-import untypedData from 'emoji-datasource';
 import emojiRegex from 'emoji-regex';
+import Fuse from 'fuse.js';
 import {
   compact,
   flatMap,
@@ -17,12 +17,12 @@ import {
   sortBy,
   take,
 } from 'lodash';
-import Fuse from 'fuse.js';
-import PQueue from 'p-queue';
+import type { LocaleEmojiType } from '../../types/emoji';
 import { getOwn } from '../../util/getOwn';
-import * as log from '../../logging/log';
-import { MINUTE } from '../../util/durations';
-import { drop } from '../../util/drop';
+
+// Import emoji-datasource dynamically to avoid costly typechecking.
+// eslint-disable-next-line import/no-dynamic-require, @typescript-eslint/no-var-requires
+const untypedData = require('emoji-datasource' as string);
 
 export const skinTones = ['1F3FB', '1F3FC', '1F3FD', '1F3FE', '1F3FF'];
 
@@ -35,7 +35,7 @@ export type SizeClassType =
   | 'extra-large'
   | 'max';
 
-export type EmojiSkinVariation = {
+type EmojiSkinVariation = {
   unified: string;
   non_qualified: null;
   image: string;
@@ -77,7 +77,7 @@ export type EmojiData = {
   };
 };
 
-const data = (untypedData as Array<EmojiData>)
+export const data = (untypedData as Array<EmojiData>)
   .filter(emoji => emoji.has_img_apple)
   .map(emoji =>
     // Why this weird map?
@@ -99,44 +99,6 @@ const ROOT_PATH = get(
 
 const makeImagePath = (src: string) => {
   return `${ROOT_PATH}node_modules/emoji-datasource-apple/img/apple/64/${src}`;
-};
-
-const imageQueue = new PQueue({
-  concurrency: 10,
-  timeout: MINUTE * 30,
-  throwOnTimeout: true,
-});
-const images = new Set();
-
-export const preloadImages = async (): Promise<void> => {
-  // Preload images
-  const preload = async (src: string) =>
-    new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = resolve;
-      img.onerror = reject;
-      img.src = src;
-      images.add(img);
-      setTimeout(reject, 5000);
-    });
-
-  log.info('Preloading emoji images');
-  const start = Date.now();
-
-  data.forEach(emoji => {
-    drop(imageQueue.add(() => preload(makeImagePath(emoji.image))));
-
-    if (emoji.skin_variations) {
-      Object.values(emoji.skin_variations).forEach(variation => {
-        drop(imageQueue.add(() => preload(makeImagePath(variation.image))));
-      });
-    }
-  });
-
-  await imageQueue.onEmpty();
-
-  const end = Date.now();
-  log.info(`Done preloading emoji images in ${end - start}ms`);
 };
 
 const dataByShortName = keyBy(data, 'short_name');
@@ -218,34 +180,101 @@ export function getImagePath(
   return makeImagePath(emojiData.image);
 }
 
-const fuse = new Fuse(data, {
-  shouldSort: true,
-  threshold: 0.2,
-  minMatchCharLength: 1,
-  keys: ['short_name', 'short_names'],
-});
+export type SearchFnType = (query: string, count?: number) => Array<string>;
 
-const fuseExactPrefix = new Fuse(data, {
-  shouldSort: true,
-  threshold: 0, // effectively a prefix search
-  minMatchCharLength: 2,
-  keys: ['short_name', 'short_names'],
-});
+export type SearchEmojiListType = ReadonlyArray<
+  Pick<LocaleEmojiType, 'shortName' | 'rank' | 'tags'>
+>;
 
-export function search(query: string, count = 0): Array<EmojiData> {
-  // when we only have 2 characters, do an exact prefix match
-  // to avoid matching on emoticon, like :-P
-  const fuseIndex = query.length === 2 ? fuseExactPrefix : fuse;
+type CachedSearchFnType = Readonly<{
+  localeEmoji: SearchEmojiListType;
+  fn: SearchFnType;
+}>;
 
-  const results = fuseIndex
-    .search(query.substr(0, 32))
-    .map(result => result.item);
+let cachedSearchFn: CachedSearchFnType | undefined;
 
-  if (count) {
-    return take(results, count);
+export function createSearch(localeEmoji: SearchEmojiListType): SearchFnType {
+  if (cachedSearchFn && cachedSearchFn.localeEmoji === localeEmoji) {
+    return cachedSearchFn.fn;
   }
 
-  return results;
+  const knownSet = new Set<string>();
+
+  const knownEmoji = localeEmoji.filter(({ shortName }) => {
+    knownSet.add(shortName);
+    return dataByShortName[shortName] != null;
+  });
+
+  for (const entry of data) {
+    if (!knownSet.has(entry.short_name)) {
+      knownEmoji.push({
+        shortName: entry.short_name,
+        rank: 0,
+        tags: entry.short_names,
+      });
+    }
+  }
+
+  let maxShortNameLength = 0;
+  for (const { shortName } of knownEmoji) {
+    maxShortNameLength = Math.max(maxShortNameLength, shortName.length);
+  }
+
+  const fuse = new Fuse(knownEmoji, {
+    shouldSort: false,
+    threshold: 0.2,
+    minMatchCharLength: 1,
+    keys: ['shortName', 'tags'],
+    includeScore: true,
+  });
+
+  const fuseExactPrefix = new Fuse(knownEmoji, {
+    // We re-rank and sort manually below
+    shouldSort: false,
+    threshold: 0, // effectively a prefix search
+    minMatchCharLength: 2,
+    keys: ['shortName', 'tags'],
+    includeScore: true,
+  });
+
+  const fn = (query: string, count = 0): Array<string> => {
+    // when we only have 2 characters, do an exact prefix match
+    // to avoid matching on emoticon, like :-P
+    const fuseIndex = query.length === 2 ? fuseExactPrefix : fuse;
+
+    const rawResults = fuseIndex.search(query.substr(0, 32));
+
+    const rankedResults = rawResults.map(entry => {
+      const rank = entry.item.rank || 1e9;
+
+      // Rank exact prefix matches in [0,1] range
+      if (entry.item.shortName.startsWith(query)) {
+        return {
+          score: entry.item.shortName.length / maxShortNameLength,
+          item: entry.item,
+        };
+      }
+
+      // Other matches in [1,], ordered by score and rank
+      return {
+        score: 1 + (entry.score ?? 0) + rank / knownEmoji.length,
+        item: entry.item,
+      };
+    });
+
+    const results = rankedResults
+      .sort((a, b) => a.score - b.score)
+      .map(result => result.item.shortName);
+
+    if (count) {
+      return take(results, count);
+    }
+
+    return results;
+  };
+
+  cachedSearchFn = { localeEmoji, fn };
+  return fn;
 }
 
 const shortNames = new Set([

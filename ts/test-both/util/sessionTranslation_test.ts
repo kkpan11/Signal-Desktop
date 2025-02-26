@@ -4,12 +4,224 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { assert } from 'chai';
+import Long from 'long';
 
 import * as Bytes from '../../Bytes';
 import type { LocalUserDataType } from '../../util/sessionTranslation';
 import { sessionRecordToProtobuf } from '../../util/sessionTranslation';
 
 const getRecordCopy = (record: any): any => JSON.parse(JSON.stringify(record));
+
+export const SESSION_V1_RECORD = {
+  sessions: {
+    '\u0005W¿\u0000lÈ\nyª\u000eümB0\u0017j.Û£³-s\u0016Ä(O_M': {
+      registrationId: 4243,
+      currentRatchet: {
+        rootKey:
+          'Ë\u00035/üÚg\u0003Xeûú\u0010\u0000ü\u0002¶»o5\u001c­¥\u0004Ðÿ«',
+        lastRemoteEphemeralKey:
+          '\u0005\n7\u001cmTb!è\u000eÍ\u0007\u0016m4g³\u0005üIYê\b\u0011ÏÎPs',
+        previousCounter: 2,
+        ephemeralKeyPair: {
+          privKey: 'äãÅ«ªàøí)á\u0005Á"sJM.¨¡\u0012r(N\f9Ô\b',
+          pubKey: '\u0005+\u00134«1\u0000\u0013l *ãKçnºÖó³íTS&{ù Í>1',
+        },
+      },
+      indexInfo: {
+        remoteIdentityKey: '\u0005¨¨©üÏäúoá©êO¢çúxr»Æ¿r²GùiT@',
+        closed: -1,
+        baseKey: '\u0005W¿\u0000lÈ\nyª\u000eümB0\u0017j.Û£³-s\u0016Ä(O_M',
+        baseKeyType: 2,
+      },
+      oldRatchetList: [
+        {
+          added: 1605579954962,
+          ephemeralKey:
+            '\u00050»­\n¨ÊAä\u0006¢Ç´d\u0002\u00129}%î}Î©Tc}8¼\u0011n\\',
+        },
+        {
+          added: 1605580408250,
+          ephemeralKey:
+            '\u0005^Ä\nòÀ¢\u0000\u000f­A\\6+Ó\u001a÷&×$¸¬ÑÔ|<qSÖ\u001aÙh',
+        },
+        {
+          added: 1605581155167,
+          ephemeralKey: '\u0005<\u0017å)QàFîl29Ø\u001c Ý$·;udß\u0005I|f\u0006',
+        },
+        {
+          added: 1605638524556,
+          ephemeralKey: '\u0005¯jõ±ã0wÛPÐÂSÏ´;·&\u0011Â%º¯°ÝÙþêù8F',
+        },
+        {
+          added: 1606761719753,
+          ephemeralKey: '\u0005Î(ð>xÄÈ?þv~íkx â¬.ðoòDg\u001eß.\r',
+        },
+        {
+          added: 1606766530935,
+          ephemeralKey:
+            '\u0005\u0014@½M,à\bóó}¨`i¿\u0000©I\u0001ôG\u001f:Ù{ó\u0005 ',
+        },
+        {
+          added: 1608326293655,
+          ephemeralKey: '\u0005µÒ\u0014?È¢+ÑR÷ç?3Dº\\@0\u0004®+-\br\t',
+        },
+        {
+          added: 1609871105317,
+          ephemeralKey:
+            '\u0005±@íN"Í\u0019HS{$ï\u0017[Ñ\\\u001a*;>P\u0000\u001f\u000eHNaù)',
+        },
+        {
+          added: 1611707063523,
+          ephemeralKey: '\u0005ÞgÅké\u0001\u0013¡ÿûNXÈ(9\u0006¤w®/Ø¹RiJI',
+        },
+        {
+          added: 1612211156372,
+          ephemeralKey: '\u0005:[ÛOpd¯ ÂÙç\u0010OÞw{}ý\bw9Àß=\u0014Z',
+        },
+      ],
+      '\u00050»­\n¨ÊAä\u0006¢Ç´d\u0002\u00129}%î}Î©Tc}8¼\u0011n\\': {
+        messageKeys: {},
+        chainKey: {
+          counter: 0,
+        },
+        chainType: 2,
+      },
+      '\u0005^Ä\nòÀ¢\u0000\u000f­A\\6+Ó\u001a÷&×$¸¬ÑÔ|<qSÖ\u001aÙh': {
+        messageKeys: {},
+        chainKey: {
+          counter: 2,
+        },
+        chainType: 2,
+      },
+      '\u0005<\u0017å)QàFîl29Ø\u001c Ý$·;udß\u0005I|f\u0006': {
+        messageKeys: {},
+        chainKey: {
+          counter: 1,
+        },
+        chainType: 2,
+      },
+      '\u0005¯jõ±ã0wÛPÐÂSÏ´;·&\u0011Â%º¯°ÝÙþêù8F': {
+        messageKeys: {
+          '0': 'A/{´{×f(èaøy\\D¾\u0000ÃHÀÁâô$ã\u001d3Äö°Ù',
+          '1': "Ì¶FT}dw8Æýª7»ÚÓ\u000f*'Ô»7£\u0018\u0012ñDá",
+          '2': 'Îï\u0013¨ÁÕÎk\u000eýèÈ÷,¼îû5%ÓU¤6_õ¢\u0019ä]',
+        },
+        chainKey: {
+          counter: 3,
+        },
+        chainType: 2,
+      },
+      '\u0005Î(ð>xÄÈ?þv~íkx â¬.ðoòDg\u001eß.\r': {
+        messageKeys: {
+          '4': '©}j¿¼\u0014q\t¥Áñ\u0003: ÷ÞrñûÔµ%Æ\u001a',
+        },
+        chainKey: {
+          counter: 6,
+        },
+        chainType: 2,
+      },
+      '\u0005\u0014@½M,à\bóó}¨`i¿\u0000©I\u0001ôG\u001f:Ù{ó\u0005 ': {
+        messageKeys: {},
+        chainKey: {
+          counter: 0,
+        },
+        chainType: 2,
+      },
+      '\u0005µÒ\u0014?È¢+ÑR÷ç?3Dº\\@0\u0004®+-\br\t': {
+        messageKeys: {},
+        chainKey: {
+          counter: 2,
+        },
+        chainType: 2,
+      },
+      '\u0005±@íN"Í\u0019HS{$ï\u0017[Ñ\\\u001a*;>P\u0000\u001f\u000eHNaù)': {
+        messageKeys: {
+          '0': "1kÏ\u001cí+«<º\b'VÌ!×¼«PÃ[üáy;l'",
+          '2': 'ö\u00047%L-Wm)\u001d£ääíNô.Ô8ÃÉ4r´ó^2',
+          '3': '¨¿¦7T]\u001c\u001cà4:x\u0019¿\u0002YÉÀ\u001bâjr¸»¤¢0,*',
+          '5': '¥\u0006·qgó4þ\u0011®U4F\u001cl©\bäô»ÊÇÆ[',
+        },
+        chainKey: {
+          counter: 5,
+        },
+        chainType: 2,
+      },
+      '\u0005ÞgÅké\u0001\u0013¡ÿûNXÈ(9\u0006¤w®/Ø¹RiJI': {
+        messageKeys: {
+          '0': "]'8WÄ\u0007nº­Ö{ÿ7]ôäÄ!é\u000btA@°b¢)\u001ar",
+          '2': '­ÄfGÇjÖxÅö:×RÔi)M\u0019©IE+¨`þKá;£Û½',
+          '3': '¦Õhýø`ÖPéPs;\u001e\u000bE}¨¿õ\u0003uªøå\u00062(×G',
+          '9': 'Ï^<ÕúÌ\u0001i´;ït¼\u001aÑ?ï\u0014lãàÆ¸\u001a8/m',
+        },
+        chainKey: {
+          counter: 11,
+        },
+        chainType: 2,
+      },
+      '\u0005:[ÛOpd¯ ÂÙç\u0010OÞw{}ý\bw9Àß=\u0014Z': {
+        messageKeys: {
+          '0': '!\u00115\\W~|¯oa2\u001e\u0004V8Ï¡d}\u001b\u001a8^QÖfvÕ"',
+        },
+        chainKey: {
+          counter: 1,
+        },
+        chainType: 2,
+      },
+      '\u0005\n7\u001cmTb!è\u000eÍ\u0007\u0016m4g³\u0005üIYê\b\u0011ÏÎPs': {
+        messageKeys: {
+          '0': 'Îgó¯2àvñX_õ\u0014Ç\u0000öl\u001f4J>ÐÏ{`-Ü5¦',
+          '4': 'c¿<µâ¼Xµ!Ù¯µ®[n<ìîúcoå©n\u0013"l]Ð',
+        },
+        chainKey: {
+          counter: 5,
+          key: 'Z{òÙ8Ø³AÝdSZk\nÃ\u001cô¡\u001b[YÒÂ¶\u0016a°\u0004<',
+        },
+        chainType: 2,
+      },
+      '\u0005+\u00134«1\u0000\u0013l *ãKçnºÖó³íTS&{ù Í>1': {
+        messageKeys: {},
+        chainKey: {
+          counter: -1,
+          key: "èB?7\u000f¯\u001e\u0010¨\u0007}:?¹\u0010$\\ë~ª\u0000gM0Õ'£\u0005",
+        },
+        chainType: 1,
+      },
+    },
+  },
+  version: 'v1',
+} as any;
+
+function protoToJSON(value: unknown): unknown {
+  if (value == null) {
+    return value;
+  }
+
+  if (typeof value === 'string' || typeof value === 'number') {
+    return value;
+  }
+
+  if (Buffer.isBuffer(value) || value instanceof Uint8Array) {
+    return Buffer.from(value).toString('base64');
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(protoToJSON);
+  }
+
+  if (Long.isLong(value)) {
+    return value.toNumber();
+  }
+
+  if (typeof value === 'object') {
+    const res: Record<string, unknown> = {};
+    for (const key of Object.keys(value)) {
+      res[key] = protoToJSON((value as Record<string, unknown>)[key]);
+    }
+    return res;
+  }
+
+  return value;
+}
 
 describe('sessionTranslation', () => {
   let ourData: LocalUserDataType;
@@ -93,6 +305,7 @@ describe('sessionTranslation', () => {
             index: 0,
             key: '6EI/Nw+vHhCoB499OpM/kLkQJFzrfqoAZ00w1ZgnowU=',
           },
+          messageKeys: [],
         },
         receiverChains: [
           {
@@ -121,199 +334,21 @@ describe('sessionTranslation', () => {
         localRegistrationId: 3554,
         aliceBaseKey: 'BVeHv5MAbMgKeaoO/G1CMBdqhC7bo7Mtc4EWxI0oT19N',
       },
+      previousSessions: [],
     };
 
     const recordCopy = getRecordCopy(record);
 
     const actual = sessionRecordToProtobuf(record, ourData);
 
-    assert.deepEqual(expected, actual.toJSON());
+    assert.deepEqual(expected, protoToJSON(actual));
 
     // We want to ensure that conversion doesn't modify incoming data
     assert.deepEqual(record, recordCopy);
   });
 
   it('Generates expected protobuf with many old receiver chains', () => {
-    const record: any = {
-      sessions: {
-        '\u0005W¿\u0000lÈ\nyª\u000eümB0\u0017j.Û£³-s\u0016Ä(O_M': {
-          registrationId: 4243,
-          currentRatchet: {
-            rootKey:
-              'Ë\u00035/üÚg\u0003Xeûú\u0010\u0000ü\u0002¶»o5\u001c­¥\u0004Ðÿ«',
-            lastRemoteEphemeralKey:
-              '\u0005\n7\u001cmTb!è\u000eÍ\u0007\u0016m4g³\u0005üIYê\b\u0011ÏÎPs',
-            previousCounter: 2,
-            ephemeralKeyPair: {
-              privKey: 'äãÅ«ªàøí)á\u0005Á"sJM.¨¡\u0012r(N\f9Ô\b',
-              pubKey: '\u0005+\u00134«1\u0000\u0013l *ãKçnºÖó³íTS&{ù Í>1',
-            },
-          },
-          indexInfo: {
-            remoteIdentityKey: '\u0005¨¨©üÏäúoá©êO¢çúxr»Æ¿r²GùiT@',
-            closed: -1,
-            baseKey: '\u0005W¿\u0000lÈ\nyª\u000eümB0\u0017j.Û£³-s\u0016Ä(O_M',
-            baseKeyType: 2,
-          },
-          oldRatchetList: [
-            {
-              added: 1605579954962,
-              ephemeralKey:
-                '\u00050»­\n¨ÊAä\u0006¢Ç´d\u0002\u00129}%î}Î©Tc}8¼\u0011n\\',
-            },
-            {
-              added: 1605580408250,
-              ephemeralKey:
-                '\u0005^Ä\nòÀ¢\u0000\u000f­A\\6+Ó\u001a÷&×$¸¬ÑÔ|<qSÖ\u001aÙh',
-            },
-            {
-              added: 1605581155167,
-              ephemeralKey:
-                '\u0005<\u0017å)QàFîl29Ø\u001c Ý$·;udß\u0005I|f\u0006',
-            },
-            {
-              added: 1605638524556,
-              ephemeralKey: '\u0005¯jõ±ã0wÛPÐÂSÏ´;·&\u0011Â%º¯°ÝÙþêù8F',
-            },
-            {
-              added: 1606761719753,
-              ephemeralKey: '\u0005Î(ð>xÄÈ?þv~íkx â¬.ðoòDg\u001eß.\r',
-            },
-            {
-              added: 1606766530935,
-              ephemeralKey:
-                '\u0005\u0014@½M,à\bóó}¨`i¿\u0000©I\u0001ôG\u001f:Ù{ó\u0005 ',
-            },
-            {
-              added: 1608326293655,
-              ephemeralKey: '\u0005µÒ\u0014?È¢+ÑR÷ç?3Dº\\@0\u0004®+-\br\t',
-            },
-            {
-              added: 1609871105317,
-              ephemeralKey:
-                '\u0005±@íN"Í\u0019HS{$ï\u0017[Ñ\\\u001a*;>P\u0000\u001f\u000eHNaù)',
-            },
-            {
-              added: 1611707063523,
-              ephemeralKey: '\u0005ÞgÅké\u0001\u0013¡ÿûNXÈ(9\u0006¤w®/Ø¹RiJI',
-            },
-            {
-              added: 1612211156372,
-              ephemeralKey: '\u0005:[ÛOpd¯ ÂÙç\u0010OÞw{}ý\bw9Àß=\u0014Z',
-            },
-          ],
-          '\u00050»­\n¨ÊAä\u0006¢Ç´d\u0002\u00129}%î}Î©Tc}8¼\u0011n\\': {
-            messageKeys: {},
-            chainKey: {
-              counter: 0,
-            },
-            chainType: 2,
-          },
-          '\u0005^Ä\nòÀ¢\u0000\u000f­A\\6+Ó\u001a÷&×$¸¬ÑÔ|<qSÖ\u001aÙh': {
-            messageKeys: {},
-            chainKey: {
-              counter: 2,
-            },
-            chainType: 2,
-          },
-          '\u0005<\u0017å)QàFîl29Ø\u001c Ý$·;udß\u0005I|f\u0006': {
-            messageKeys: {},
-            chainKey: {
-              counter: 1,
-            },
-            chainType: 2,
-          },
-          '\u0005¯jõ±ã0wÛPÐÂSÏ´;·&\u0011Â%º¯°ÝÙþêù8F': {
-            messageKeys: {
-              '0': 'A/{´{×f(èaøy\\D¾\u0000ÃHÀÁâô$ã\u001d3Äö°Ù',
-              '1': "Ì¶FT}dw8Æýª7»ÚÓ\u000f*'Ô»7£\u0018\u0012ñDá",
-              '2': 'Îï\u0013¨ÁÕÎk\u000eýèÈ÷,¼îû5%ÓU¤6_õ¢\u0019ä]',
-            },
-            chainKey: {
-              counter: 3,
-            },
-            chainType: 2,
-          },
-          '\u0005Î(ð>xÄÈ?þv~íkx â¬.ðoòDg\u001eß.\r': {
-            messageKeys: {
-              '4': '©}j¿¼\u0014q\t¥Áñ\u0003: ÷ÞrñûÔµ%Æ\u001a',
-            },
-            chainKey: {
-              counter: 6,
-            },
-            chainType: 2,
-          },
-          '\u0005\u0014@½M,à\bóó}¨`i¿\u0000©I\u0001ôG\u001f:Ù{ó\u0005 ': {
-            messageKeys: {},
-            chainKey: {
-              counter: 0,
-            },
-            chainType: 2,
-          },
-          '\u0005µÒ\u0014?È¢+ÑR÷ç?3Dº\\@0\u0004®+-\br\t': {
-            messageKeys: {},
-            chainKey: {
-              counter: 2,
-            },
-            chainType: 2,
-          },
-          '\u0005±@íN"Í\u0019HS{$ï\u0017[Ñ\\\u001a*;>P\u0000\u001f\u000eHNaù)':
-            {
-              messageKeys: {
-                '0': "1kÏ\u001cí+«<º\b'VÌ!×¼«PÃ[üáy;l'",
-                '2': 'ö\u00047%L-Wm)\u001d£ääíNô.Ô8ÃÉ4r´ó^2',
-                '3': '¨¿¦7T]\u001c\u001cà4:x\u0019¿\u0002YÉÀ\u001bâjr¸»¤¢0,*',
-                '5': '¥\u0006·qgó4þ\u0011®U4F\u001cl©\bäô»ÊÇÆ[',
-              },
-              chainKey: {
-                counter: 5,
-              },
-              chainType: 2,
-            },
-          '\u0005ÞgÅké\u0001\u0013¡ÿûNXÈ(9\u0006¤w®/Ø¹RiJI': {
-            messageKeys: {
-              '0': "]'8WÄ\u0007nº­Ö{ÿ7]ôäÄ!é\u000btA@°b¢)\u001ar",
-              '2': '­ÄfGÇjÖxÅö:×RÔi)M\u0019©IE+¨`þKá;£Û½',
-              '3': '¦Õhýø`ÖPéPs;\u001e\u000bE}¨¿õ\u0003uªøå\u00062(×G',
-              '9': 'Ï^<ÕúÌ\u0001i´;ït¼\u001aÑ?ï\u0014lãàÆ¸\u001a8/m',
-            },
-            chainKey: {
-              counter: 11,
-            },
-            chainType: 2,
-          },
-          '\u0005:[ÛOpd¯ ÂÙç\u0010OÞw{}ý\bw9Àß=\u0014Z': {
-            messageKeys: {
-              '0': '!\u00115\\W~|¯oa2\u001e\u0004V8Ï¡d}\u001b\u001a8^QÖfvÕ"',
-            },
-            chainKey: {
-              counter: 1,
-            },
-            chainType: 2,
-          },
-          '\u0005\n7\u001cmTb!è\u000eÍ\u0007\u0016m4g³\u0005üIYê\b\u0011ÏÎPs': {
-            messageKeys: {
-              '0': 'Îgó¯2àvñX_õ\u0014Ç\u0000öl\u001f4J>ÐÏ{`-Ü5¦',
-              '4': 'c¿<µâ¼Xµ!Ù¯µ®[n<ìîúcoå©n\u0013"l]Ð',
-            },
-            chainKey: {
-              counter: 5,
-              key: 'Z{òÙ8Ø³AÝdSZk\nÃ\u001cô¡\u001b[YÒÂ¶\u0016a°\u0004<',
-            },
-            chainType: 2,
-          },
-          '\u0005+\u00134«1\u0000\u0013l *ãKçnºÖó³íTS&{ù Í>1': {
-            messageKeys: {},
-            chainKey: {
-              counter: -1,
-              key: "èB?7\u000f¯\u001e\u0010¨\u0007}:?¹\u0010$\\ë~ª\u0000gM0Õ'£\u0005",
-            },
-            chainType: 1,
-          },
-        },
-      },
-      version: 'v1',
-    };
+    const record: any = SESSION_V1_RECORD;
 
     const expected = {
       currentSession: {
@@ -330,6 +365,7 @@ describe('sessionTranslation', () => {
             index: 0,
             key: '6EI/Nw+vHhCoB499OpM/kLkQJFzrfqoAZ00w1ZgnowU=',
           },
+          messageKeys: [],
         },
         receiverChains: [
           {
@@ -436,12 +472,14 @@ describe('sessionTranslation', () => {
             chainKey: {
               index: 3,
             },
+            messageKeys: [],
           },
           {
             senderRatchetKey: 'BRRAnr1NhizgCPPzmYV9qGBpvwCpSQH0Rx+UOtl78wUg',
             chainKey: {
               index: 1,
             },
+            messageKeys: [],
           },
           {
             senderRatchetKey: 'BZvOKPA+kXiCg8TIP/52fu1reCDirC7wb5nyRGce3y4N',
@@ -488,31 +526,35 @@ describe('sessionTranslation', () => {
             chainKey: {
               index: 2,
             },
+            messageKeys: [],
           },
           {
             senderRatchetKey: 'BV7ECvKbwKIAD61BXDYr0xr3JtckuKzR1Hw8cVPWGtlo',
             chainKey: {
               index: 3,
             },
+            messageKeys: [],
           },
           {
             senderRatchetKey: 'BTC7rQqoykGR5Aaix7RkAhI5fSXufc6pVGN9OIC8EW5c',
             chainKey: {
               index: 1,
             },
+            messageKeys: [],
           },
         ],
         remoteRegistrationId: 4243,
         localRegistrationId: 3554,
         aliceBaseKey: 'BVeHv5MAbMgKeaoO/G1CMBdqhC7bo7Mtc4EWxI0oT19N',
       },
+      previousSessions: [],
     };
 
     const recordCopy = getRecordCopy(record);
 
     const actual = sessionRecordToProtobuf(record, ourData);
 
-    assert.deepEqual(expected, actual.toJSON());
+    assert.deepEqual(expected, protoToJSON(actual));
 
     // We want to ensure that conversion doesn't modify incoming data
     assert.deepEqual(record, recordCopy);
@@ -585,6 +627,7 @@ describe('sessionTranslation', () => {
             index: 0,
             key: '6EI/Nw+vHhCoB499OpM/kLkQJFzrfqoAZ00w1ZgnowU=',
           },
+          messageKeys: [],
         },
         receiverChains: [
           {
@@ -618,13 +661,14 @@ describe('sessionTranslation', () => {
         localRegistrationId: 3554,
         aliceBaseKey: 'BVeHv5MAbMgKeaoO/G1CMBdqhC7bo7Mtc4EWxI0oT19N',
       },
+      previousSessions: [],
     };
 
     const recordCopy = getRecordCopy(record);
 
     const actual = sessionRecordToProtobuf(record, ourData);
 
-    assert.deepEqual(expected, actual.toJSON());
+    assert.deepEqual(expected, protoToJSON(actual));
 
     // We want to ensure that conversion doesn't modify incoming data
     assert.deepEqual(record, recordCopy);
@@ -772,6 +816,7 @@ describe('sessionTranslation', () => {
             index: 0,
             key: '6EI/Nw+vHhCoB499OpM/kLkQJFzrfqoAZ00w1ZgnowU=',
           },
+          messageKeys: [],
         },
         receiverChains: [
           {
@@ -815,6 +860,7 @@ describe('sessionTranslation', () => {
               index: 0,
               key: '6EI/Nw+vHhCoB499OpM/kLkQJFzrfqoAZ00w1ZgnowU=',
             },
+            messageKeys: [],
           },
           receiverChains: [
             {
@@ -857,6 +903,7 @@ describe('sessionTranslation', () => {
               index: 0,
               key: '6EI/Nw+vHhCoB499OpM/kLkQJFzrfqoAZ00w1ZgnowU=',
             },
+            messageKeys: [],
           },
           receiverChains: [
             {
@@ -892,7 +939,7 @@ describe('sessionTranslation', () => {
 
     const actual = sessionRecordToProtobuf(record, ourData);
 
-    assert.deepEqual(expected, actual.toJSON());
+    assert.deepEqual(expected, protoToJSON(actual));
 
     // We want to ensure that conversion doesn't modify incoming data
     assert.deepEqual(record, recordCopy);
@@ -950,6 +997,7 @@ describe('sessionTranslation', () => {
           signedPreKeyId: 2995,
         },
         previousCounter: 1,
+        receiverChains: [],
         remoteIdentityPublic: 'BRmB2uSNpwbXZJjisIh1p/VgRctUZSVIoiEm2ThjiHoq',
         remoteRegistrationId: 3188,
         rootKey: 'GzGfNozK5vDKqL4+fdqpiMRIuHNOndM6iMhGubNR1mk=',
@@ -958,19 +1006,21 @@ describe('sessionTranslation', () => {
             index: 1,
             key: 'tl5Eby9q7n8PVeiriKoRjHhu9Y0RxvJ90PMq5MfKwgA=',
           },
+          messageKeys: [],
           senderRatchetKey: 'BRSm55wC8hrG5Rp7l9gxtOhugp5ulcco20upOFCPyyJo',
           senderRatchetKeyPrivate:
             'IC0mCV0kFVAf+Q4cHid5hR7vy+5F0SvpYYaqsSA6d00=',
         },
         sessionVersion: 3,
       },
+      previousSessions: [],
     };
 
     const recordCopy = getRecordCopy(record);
 
     const actual = sessionRecordToProtobuf(record, ourData);
 
-    assert.deepEqual(expected, actual.toJSON());
+    assert.deepEqual(expected, protoToJSON(actual));
 
     // We want to ensure that conversion doesn't modify incoming data
     assert.deepEqual(record, recordCopy);

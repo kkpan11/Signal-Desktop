@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import type Fuse from 'fuse.js';
-
 import type { ConversationType } from '../state/ducks/conversations';
 import { parseAndFormatPhoneNumber } from './libphonenumberInstance';
 import { WEEK } from './durations';
 import { fuseGetFnRemoveDiacritics, getCachedFuseIndex } from './fuse';
 import { countConversationUnreadStats, hasUnread } from './countUnreadStats';
+import { getE164 } from './getE164';
+import { removeDiacritics } from './removeDiacritics';
+import { isAciString } from './isAciString';
 
 // Fuse.js scores have order of 0.01
 const ACTIVE_AT_SCORE_FACTOR = (1 / WEEK) * 0.01;
@@ -46,7 +48,13 @@ const FUSE_OPTIONS: Fuse.IFuseOptions<ConversationType> = {
       weight: 0.5,
     },
   ],
-  getFn: fuseGetFnRemoveDiacritics,
+  getFn: (convo, path) => {
+    if (path === 'e164' || (path.length === 1 && path[0] === 'e164')) {
+      return getE164(convo) ?? '';
+    }
+
+    return fuseGetFnRemoveDiacritics(convo, path);
+  },
 };
 
 type CommandRunnerType = (
@@ -56,8 +64,25 @@ type CommandRunnerType = (
 
 const COMMANDS = new Map<string, CommandRunnerType>();
 
+function filterConversationsByUnread(
+  conversations: ReadonlyArray<ConversationType>,
+  includeMuted: boolean
+): Array<ConversationType> {
+  return conversations.filter(conversation => {
+    return hasUnread(
+      countConversationUnreadStats(conversation, { includeMuted })
+    );
+  });
+}
+
 COMMANDS.set('serviceIdEndsWith', (conversations, query) => {
   return conversations.filter(convo => convo.serviceId?.endsWith(query));
+});
+
+COMMANDS.set('aciEndsWith', (conversations, query) => {
+  return conversations.filter(
+    convo => isAciString(convo.serviceId) && convo.serviceId.endsWith(query)
+  );
 });
 
 COMMANDS.set('pniEndsWith', (conversations, query) => {
@@ -76,14 +101,12 @@ COMMANDS.set('groupIdEndsWith', (conversations, query) => {
   return conversations.filter(convo => convo.groupId?.endsWith(query));
 });
 
-COMMANDS.set('unread', conversations => {
+COMMANDS.set('unread', (conversations, query) => {
   const includeMuted =
-    window.storage.get('badge-count-muted-conversations') || false;
-  return conversations.filter(conversation => {
-    return hasUnread(
-      countConversationUnreadStats(conversation, { includeMuted })
-    );
-  });
+    /^(?:m|muted)$/i.test(query) ||
+    window.storage.get('badge-count-muted-conversations') ||
+    false;
+  return filterConversationsByUnread(conversations, includeMuted);
 });
 
 // See https://fusejs.io/examples.html#extended-search for
@@ -105,62 +128,17 @@ function searchConversations(
 
   const phoneNumber = parseAndFormatPhoneNumber(searchTerm, regionCode);
 
-  const currentConversations = conversations.filter(conversation => {
-    return !conversation.left && !conversation.hiddenFromConversationSearch;
-  });
-
   // Escape the search term
-  let extendedSearchTerm = searchTerm;
+  let extendedSearchTerm = removeDiacritics(searchTerm);
 
   // OR phoneNumber
   if (phoneNumber) {
     extendedSearchTerm += ` | ${phoneNumber.e164}`;
   }
 
-  const index = getCachedFuseIndex(currentConversations, FUSE_OPTIONS);
+  const index = getCachedFuseIndex(conversations, FUSE_OPTIONS);
 
   return index.search(extendedSearchTerm);
-}
-
-export function filterAndSortConversationsByRecent(
-  conversations: ReadonlyArray<ConversationType>,
-  searchTerm: string,
-  regionCode: string | undefined
-): Array<ConversationType> {
-  if (searchTerm.length) {
-    const now = Date.now();
-
-    const withoutUnknown = conversations.filter(item => item.titleNoDefault);
-
-    return searchConversations(withoutUnknown, searchTerm, regionCode)
-      .slice()
-      .sort((a, b) => {
-        const { activeAt: aActiveAt = 0, left: aLeft = false } = a.item;
-        const { activeAt: bActiveAt = 0, left: bLeft = false } = b.item;
-
-        // See: https://fusejs.io/api/options.html#includescore
-        // 0 score is a perfect match, 1 - complete mismatch
-        const aScore =
-          (now - aActiveAt) * ACTIVE_AT_SCORE_FACTOR +
-          (a.score ?? 0) +
-          (aLeft ? LEFT_GROUP_PENALTY : 0);
-        const bScore =
-          (now - bActiveAt) * ACTIVE_AT_SCORE_FACTOR +
-          (b.score ?? 0) +
-          (bLeft ? LEFT_GROUP_PENALTY : 0);
-
-        return aScore - bScore;
-      })
-      .map(result => result.item);
-  }
-
-  return conversations.concat().sort((a, b) => {
-    if (a.activeAt && b.activeAt) {
-      return a.activeAt > b.activeAt ? -1 : 1;
-    }
-
-    return a.activeAt && !b.activeAt ? -1 : 1;
-  });
 }
 
 function startsWithLetter(title: string) {
@@ -183,19 +161,64 @@ function sortAlphabetically(a: ConversationType, b: ConversationType) {
   return a.title.localeCompare(b.title);
 }
 
-export function filterAndSortConversationsAlphabetically(
+export function filterAndSortConversations(
   conversations: ReadonlyArray<ConversationType>,
   searchTerm: string,
-  regionCode: string | undefined
+  regionCode: string | undefined,
+  filterByUnread: boolean = false,
+  conversationToInject?: ConversationType
 ): Array<ConversationType> {
-  if (searchTerm.length) {
-    const withoutUnknown = conversations.filter(item => item.titleNoDefault);
+  let filteredConversations = filterByUnread
+    ? filterConversationsByUnread(conversations, true)
+    : conversations;
 
-    return searchConversations(withoutUnknown, searchTerm, regionCode)
-      .slice()
-      .map(result => result.item)
-      .sort(sortAlphabetically);
+  if (conversationToInject) {
+    filteredConversations = [...filteredConversations, conversationToInject];
   }
 
-  return conversations.concat().sort(sortAlphabetically);
+  if (searchTerm.length) {
+    const now = Date.now();
+    const withoutUnknownAndFiltered = filteredConversations.filter(
+      item => item.titleNoDefault
+    );
+
+    return searchConversations(
+      withoutUnknownAndFiltered,
+      searchTerm,
+      regionCode
+    )
+      .slice()
+      .sort((a, b) => {
+        const { activeAt: aActiveAt = 0, left: aLeft = false } = a.item;
+        const { activeAt: bActiveAt = 0, left: bLeft = false } = b.item;
+
+        // See: https://fusejs.io/api/options.html#includescore
+        // 0 score is a perfect match, 1 - complete mismatch
+        const aScore =
+          (now - aActiveAt) * ACTIVE_AT_SCORE_FACTOR +
+          (a.score ?? 0) +
+          (aLeft ? LEFT_GROUP_PENALTY : 0);
+        const bScore =
+          (now - bActiveAt) * ACTIVE_AT_SCORE_FACTOR +
+          (b.score ?? 0) +
+          (bLeft ? LEFT_GROUP_PENALTY : 0);
+
+        const activeScore = aScore - bScore;
+        if (activeScore !== 0) {
+          return activeScore;
+        }
+        return sortAlphabetically(a.item, b.item);
+      })
+      .map(result => result.item);
+  }
+
+  return filteredConversations.concat().sort((a, b) => {
+    const aScore = a.activeAt ?? 0;
+    const bScore = b.activeAt ?? 0;
+    const score = bScore - aScore;
+    if (score !== 0) {
+      return score;
+    }
+    return sortAlphabetically(a, b);
+  });
 }

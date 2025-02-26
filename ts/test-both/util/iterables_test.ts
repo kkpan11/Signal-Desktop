@@ -59,7 +59,7 @@ describe('iterable utilities', () => {
       );
       assert.isTrue(
         isIterable(
-          (function* generators() {
+          (function* () {
             yield 123;
           })()
         )
@@ -141,12 +141,12 @@ describe('iterable utilities', () => {
 
     it("doesn't start the iterable until the last minute", () => {
       const oneTwoThree = {
-        [Symbol.iterator]: sinon.fake(() => {
+        [Symbol.iterator]: sinon.fake((): Iterator<number> => {
           let n = 0;
           return {
             next() {
               if (n > 3) {
-                return { done: true };
+                return { done: true, value: undefined };
               }
               n += 1;
               return { value: n, done: false };

@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import type { MessageAttributesType } from '../model-types.d';
-import { getContactId } from '../messages/helpers';
+import { getAuthorId } from '../messages/helpers';
+import { DataReader } from '../sql/Client';
 import * as log from '../logging/log';
 import * as Errors from '../types/errors';
 import { deleteForEveryone } from '../util/deleteForEveryone';
 import { drop } from '../util/drop';
 import { getMessageSentTimestampSet } from '../util/getMessageSentTimestampSet';
+import { MessageModel } from '../models/messages';
 
 export type DeleteAttributesType = {
   envelopeId: string;
@@ -32,7 +34,7 @@ export function forMessage(
 
   const matchingDeletes = deleteValues.filter(item => {
     return (
-      item.fromId === getContactId(messageAttributes) &&
+      item.fromId === getAuthorId(messageAttributes) &&
       sentTimestamps.has(item.targetSentTimestamp)
     );
   });
@@ -72,12 +74,12 @@ export async function onDelete(del: DeleteAttributesType): Promise<void> {
       targetConversation.queueJob('Deletes.onDelete', async () => {
         log.info(`${logId}: Handling DOE`);
 
-        const messages = await window.Signal.Data.getMessagesBySentAt(
+        const messages = await DataReader.getMessagesBySentAt(
           del.targetSentTimestamp
         );
 
         const targetMessage = messages.find(
-          m => del.fromId === getContactId(m) && !m.deletedForEveryone
+          m => del.fromId === getAuthorId(m) && !m.deletedForEveryone
         );
 
         if (!targetMessage) {
@@ -85,9 +87,8 @@ export async function onDelete(del: DeleteAttributesType): Promise<void> {
           return;
         }
 
-        const message = window.MessageController.register(
-          targetMessage.id,
-          targetMessage
+        const message = window.MessageCache.register(
+          new MessageModel(targetMessage)
         );
 
         await deleteForEveryone(message, del);

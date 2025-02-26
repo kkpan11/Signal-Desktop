@@ -2,21 +2,24 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import { assert } from 'chai';
-import type { RangeNode } from '../../types/BodyRange';
+import type {
+  HydratedBodyRangeMention,
+  RangeNode,
+} from '../../types/BodyRange';
 import {
   BodyRange,
   DisplayStyle,
-  applyRangesForText,
+  applyRangeToText,
+  applyRangesToText,
   collapseRangeTree,
   insertRange,
   processBodyRangesForSearchResult,
+  trimMessageWhitespace,
 } from '../../types/BodyRange';
 import { generateAci } from '../../types/ServiceId';
 
 const SERVICE_ID_1 = generateAci();
 const SERVICE_ID_2 = generateAci();
-const SERVICE_ID_3 = generateAci();
-const SERVICE_ID_4 = generateAci();
 
 const mentionInfo = {
   mentionAci: SERVICE_ID_1,
@@ -25,6 +28,18 @@ const mentionInfo = {
 };
 
 describe('BodyRanges', () => {
+  function style(
+    start: number,
+    length: number,
+    styleValue: BodyRange.Style
+  ): BodyRange<BodyRange.Formatting> {
+    return {
+      start,
+      length,
+      style: styleValue,
+    };
+  }
+
   describe('insertRange', () => {
     it('inserts a single mention', () => {
       const result = insertRange({ start: 5, length: 1, ...mentionInfo }, []);
@@ -941,123 +956,634 @@ describe('BodyRanges', () => {
     });
   });
 
-  describe('applyRangesForText', () => {
-    it('handles mentions, replaces in reverse order', () => {
-      const mentions = [
-        {
-          start: 0,
-          length: 1,
-          mentionAci: SERVICE_ID_3,
-          replacementText: 'jerry',
-          conversationID: 'x',
-        },
-        {
-          start: 7,
-          length: 1,
-          mentionAci: SERVICE_ID_4,
-          replacementText: 'fred',
-          conversationID: 'x',
-        },
-      ];
-      const text = "\uFFFC says \uFFFC, I'm here";
-      assert.strictEqual(
-        applyRangesForText({ text, mentions, spoilers: [] }),
-        "@jerry says @fred, I'm here"
-      );
+  describe('applying ranges', () => {
+    function mention(start: number, title: string): HydratedBodyRangeMention {
+      return {
+        start,
+        length: 1,
+        mentionAci: generateAci(),
+        replacementText: title,
+        conversationID: '',
+      };
+    }
+
+    describe('applyRangesToText', () => {
+      it('handles mentions', () => {
+        const replacement = mention(3, 'jamie');
+        const body = '012\uFFFC456';
+        const result = applyRangeToText({ body, bodyRanges: [] }, replacement);
+        assert.deepEqual(result, {
+          body: '012@jamie456',
+          bodyRanges: [],
+        });
+      });
+
+      it('handles spoilers', () => {
+        const replacement = style(3, 4, BodyRange.Style.SPOILER);
+        const body = '012|45|789';
+        const result = applyRangeToText({ body, bodyRanges: [] }, replacement);
+        assert.deepEqual(result, {
+          body: '012■■■■789',
+          bodyRanges: [],
+        });
+      });
+
+      describe('updating ranges', () => {
+        describe('replacement same length', () => {
+          function check(
+            input: { start: number; length: number },
+            expected: { start: number; length: number } | null
+          ) {
+            const replacement = style(3, 4, BodyRange.Style.SPOILER);
+            const body = 'abc|ef|hij';
+            const bodyRanges = [
+              style(input.start, input.length, BodyRange.Style.BOLD),
+            ];
+            const result = applyRangeToText({ body, bodyRanges }, replacement);
+            assert.deepEqual(result, {
+              body: 'abc■■■■hij',
+              bodyRanges:
+                expected == null
+                  ? []
+                  : [
+                      style(
+                        expected.start,
+                        expected.length,
+                        BodyRange.Style.BOLD
+                      ),
+                    ],
+            });
+          }
+
+          // start before
+          it('start before, end before', () => {
+            // abc|ef|hij -> abc■■■■hij
+            // ^^         -> ^^
+            // 0123456789 -> 0123456789
+            check({ start: 0, length: 2 }, { start: 0, length: 2 });
+          });
+          it('start before, end at start', () => {
+            // abc|ef|hij -> abc■■■■hij
+            // ^^^        -> ^^^
+            // 0123456789 -> 0123456789
+            check({ start: 0, length: 3 }, { start: 0, length: 3 });
+          });
+          it('start before, end in middle', () => {
+            // abc|ef|hij -> abc■■■■hij
+            // ^^^^^      -> ^^^^^^^
+            // 0123456789 -> 0123456789
+            check({ start: 0, length: 5 }, { start: 0, length: 7 });
+          });
+          it('start before, end at end', () => {
+            // abc|ef|hij -> abc■■■■hij
+            // ^^^^^^^    -> ^^^^^^^
+            // 0123456789 -> 0123456789
+            check({ start: 0, length: 7 }, { start: 0, length: 7 });
+          });
+          it('start before, end after', () => {
+            // abc|ef|hij -> abc■■■■hij
+            // ^^^^^^^^^^ -> ^^^^^^^^^^
+            // 0123456789 -> 0123456789
+            check({ start: 0, length: 10 }, { start: 0, length: 10 });
+          });
+
+          // start at start
+          it('start at start, end at start', () => {
+            // abc|ef|hij -> abc■■■■hij
+            //    \       -> null
+            // 0123456789 -> 0123456789
+            check({ start: 3, length: 0 }, null);
+          });
+          it('start at start, end in middle', () => {
+            // abc|ef|hij -> abc■■■■hij
+            //    ^^      -> null
+            // 0123456789 -> 0123456789
+            check({ start: 3, length: 2 }, null);
+          });
+          it('start at start, end at end', () => {
+            // abc|ef|hij -> abc■■■■hij
+            //    ^^^^    ->    ^^^^
+            // 0123456789 -> 0123456789
+            check({ start: 3, length: 4 }, { start: 3, length: 4 });
+          });
+          it('start at start, end after', () => {
+            // abc|ef|hij -> abc■■■■hij
+            //    ^^^^^^  ->    ^^^^^^
+            // 0123456789 -> 0123456789
+            check({ start: 3, length: 6 }, { start: 3, length: 6 });
+          });
+
+          // start in middle
+          it('start in middle, end in middle', () => {
+            // abc|ef|hij -> abc■■■■hij
+            //     ^^     -> null
+            // 0123456789 -> 0123456789
+            check({ start: 4, length: 2 }, null);
+          });
+          it('start in middle, end at end', () => {
+            // abc|ef|hij -> abc■■■■hij
+            //     ^^^    -> null
+            // 0123456789 -> 0123456789
+            check({ start: 4, length: 3 }, null);
+          });
+          it('start in middle, end after', () => {
+            // abc|ef|hij -> abc■■■■hij
+            //     ^^^^^  ->    ^^^^^^
+            // 0123456789 -> 0123456789
+            check({ start: 4, length: 5 }, { start: 3, length: 6 });
+          });
+
+          // start at end
+          it('start at end, end at end', () => {
+            // abc|ef|hij -> abc■■■■hij
+            //        \   -> null
+            // 0123456789 -> 0123456789
+            check({ start: 7, length: 0 }, null);
+          });
+          it('start at end, end after', () => {
+            // abc|ef|hij -> abc■■■■hij
+            //        ^^  ->        ^^
+            // 0123456789 -> 0123456789
+            check({ start: 7, length: 2 }, { start: 7, length: 2 });
+          });
+
+          // start after
+          it('start after, end after', () => {
+            // abc|ef|hij -> abc■■■■hij
+            //         ^^ ->         ^^
+            // 0123456789 -> 0123456789
+            check({ start: 8, length: 2 }, { start: 8, length: 2 });
+          });
+        });
+
+        describe('replacement shortens', () => {
+          function check(
+            input: { start: number; length: number },
+            expected: { start: number; length: number } | null
+          ) {
+            const replacement = style(3, 5, BodyRange.Style.SPOILER);
+            const body = 'abc|efg|ijk';
+            const bodyRanges = [
+              style(input.start, input.length, BodyRange.Style.BOLD),
+            ];
+            const result = applyRangeToText({ body, bodyRanges }, replacement);
+            assert.deepEqual(result, {
+              body: 'abc■■■■ijk',
+              bodyRanges:
+                expected == null
+                  ? []
+                  : [
+                      style(
+                        expected.start,
+                        expected.length,
+                        BodyRange.Style.BOLD
+                      ),
+                    ],
+            });
+          }
+
+          // start before
+          it('start before, end before', () => {
+            // abc|efg|ijk -> abc■■■■ijk
+            // ^^          -> ^^
+            // 01234567890 -> 0123456789
+            check({ start: 0, length: 2 }, { start: 0, length: 2 });
+          });
+          it('start before, end at start', () => {
+            // abc|efg|ijk -> abc■■■■ijk
+            // ^^^         -> ^^^
+            // 01234567890 -> 0123456789
+            check({ start: 0, length: 3 }, { start: 0, length: 3 });
+          });
+          it('start before, end in middle', () => {
+            // abc|efg|ijk -> abc■■■■ijk
+            // ^^^^^       -> ^^^^^^^
+            // 01234567890 -> 0123456789
+            check({ start: 0, length: 5 }, { start: 0, length: 7 });
+          });
+          it('start before, end at end', () => {
+            // abc|efg|ijk -> abc■■■■ijk
+            // ^^^^^^^^    -> ^^^^^^^
+            // 01234567890 -> 0123456789
+            check({ start: 0, length: 8 }, { start: 0, length: 7 });
+          });
+          it('start before, end after', () => {
+            // abc|efg|ijk -> abc■■■■ijk
+            // ^^^^^^^^^^^ -> ^^^^^^^^^^
+            // 01234567890 -> 0123456789
+            check({ start: 0, length: 11 }, { start: 0, length: 10 });
+          });
+
+          // start at start
+          it('start at start, end at start', () => {
+            // abc|efg|ijk -> abc■■■■ijk
+            //    \        -> null
+            // 01234567890 -> 0123456789
+            check({ start: 3, length: 0 }, null);
+          });
+          it('start at start, end in middle', () => {
+            // abc|efg|ijk -> abc■■■■ijk
+            //    ^^       -> null
+            // 01234567890 -> 0123456789
+            check({ start: 3, length: 2 }, null);
+          });
+          it('start at start, end at end', () => {
+            // abc|efg|ijk -> abc■■■■ijk
+            //    ^^^^^    ->   ^^^^
+            // 01234567890 -> 0123456789
+            check({ start: 3, length: 5 }, { start: 3, length: 4 });
+          });
+          it('start at start, end after', () => {
+            // abc|efg|ijk -> abc■■■■ijk
+            //    ^^^^^^   ->    ^^^^^
+            // 01234567890 -> 0123456789
+            check({ start: 3, length: 6 }, { start: 3, length: 5 });
+          });
+
+          // start in middle
+          it('start in middle, end in middle', () => {
+            // abc|efg|ijk -> abc■■■■ijk
+            //     ^^      -> null
+            // 01234567890 -> 0123456789
+            check({ start: 4, length: 2 }, null);
+          });
+          it('start in middle, end at end', () => {
+            // abc|efg|ijk -> abc■■■■ijk
+            //     ^^^     -> null
+            // 01234567890 -> 0123456789
+            check({ start: 4, length: 3 }, null);
+          });
+          it('start in middle, end after', () => {
+            // abc|efg|ijk -> abc■■■■ijk
+            //     ^^^^^^  ->    ^^^^^^
+            // 01234567890 -> 0123456789
+            check({ start: 4, length: 6 }, { start: 3, length: 6 });
+          });
+
+          // start at end
+          it('start at end, end at end', () => {
+            // abc|efg|ijk -> abc■■■■ijk
+            //        \    -> null
+            // 01234567890 -> 0123456789
+            check({ start: 7, length: 0 }, null);
+          });
+          it('start at end, end after', () => {
+            // abc|efg|ijk -> abc■■■■ijk
+            //         ^^  ->        ^^
+            // 01234567890 -> 0123456789
+            check({ start: 8, length: 2 }, { start: 7, length: 2 });
+          });
+
+          // start after
+          it('start after, end after', () => {
+            // abc|efg|ijk -> abc■■■■ijk
+            //         ^^  ->        ^^
+            // 01234567890 -> 0123456789
+            check({ start: 8, length: 2 }, { start: 7, length: 2 });
+          });
+        });
+
+        describe('replacement lengthens', () => {
+          function check(
+            input: { start: number; length: number },
+            expected: { start: number; length: number } | null
+          ) {
+            const replacement = style(3, 3, BodyRange.Style.SPOILER);
+            const body = 'abc|e|ghi';
+            const bodyRanges = [
+              style(input.start, input.length, BodyRange.Style.BOLD),
+            ];
+            const result = applyRangeToText({ body, bodyRanges }, replacement);
+            assert.deepEqual(result, {
+              body: 'abc■■■■ghi',
+              bodyRanges:
+                expected == null
+                  ? []
+                  : [
+                      style(
+                        expected.start,
+                        expected.length,
+                        BodyRange.Style.BOLD
+                      ),
+                    ],
+            });
+          }
+
+          // start before
+          it('start before, end before', () => {
+            // abc|e|ghi -> abc■■■■ghi
+            // ^^        -> ^^
+            // 012345678 -> 0123456789
+            check({ start: 0, length: 2 }, { start: 0, length: 2 });
+          });
+          it('start before, end at start', () => {
+            // abc|e|ghi -> abc■■■■ghi
+            // ^^^       -> ^^^
+            // 012345678 -> 0123456789
+            check({ start: 0, length: 3 }, { start: 0, length: 3 });
+          });
+          it('start before, end in middle', () => {
+            // abc|e|ghi -> abc■■■■ghi
+            // ^^^^^     -> ^^^^^^^
+            // 012345678 -> 0123456789
+            check({ start: 0, length: 5 }, { start: 0, length: 7 });
+          });
+          it('start before, end at end', () => {
+            // abc|e|ghi -> abc■■■■ghi
+            // ^^^^^^    -> ^^^^^^^
+            // 012345678 -> 0123456789
+            check({ start: 0, length: 6 }, { start: 0, length: 7 });
+          });
+          it('start before, end after', () => {
+            // abc|e|ghi -> abc■■■■ghi
+            // ^^^^^^^^^ -> ^^^^^^^^^^
+            // 012345678 -> 0123456789
+            check({ start: 0, length: 9 }, { start: 0, length: 10 });
+          });
+
+          // start at start
+          it('start at start, end at start', () => {
+            // abc|e|ghi -> abc■■■■ghi
+            //    \      -> null
+            // 012345678 -> 0123456789
+            check({ start: 3, length: 0 }, null);
+          });
+          it('start at start, end in middle', () => {
+            // abc|e|ghi -> abc■■■■ghi
+            //    ^^     -> null
+            // 012345678 -> 0123456789
+            check({ start: 3, length: 2 }, null);
+          });
+          it('start at start, end at end', () => {
+            // abc|e|ghi -> abc■■■■ghi
+            //    ^^^    ->    ^^^^
+            // 012345678 -> 0123456789
+            check({ start: 3, length: 3 }, { start: 3, length: 4 });
+          });
+          it('start at start, end after', () => {
+            // abc|e|ghi -> abc■■■■ghi
+            //    ^^^^^^ ->    ^^^^^^^
+            // 012345678 -> 0123456789
+            check({ start: 3, length: 6 }, { start: 3, length: 7 });
+          });
+
+          // start in middle
+          it('start in middle, end in middle', () => {
+            // abc|e|ghi -> abc■■■■ghi
+            //     ^     -> null
+            // 012345678 -> 0123456789
+            check({ start: 4, length: 1 }, null);
+          });
+          it('start in middle, end at end', () => {
+            // abc|e|ghi -> abc■■■■ghi
+            //     ^^    -> null
+            // 012345678 -> 0123456789
+            check({ start: 4, length: 2 }, null);
+          });
+          it('start in middle, end after', () => {
+            // abc|e|ghi -> abc■■■■ghi
+            //     ^^^^^ ->    ^^^^^^^
+            // 012345678 -> 0123456789
+            check({ start: 4, length: 5 }, { start: 3, length: 7 });
+          });
+
+          // start at end
+          it('start at end, end at end', () => {
+            // abc|e|ghi -> abc■■■■ghi
+            //       \   -> null
+            // 012345678 -> 0123456789
+            check({ start: 6, length: 0 }, null);
+          });
+          it('start at end, end after', () => {
+            // abc|e|ghi -> abc■■■■ghi
+            //       ^^  ->        ^^
+            // 012345678 -> 0123456789
+            check({ start: 6, length: 2 }, { start: 7, length: 2 });
+          });
+
+          // start after
+          it('start after, end after', () => {
+            // abc|e|ghi -> abc■■■■ghi
+            //        ^^ ->         ^^
+            // 012345678 -> 0123456789
+            check({ start: 7, length: 2 }, { start: 8, length: 2 });
+          });
+        });
+      });
     });
 
-    it('handles spoilers, replaces in reverse order', () => {
-      const spoilers = [
-        {
-          start: 18,
-          length: 16,
-          style: BodyRange.Style.SPOILER,
-        },
-        {
-          start: 46,
-          length: 17,
-          style: BodyRange.Style.SPOILER,
-        },
-      ];
-      const text =
-        "It's so cool when the balrog fight happens in Lord of the Rings!";
-      assert.strictEqual(
-        applyRangesForText({ text, mentions: [], spoilers }),
-        "It's so cool when ■■■■ happens in ■■■■!"
-      );
+    describe('applyRangesToText', () => {
+      it('handles mentions, replaces in reverse order', () => {
+        const body = "\uFFFC says \uFFFC, I'm here";
+        const bodyRanges = [mention(0, 'jerry'), mention(7, 'fred')];
+        assert.deepStrictEqual(
+          applyRangesToText(
+            { body, bodyRanges },
+            {
+              replaceMentions: true,
+              replaceSpoilers: true,
+            }
+          ),
+          {
+            body: "@jerry says @fred, I'm here",
+            bodyRanges: [],
+          }
+        );
+      });
+
+      it('handles spoilers, replaces in reverse order', () => {
+        const body =
+          "It's so cool when the balrog fight happens in Lord of the Rings!";
+        const bodyRanges = [
+          style(18, 16, BodyRange.Style.SPOILER),
+          style(46, 17, BodyRange.Style.SPOILER),
+        ];
+        assert.deepStrictEqual(
+          applyRangesToText(
+            { body, bodyRanges },
+            { replaceMentions: true, replaceSpoilers: true }
+          ),
+          { body: "It's so cool when ■■■■ happens in ■■■■!", bodyRanges: [] }
+        );
+      });
+
+      it('handles mentions that are removed by spoilers', () => {
+        const body =
+          "The recipients of today's appreciation award are \uFFFC and \uFFFC!";
+        const bodyRanges = [
+          mention(49, 'alice'),
+          mention(55, 'bob'),
+          style(49, 7, BodyRange.Style.SPOILER),
+        ];
+
+        assert.deepStrictEqual(
+          applyRangesToText(
+            { body, bodyRanges },
+            { replaceMentions: true, replaceSpoilers: true }
+          ),
+          {
+            body: "The recipients of today's appreciation award are ■■■■!",
+            bodyRanges: [],
+          }
+        );
+      });
+
+      it('handles applying mentions but not spoilers', () => {
+        const body = 'before \uFFFC after';
+        const bodyRanges = [
+          mention(7, 'jamie'),
+          style(0, 8, BodyRange.Style.BOLD),
+          style(7, 1, BodyRange.Style.SPOILER),
+          style(7, 6, BodyRange.Style.ITALIC),
+        ];
+        assert.deepStrictEqual(
+          applyRangesToText(
+            { body, bodyRanges },
+            { replaceMentions: true, replaceSpoilers: false }
+          ),
+          {
+            body: 'before @jamie after',
+            bodyRanges: [
+              style(0, 13, BodyRange.Style.BOLD),
+              style(7, 6, BodyRange.Style.SPOILER),
+              style(7, 11, BodyRange.Style.ITALIC),
+            ],
+          }
+        );
+      });
     });
+    describe('trimMessageWhitespace', () => {
+      it('returns exact inputs if no trimming needed', () => {
+        const input = {
+          body: '0123456789',
+          bodyRanges: [
+            style(0, 3, BodyRange.Style.BOLD),
+            style(3, 3, BodyRange.Style.ITALIC),
+            style(6, 4, BodyRange.Style.STRIKETHROUGH),
+          ],
+        };
+        const result = trimMessageWhitespace(input);
 
-    it('handles mentions that are removed by spoilers', () => {
-      const mentions = [
-        {
-          start: 49,
-          length: 1,
-          mentionAci: SERVICE_ID_4,
-          replacementText: 'alice',
-          conversationID: 'x',
-        },
-        {
-          start: 55,
-          length: 1,
-          mentionAci: SERVICE_ID_4,
-          replacementText: 'bob',
-          conversationID: 'x',
-        },
-      ];
-      const spoilers = [
-        {
-          start: 49,
-          length: 7,
-          style: BodyRange.Style.SPOILER,
-        },
-      ];
+        assert.strictEqual(result, input);
+        assert.deepStrictEqual(result, input);
+      });
 
-      const text =
-        "The recipients of today's appreciation award are \uFFFC and \uFFFC!";
-      assert.strictEqual(
-        applyRangesForText({ text, mentions, spoilers }),
-        "The recipients of today's appreciation award are ■■■■!"
-      );
-    });
+      it('handles leading whitespace', () => {
+        const input = {
+          body: '          ten spaces',
+          bodyRanges: [
+            style(0, 5, BodyRange.Style.BOLD),
+            style(0, 10, BodyRange.Style.SPOILER),
+            style(6, 11, BodyRange.Style.ITALIC),
+            style(10, 10, BodyRange.Style.STRIKETHROUGH),
+            style(15, 5, BodyRange.Style.SPOILER),
+          ],
+        };
+        const expected = {
+          body: 'ten spaces',
+          bodyRanges: [
+            style(0, 7, BodyRange.Style.ITALIC),
+            style(0, 10, BodyRange.Style.STRIKETHROUGH),
+            style(5, 5, BodyRange.Style.SPOILER),
+          ],
+        };
+        const result = trimMessageWhitespace(input);
 
-    it('handles mentions that need to be moved because of spoilers', () => {
-      const mentions = [
-        {
-          start: 0,
-          length: 1,
-          mentionAci: SERVICE_ID_4,
-          replacementText: 'eve',
-          conversationID: 'x',
-        },
-        {
-          start: 52,
-          length: 1,
-          mentionAci: SERVICE_ID_4,
-          replacementText: 'alice',
-          conversationID: 'x',
-        },
-        {
-          start: 58,
-          length: 1,
-          mentionAci: SERVICE_ID_4,
-          replacementText: 'bob',
-          conversationID: 'x',
-        },
-      ];
-      const spoilers = [
-        {
-          start: 21,
-          length: 26,
-          style: BodyRange.Style.SPOILER,
-        },
-      ];
+        assert.notStrictEqual(result, input);
+        assert.deepStrictEqual(result, expected);
+      });
+      it('handles leading whitespace partially covered by monospace', () => {
+        const input = {
+          body: '          ten spaces',
+          bodyRanges: [
+            style(0, 5, BodyRange.Style.BOLD),
+            style(0, 6, BodyRange.Style.SPOILER),
+            style(2, 10, BodyRange.Style.ITALIC),
+            style(6, 11, BodyRange.Style.MONOSPACE),
+            style(10, 10, BodyRange.Style.STRIKETHROUGH),
+            style(15, 5, BodyRange.Style.SPOILER),
+          ],
+        };
+        const expected = {
+          body: '    ten spaces',
+          bodyRanges: [
+            style(0, 6, BodyRange.Style.ITALIC),
+            style(0, 11, BodyRange.Style.MONOSPACE),
+            style(4, 10, BodyRange.Style.STRIKETHROUGH),
+            style(9, 5, BodyRange.Style.SPOILER),
+          ],
+        };
+        const result = trimMessageWhitespace(input);
 
-      const text =
-        "\uFFFC: The recipients of today's appreciation award are \uFFFC and \uFFFC!";
-      assert.strictEqual(
-        applyRangesForText({ text, mentions, spoilers }),
-        '@eve: The recipients of ■■■■ are @alice and @bob!'
-      );
+        assert.notStrictEqual(result, input);
+        assert.deepStrictEqual(result, expected);
+      });
+      it('returns exact inputs when leading whitespace is entirely covered by monospace', () => {
+        const input = {
+          body: '          ten spaces',
+          bodyRanges: [
+            style(0, 5, BodyRange.Style.BOLD),
+            style(0, 11, BodyRange.Style.MONOSPACE),
+            style(10, 10, BodyRange.Style.STRIKETHROUGH),
+            style(15, 5, BodyRange.Style.SPOILER),
+          ],
+        };
+        const result = trimMessageWhitespace(input);
+
+        assert.strictEqual(result, input);
+        assert.deepStrictEqual(result, input);
+      });
+
+      it('handles trailing whitespace', () => {
+        const input = {
+          body: 'ten spaces after          ',
+          bodyRanges: [
+            style(0, 3, BodyRange.Style.BOLD),
+            style(4, 6, BodyRange.Style.ITALIC),
+            style(11, 15, BodyRange.Style.STRIKETHROUGH),
+            style(15, 2, BodyRange.Style.BOLD),
+            style(16, 10, BodyRange.Style.SPOILER),
+            style(18, 4, BodyRange.Style.MONOSPACE),
+          ],
+        };
+        const expected = {
+          body: 'ten spaces after',
+          bodyRanges: [
+            style(0, 3, BodyRange.Style.BOLD),
+            style(4, 6, BodyRange.Style.ITALIC),
+            style(11, 5, BodyRange.Style.STRIKETHROUGH),
+            style(15, 1, BodyRange.Style.BOLD),
+          ],
+        };
+        const result = trimMessageWhitespace(input);
+
+        assert.notStrictEqual(result, input);
+        assert.deepStrictEqual(result, expected);
+      });
+
+      it('handles both trailing and leading whitespace', () => {
+        const input = {
+          body: '          0123456789          ',
+          bodyRanges: [
+            style(0, 10, BodyRange.Style.BOLD),
+            style(8, 2, BodyRange.Style.MONOSPACE),
+            style(10, 10, BodyRange.Style.STRIKETHROUGH),
+            style(20, 10, BodyRange.Style.SPOILER),
+          ],
+        };
+        const expected = {
+          body: '  0123456789',
+          bodyRanges: [
+            style(0, 2, BodyRange.Style.BOLD),
+            style(0, 2, BodyRange.Style.MONOSPACE),
+            style(2, 10, BodyRange.Style.STRIKETHROUGH),
+          ],
+        };
+        const result = trimMessageWhitespace(input);
+
+        assert.notStrictEqual(result, input);
+        assert.deepStrictEqual(result, expected);
+      });
     });
   });
 });

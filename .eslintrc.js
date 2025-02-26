@@ -1,6 +1,5 @@
 // Copyright 2018 Signal Messenger, LLC
 // SPDX-License-Identifier: AGPL-3.0-only
-const { messagesCacheKey } = require('./.eslint/rules/valid-i18n-keys');
 
 // For reference: https://github.com/airbnb/javascript
 
@@ -19,6 +18,16 @@ const rules = {
   // No omitting braces, keep on the same line
   'brace-style': ['error', '1tbs', { allowSingleLine: false }],
   curly: ['error', 'all'],
+
+  // Immer support
+  'no-param-reassign': [
+    'error',
+    {
+      props: true,
+      ignorePropertyModificationsForRegex: ['^draft'],
+      ignorePropertyModificationsFor: ['acc', 'ctx', 'context'],
+    },
+  ],
 
   // Always use === and !== except when directly comparing to null
   // (which only will equal null or undefined)
@@ -132,6 +141,13 @@ const rules = {
 
   'jsx-a11y/label-has-associated-control': ['error', { assert: 'either' }],
 
+  'jsx-a11y/no-static-element-interactions': 'error',
+
+  '@typescript-eslint/no-non-null-assertion': ['error'],
+  '@typescript-eslint/no-empty-interface': ['error'],
+  'no-empty-function': 'off',
+  '@typescript-eslint/no-empty-function': 'error',
+
   'no-restricted-syntax': [
     'error',
     {
@@ -154,6 +170,13 @@ const rules = {
       selector: 'WithStatement',
       message:
         '`with` is disallowed in strict mode because it makes code impossible to predict and optimize.',
+    },
+  ],
+
+  'react-hooks/exhaustive-deps': [
+    'error',
+    {
+      additionalHooks: '^(useSpring|useSprings)$',
     },
   ],
 };
@@ -228,8 +251,6 @@ const typescriptRules = {
 
   // TODO: DESKTOP-4655
   'import/no-cycle': 'off',
-
-  'local-rules/valid-i18n-keys': ['error', { messagesCacheKey }],
 };
 
 module.exports = {
@@ -288,6 +309,12 @@ module.exports = {
       files: ['ts/state/ducks/**/*.ts'],
       rules: {
         'local-rules/type-alias-readonlydeep': 'error',
+      },
+    },
+    {
+      files: ['ts/**/*_test.{ts,tsx}'],
+      rules: {
+        'func-names': 'off',
       },
     },
   ],

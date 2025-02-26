@@ -1,16 +1,15 @@
 // Copyright 2023 Signal Messenger, LLC
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import type { AttachmentType, ThumbnailType } from '../types/Attachment';
+import type { AttachmentType } from '../types/Attachment';
 import type {
   MessageAttributesType,
-  QuotedMessageType,
+  QuotedAttachmentType,
 } from '../model-types.d';
-import type { MIMEType } from '../types/MIME';
 import type { LinkPreviewType } from '../types/message/LinkPreviews';
 import type { StickerType } from '../types/Stickers';
 import { IMAGE_JPEG, IMAGE_GIF } from '../types/MIME';
-import { getContact } from '../messages/helpers';
+import { getAuthor } from '../messages/helpers';
 import { getQuoteBodyText } from './getQuoteBodyText';
 import { isGIF } from '../types/Attachment';
 import { isGiftBadge, isTapToView } from '../state/selectors/message';
@@ -18,11 +17,13 @@ import * as log from '../logging/log';
 import { map, take, collect } from './iterables';
 import { strictAssert } from './assert';
 import { getMessageSentTimestamp } from './getMessageSentTimestamp';
+import { getLocalAttachmentUrl } from './getLocalAttachmentUrl';
+import type { QuotedMessageForComposerType } from '../state/ducks/composer';
 
 export async function makeQuote(
   quotedMessage: MessageAttributesType
-): Promise<QuotedMessageType> {
-  const contact = getContact(quotedMessage);
+): Promise<QuotedMessageForComposerType['quote']> {
+  const contact = getAuthor(quotedMessage);
 
   strictAssert(contact, 'makeQuote: no contact');
 
@@ -40,7 +41,7 @@ export async function makeQuote(
   return {
     authorAci: contact.getCheckedAci('makeQuote'),
     attachments: isTapToView(quotedMessage)
-      ? [{ contentType: IMAGE_JPEG, fileName: null }]
+      ? [{ contentType: IMAGE_JPEG }]
       : await getQuoteAttachment(attachments, preview, sticker),
     payment,
     bodyRanges,
@@ -54,18 +55,11 @@ export async function makeQuote(
 }
 
 export async function getQuoteAttachment(
-  attachments?: Array<AttachmentType>,
-  preview?: Array<LinkPreviewType>,
+  attachments?: ReadonlyArray<AttachmentType>,
+  preview?: ReadonlyArray<LinkPreviewType>,
   sticker?: StickerType
-): Promise<
-  Array<{
-    contentType: MIMEType;
-    fileName?: string | null;
-    thumbnail?: ThumbnailType | null;
-  }>
-> {
-  const { getAbsoluteAttachmentPath, loadAttachmentData } =
-    window.Signal.Migrations;
+): Promise<Array<QuotedAttachmentType>> {
+  const { loadAttachmentData } = window.Signal.Migrations;
 
   if (attachments && attachments.length) {
     const attachmentsToUse = Array.from(take(attachments, 1));
@@ -78,26 +72,21 @@ export async function getQuoteAttachment(
         if (!path) {
           return {
             contentType: isGIFQuote ? IMAGE_GIF : contentType,
-            // Our protos library complains about this field being undefined, so we
-            //   force it to null
-            fileName: fileName || null,
-            thumbnail: null,
+            fileName,
+            thumbnail,
           };
         }
 
         return {
           contentType: isGIFQuote ? IMAGE_GIF : contentType,
-          // Our protos library complains about this field being undefined, so we force
-          //   it to null
-          fileName: fileName || null,
-          thumbnail: thumbnail
-            ? {
-                ...(await loadAttachmentData(thumbnail)),
-                objectUrl: thumbnail.path
-                  ? getAbsoluteAttachmentPath(thumbnail.path)
-                  : undefined,
-              }
-            : null,
+          fileName,
+          thumbnail:
+            thumbnail && thumbnail.path
+              ? {
+                  ...(await loadAttachmentData(thumbnail)),
+                  objectUrl: getLocalAttachmentUrl(thumbnail),
+                }
+              : undefined,
         };
       })
     );
@@ -113,17 +102,13 @@ export async function getQuoteAttachment(
 
         return {
           contentType,
-          // Our protos library complains about this field being undefined, so we
-          //   force it to null
-          fileName: null,
-          thumbnail: image
-            ? {
-                ...(await loadAttachmentData(image)),
-                objectUrl: image.path
-                  ? getAbsoluteAttachmentPath(image.path)
-                  : undefined,
-              }
-            : null,
+          thumbnail:
+            image && image.path
+              ? {
+                  ...(await loadAttachmentData(image)),
+                  objectUrl: getLocalAttachmentUrl(image),
+                }
+              : undefined,
         };
       })
     );
@@ -135,13 +120,12 @@ export async function getQuoteAttachment(
     return [
       {
         contentType,
-        // Our protos library complains about this field being undefined, so we
-        //   force it to null
-        fileName: null,
-        thumbnail: {
-          ...(await loadAttachmentData(sticker.data)),
-          objectUrl: path ? getAbsoluteAttachmentPath(path) : undefined,
-        },
+        thumbnail: path
+          ? {
+              ...(await loadAttachmentData(sticker.data)),
+              objectUrl: getLocalAttachmentUrl(sticker.data),
+            }
+          : undefined,
       },
     ];
   }

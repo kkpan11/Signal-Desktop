@@ -6,7 +6,7 @@ import { AsyncQueue } from '../util/AsyncQueue';
 import { concat, wrapPromise } from '../util/asyncIterables';
 import type { JobQueueStore, StoredJob } from './types';
 import { formatJobForInsert } from './formatJobForInsert';
-import databaseInterface from '../sql/Client';
+import { DataReader, DataWriter } from '../sql/Client';
 import * as log from '../logging/log';
 
 type Database = {
@@ -16,11 +16,9 @@ type Database = {
 };
 
 export class JobQueueDatabaseStore implements JobQueueStore {
-  private activeQueueTypes = new Set<string>();
-
-  private queues = new Map<string, AsyncQueue<StoredJob>>();
-
-  private initialFetchPromises = new Map<string, Promise<void>>();
+  #activeQueueTypes = new Set<string>();
+  #queues = new Map<string, AsyncQueue<StoredJob>>();
+  #initialFetchPromises = new Map<string, Promise<void>>();
 
   constructor(private readonly db: Database) {}
 
@@ -34,21 +32,22 @@ export class JobQueueDatabaseStore implements JobQueueStore {
       )}`
     );
 
-    const initialFetchPromise = this.initialFetchPromises.get(job.queueType);
-    if (!initialFetchPromise) {
-      throw new Error(
-        `JobQueueDatabaseStore tried to add job for queue ${JSON.stringify(
-          job.queueType
-        )} but streaming had not yet started`
+    const initialFetchPromise = this.#initialFetchPromises.get(job.queueType);
+    if (initialFetchPromise) {
+      await initialFetchPromise;
+    } else {
+      log.warn(
+        `JobQueueDatabaseStore: added job for queue "${job.queueType}" but streaming has not yet started (shouldPersist=${shouldPersist})`
       );
     }
-    await initialFetchPromise;
 
     if (shouldPersist) {
       await this.db.insertJob(formatJobForInsert(job));
     }
 
-    this.getQueue(job.queueType).add(job);
+    if (initialFetchPromise) {
+      this.#getQueue(job.queueType).add(job);
+    }
   }
 
   async delete(id: string): Promise<void> {
@@ -56,31 +55,31 @@ export class JobQueueDatabaseStore implements JobQueueStore {
   }
 
   stream(queueType: string): AsyncIterable<StoredJob> {
-    if (this.activeQueueTypes.has(queueType)) {
+    if (this.#activeQueueTypes.has(queueType)) {
       throw new Error(
         `Cannot stream queue type ${JSON.stringify(queueType)} more than once`
       );
     }
-    this.activeQueueTypes.add(queueType);
+    this.#activeQueueTypes.add(queueType);
 
     return concat([
-      wrapPromise(this.fetchJobsAtStart(queueType)),
-      this.getQueue(queueType),
+      wrapPromise(this.#fetchJobsAtStart(queueType)),
+      this.#getQueue(queueType),
     ]);
   }
 
-  private getQueue(queueType: string): AsyncQueue<StoredJob> {
-    const existingQueue = this.queues.get(queueType);
+  #getQueue(queueType: string): AsyncQueue<StoredJob> {
+    const existingQueue = this.#queues.get(queueType);
     if (existingQueue) {
       return existingQueue;
     }
 
     const result = new AsyncQueue<StoredJob>();
-    this.queues.set(queueType, result);
+    this.#queues.set(queueType, result);
     return result;
   }
 
-  private async fetchJobsAtStart(queueType: string): Promise<Array<StoredJob>> {
+  async #fetchJobsAtStart(queueType: string): Promise<Array<StoredJob>> {
     log.info(
       `JobQueueDatabaseStore fetching existing jobs for queue ${JSON.stringify(
         queueType
@@ -93,7 +92,7 @@ export class JobQueueDatabaseStore implements JobQueueStore {
     const initialFetchPromise = new Promise<void>(resolve => {
       onFinished = resolve;
     });
-    this.initialFetchPromises.set(queueType, initialFetchPromise);
+    this.#initialFetchPromises.set(queueType, initialFetchPromise);
 
     const result = await this.db.getJobsInQueue(queueType);
     log.info(
@@ -106,6 +105,8 @@ export class JobQueueDatabaseStore implements JobQueueStore {
   }
 }
 
-export const jobQueueDatabaseStore = new JobQueueDatabaseStore(
-  databaseInterface
-);
+export const jobQueueDatabaseStore = new JobQueueDatabaseStore({
+  getJobsInQueue: DataReader.getJobsInQueue,
+  insertJob: DataWriter.insertJob,
+  deleteJob: DataWriter.deleteJob,
+});

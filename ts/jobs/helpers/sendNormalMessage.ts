@@ -15,7 +15,6 @@ import { SignalService as Proto } from '../../protobuf';
 import { handleMessageSend } from '../../util/handleMessageSend';
 import { findAndFormatContact } from '../../util/findAndFormatContact';
 import { uploadAttachment } from '../../util/uploadAttachment';
-import { getMessageSentTimestamp } from '../../util/getMessageSentTimestamp';
 import type { CallbackResultType } from '../../textsecure/Types.d';
 import { isSent } from '../../messages/MessageSendState';
 import { isOutgoing, canReact } from '../../state/selectors/message';
@@ -29,14 +28,10 @@ import type {
 import type {
   AttachmentType,
   UploadedAttachmentType,
-  AttachmentWithHydratedData,
 } from '../../types/Attachment';
-import { LONG_MESSAGE, MIMETypeToString } from '../../types/MIME';
+import { copyCdnFields } from '../../util/attachments';
 import type { RawBodyRange } from '../../types/BodyRange';
-import type {
-  EmbeddedContactWithHydratedAvatar,
-  EmbeddedContactWithUploadedAvatar,
-} from '../../types/EmbeddedContact';
+import type { EmbeddedContactWithUploadedAvatar } from '../../types/EmbeddedContact';
 import type { StoryContextType } from '../../types/Util';
 import type { LoggerType } from '../../types/Logging';
 import type {
@@ -52,9 +47,21 @@ import { sendToGroup } from '../../util/sendToGroup';
 import type { DurationInSeconds } from '../../util/durations';
 import type { ServiceIdString } from '../../types/ServiceId';
 import { normalizeAci } from '../../util/normalizeAci';
-import * as Bytes from '../../Bytes';
+import {
+  getPropForTimestamp,
+  getTargetOfThisEditTimestamp,
+  getChangesForPropAtTimestamp,
+} from '../../util/editHelpers';
+import { getMessageSentTimestamp } from '../../util/getMessageSentTimestamp';
+import { isSignalConversation } from '../../util/isSignalConversation';
+import { isBodyTooLong, trimBody } from '../../util/longAttachment';
+import {
+  markFailed,
+  saveErrorsOnMessage,
+} from '../../test-node/util/messageFailures';
+import { getMessageIdForLogging } from '../../util/idForLogging';
+import { send, sendSyncMessageOnly } from '../../messages/send';
 
-const LONG_ATTACHMENT_LIMIT = 2048;
 const MAX_CONCURRENT_ATTACHMENT_UPLOADS = 5;
 
 export async function sendNormalMessage(
@@ -79,10 +86,19 @@ export async function sendNormalMessage(
     return;
   }
 
-  const messageConversation = message.getConversation();
+  const messageConversation = window.ConversationController.get(
+    message.get('conversationId')
+  );
   if (messageConversation !== conversation) {
     log.error(
       `Message conversation '${messageConversation?.idForLogging()}' does not match job conversation ${conversation.idForLogging()}`
+    );
+    return;
+  }
+
+  if (isSignalConversation(messageConversation)) {
+    log.error(
+      `Message conversation '${messageConversation?.idForLogging()}' is the Signal serviceId, not sending`
     );
     return;
   }
@@ -94,10 +110,24 @@ export async function sendNormalMessage(
     return;
   }
 
-  if (message.isErased() || message.get('deletedForEveryone')) {
+  if (message.get('isErased') || message.get('deletedForEveryone')) {
     log.info(`message ${messageId} was erased. Giving up on sending it`);
     return;
   }
+
+  // The original timestamp for this message
+  const messageTimestamp = getMessageSentTimestamp(message.attributes, {
+    includeEdits: false,
+    log,
+  });
+  // The timestamp for the thing we're sending now, whether a first send or an edit
+  const targetTimestamp = editedMessageTimestamp || messageTimestamp;
+  // The timestamp identifying the target of this edit; could be the original timestamp
+  //   or the most recent edit prior to this one
+  const targetOfThisEditTimestamp = getTargetOfThisEditTimestamp({
+    message: message.attributes,
+    targetTimestamp,
+  });
 
   let messageSendErrors: Array<Error> = [];
 
@@ -117,9 +147,11 @@ export async function sendNormalMessage(
 
   if (!shouldContinue) {
     log.info(`message ${messageId} ran out of time. Giving up on sending it`);
-    await markMessageFailed(message, [
-      new Error('Message send ran out of time'),
-    ]);
+    await markMessageFailed({
+      message,
+      errors: [new Error('Message send ran out of time')],
+      targetTimestamp,
+    });
     return;
   }
 
@@ -140,6 +172,7 @@ export async function sendNormalMessage(
       log,
       message,
       conversation,
+      targetTimestamp,
     });
 
     if (untrustedServiceIds.length) {
@@ -168,14 +201,13 @@ export async function sendNormalMessage(
       deletedForEveryoneTimestamp,
       expireTimer,
       bodyRanges,
-      messageTimestamp,
       preview,
       quote,
       reaction,
       sticker,
       storyMessage,
       storyContext,
-    } = await getMessageSendData({ log, message });
+    } = await getMessageSendData({ log, message, targetTimestamp });
 
     if (reaction) {
       strictAssert(
@@ -196,12 +228,20 @@ export async function sendNormalMessage(
         log.info(
           `could not react to ${messageId}. Removing this pending reaction`
         );
-        await markMessageFailed(message, [
-          new Error('Could not react to story'),
-        ]);
+        await markMessageFailed({
+          message,
+          errors: [new Error('Could not react to story')],
+          targetTimestamp,
+        });
         return;
       }
     }
+
+    log.info(
+      'Sending normal message;',
+      `editedMessageTimestamp=${editedMessageTimestamp},`,
+      `storyMessage=${Boolean(storyMessage)}`
+    );
 
     let messageSendPromise: Promise<CallbackResultType | void>;
 
@@ -214,7 +254,11 @@ export async function sendNormalMessage(
         log.info(
           'No recipients; not sending to ourselves or to group, and no successful sends. Failing job.'
         );
-        void markMessageFailed(message, [new Error('No valid recipients')]);
+        void markMessageFailed({
+          message,
+          errors: [new Error('No valid recipients')],
+          targetTimestamp,
+        });
         return;
       }
 
@@ -228,8 +272,8 @@ export async function sendNormalMessage(
         bodyRanges,
         contact,
         deletedForEveryoneTimestamp,
-        editedMessageTimestamp,
         expireTimer,
+        expireTimerVersion: conversation.getExpireTimerVersion(),
         groupV2: conversation.getGroupV2Info({
           members: recipientServiceIdsWithoutMe,
         }),
@@ -239,10 +283,17 @@ export async function sendNormalMessage(
         recipients: allRecipientServiceIds,
         sticker,
         storyContext,
-        timestamp: messageTimestamp,
+        targetTimestampForEdit: editedMessageTimestamp
+          ? targetOfThisEditTimestamp
+          : undefined,
+        timestamp: targetTimestamp,
         reaction,
       });
-      messageSendPromise = message.sendSyncMessageOnly(dataMessage, saveErrors);
+      messageSendPromise = sendSyncMessageOnly(message, {
+        dataMessage,
+        saveErrors,
+        targetTimestamp,
+      });
     } else {
       const conversationType = conversation.get('type');
       const sendOptions = await getSendOptions(conversation.attributes);
@@ -274,7 +325,6 @@ export async function sendNormalMessage(
                 bodyRanges,
                 contact,
                 deletedForEveryoneTimestamp,
-                editedMessageTimestamp,
                 expireTimer,
                 groupV2: groupV2Info,
                 messageText: body,
@@ -284,7 +334,10 @@ export async function sendNormalMessage(
                 sticker,
                 storyContext,
                 reaction,
-                timestamp: messageTimestamp,
+                targetTimestampForEdit: editedMessageTimestamp
+                  ? targetOfThisEditTimestamp
+                  : undefined,
+                timestamp: targetTimestamp,
               },
               messageId,
               sendOptions,
@@ -299,25 +352,33 @@ export async function sendNormalMessage(
           log.info(
             `conversation ${conversation.idForLogging()} is not accepted; refusing to send`
           );
-          void markMessageFailed(message, [
-            new Error('Message request was not accepted'),
-          ]);
+          void markMessageFailed({
+            message,
+            errors: [new Error('Message request was not accepted')],
+            targetTimestamp,
+          });
           return;
         }
         if (isConversationUnregistered(conversation.attributes)) {
           log.info(
             `conversation ${conversation.idForLogging()} is unregistered; refusing to send`
           );
-          void markMessageFailed(message, [
-            new Error('Contact no longer has a Signal account'),
-          ]);
+          void markMessageFailed({
+            message,
+            errors: [new Error('Contact no longer has a Signal account')],
+            targetTimestamp,
+          });
           return;
         }
         if (conversation.isBlocked()) {
           log.info(
             `conversation ${conversation.idForLogging()} is blocked; refusing to send`
           );
-          void markMessageFailed(message, [new Error('Contact is blocked')]);
+          void markMessageFailed({
+            message,
+            errors: [new Error('Contact is blocked')],
+            targetTimestamp,
+          });
           return;
         }
 
@@ -328,8 +389,8 @@ export async function sendNormalMessage(
           contact,
           contentHint: ContentHint.RESENDABLE,
           deletedForEveryoneTimestamp,
-          editedMessageTimestamp,
           expireTimer,
+          expireTimerVersion: conversation.getExpireTimerVersion(),
           groupId: undefined,
           serviceId: recipientServiceIdsWithoutMe[0],
           messageText: body,
@@ -340,20 +401,24 @@ export async function sendNormalMessage(
           sticker,
           storyContext,
           reaction,
-          timestamp: messageTimestamp,
+          targetTimestampForEdit: editedMessageTimestamp
+            ? targetOfThisEditTimestamp
+            : undefined,
+          timestamp: targetTimestamp,
           // Note: 1:1 story replies should not set story=true -   they aren't group sends
           urgent: true,
           includePniSignatureMessage: true,
         });
       }
 
-      messageSendPromise = message.send(
-        handleMessageSend(innerPromise, {
+      messageSendPromise = send(message, {
+        promise: handleMessageSend(innerPromise, {
           messageIds: [messageId],
           sendType: 'message',
         }),
-        saveErrors
-      );
+        saveErrors,
+        targetTimestamp,
+      });
 
       // Because message.send swallows and processes errors, we'll await the inner promise
       //   to get the SendMessageProtoError, which gives us information upstream
@@ -376,7 +441,12 @@ export async function sendNormalMessage(
     await messageSendPromise;
 
     const didFullySend =
-      !messageSendErrors.length || didSendToEveryone(message);
+      !messageSendErrors.length ||
+      didSendToEveryone({
+        log,
+        message,
+        targetTimestamp: editedMessageTimestamp || messageTimestamp,
+      });
     if (!didFullySend) {
       throw new Error('message did not fully send');
     }
@@ -386,7 +456,12 @@ export async function sendNormalMessage(
       errors,
       isFinalAttempt,
       log,
-      markFailed: () => markMessageFailed(message, messageSendErrors),
+      markFailed: () =>
+        markMessageFailed({
+          message,
+          errors: messageSendErrors,
+          targetTimestamp,
+        }),
       timeRemaining,
       // In the case of a failed group send thrownError will not be SentMessageProtoError,
       //   but we should have been able to harvest the original error. In the Note to Self
@@ -401,10 +476,12 @@ function getMessageRecipients({
   log,
   conversation,
   message,
+  targetTimestamp,
 }: Readonly<{
   log: LoggerType;
   conversation: ConversationModel;
   message: MessageModel;
+  targetTimestamp: number;
 }>): {
   allRecipientServiceIds: Array<ServiceIdString>;
   recipientServiceIdsWithoutMe: Array<ServiceIdString>;
@@ -418,7 +495,15 @@ function getMessageRecipients({
 
   const currentConversationRecipients = conversation.getMemberConversationIds();
 
-  Object.entries(message.get('sendStateByConversationId') || {}).forEach(
+  const sendStateByConversationId =
+    getPropForTimestamp({
+      log,
+      message: message.attributes,
+      prop: 'sendStateByConversationId',
+      targetTimestamp,
+    }) || {};
+
+  Object.entries(sendStateByConversationId).forEach(
     ([recipientConversationId, sendState]) => {
       const recipient = window.ConversationController.get(
         recipientConversationId
@@ -482,9 +567,11 @@ function getMessageRecipients({
 async function getMessageSendData({
   log,
   message,
+  targetTimestamp,
 }: Readonly<{
   log: LoggerType;
   message: MessageModel;
+  targetTimestamp: number;
 }>): Promise<{
   attachments: Array<UploadedAttachmentType>;
   body: undefined | string;
@@ -492,7 +579,6 @@ async function getMessageSendData({
   deletedForEveryoneTimestamp: undefined | number;
   expireTimer: undefined | DurationInSeconds;
   bodyRanges: undefined | ReadonlyArray<RawBodyRange>;
-  messageTimestamp: number;
   preview: Array<OutgoingLinkPreviewType> | undefined;
   quote: OutgoingQuoteType | undefined;
   sticker: OutgoingStickerType | undefined;
@@ -500,35 +586,37 @@ async function getMessageSendData({
   storyMessage?: MessageModel;
   storyContext?: StoryContextType;
 }> {
-  const editMessageTimestamp = message.get('editMessageTimestamp');
-
-  const mainMessageTimestamp = getMessageSentTimestamp(message.attributes, {
-    includeEdits: false,
-    log,
-  });
-  const messageTimestamp = editMessageTimestamp || mainMessageTimestamp;
-
   const storyId = message.get('storyId');
 
   // Figure out if we need to upload message body as an attachment.
-  let body = message.get('body');
-  let maybeLongAttachment: AttachmentWithHydratedData | undefined;
-  if (body && body.length > LONG_ATTACHMENT_LIMIT) {
-    const data = Bytes.fromString(body);
+  let body = getPropForTimestamp({
+    log,
+    message: message.attributes,
+    prop: 'body',
+    targetTimestamp,
+  });
+  const maybeLongAttachment = getPropForTimestamp({
+    log,
+    message: message.attributes,
+    prop: 'bodyAttachment',
+    targetTimestamp,
+  });
 
-    maybeLongAttachment = {
-      contentType: LONG_MESSAGE,
-      fileName: `long-message-${messageTimestamp}.txt`,
-      data,
-      size: data.byteLength,
-    };
-    body = body.slice(0, LONG_ATTACHMENT_LIMIT);
+  if (body && isBodyTooLong(body)) {
+    body = trimBody(body);
   }
 
   const uploadQueue = new PQueue({
     concurrency: MAX_CONCURRENT_ATTACHMENT_UPLOADS,
   });
 
+  const preUploadAttachments =
+    getPropForTimestamp({
+      log,
+      message: message.attributes,
+      prop: 'attachments',
+      targetTimestamp,
+    }) || [];
   const [
     uploadedAttachments,
     maybeUploadedLongAttachment,
@@ -539,24 +627,45 @@ async function getMessageSendData({
     storyMessage,
   ] = await Promise.all([
     uploadQueue.addAll(
-      (message.get('attachments') ?? []).map(
-        attachment => () => uploadSingleAttachment(message, attachment)
+      preUploadAttachments.map(
+        attachment => () =>
+          uploadSingleAttachment({
+            attachment,
+            log,
+            message,
+            targetTimestamp,
+          })
       )
     ),
     uploadQueue.add(async () =>
-      maybeLongAttachment ? uploadAttachment(maybeLongAttachment) : undefined
+      maybeLongAttachment
+        ? uploadLongMessageAttachment({
+            attachment: maybeLongAttachment,
+            log,
+            message,
+            targetTimestamp,
+          })
+        : undefined
     ),
     uploadMessageContacts(message, uploadQueue),
-    uploadMessagePreviews(message, uploadQueue),
-    uploadMessageQuote(message, uploadQueue),
+    uploadMessagePreviews({
+      log,
+      message,
+      targetTimestamp,
+      uploadQueue,
+    }),
+    uploadMessageQuote({
+      log,
+      message,
+      targetTimestamp,
+      uploadQueue,
+    }),
     uploadMessageSticker(message, uploadQueue),
     storyId ? getMessageById(storyId) : undefined,
   ]);
 
   // Save message after uploading attachments
-  await window.Signal.Data.saveMessage(message.attributes, {
-    ourAci: window.textsecure.storage.user.getCheckedAci(),
-  });
+  await window.MessageCache.saveMessage(message.attributes);
 
   const storyReaction = message.get('storyReaction');
   const storySourceServiceId = storyMessage?.get('sourceServiceId');
@@ -581,9 +690,12 @@ async function getMessageSendData({
     contact,
     deletedForEveryoneTimestamp: message.get('deletedForEveryoneTimestamp'),
     expireTimer: message.get('expireTimer'),
-    // TODO: we want filtration here if feature flag doesn't allow format/spoiler sends
-    bodyRanges: message.get('bodyRanges'),
-    messageTimestamp,
+    bodyRanges: getPropForTimestamp({
+      log,
+      message: message.attributes,
+      prop: 'bodyRanges',
+      targetTimestamp,
+    }),
     preview,
     quote,
     reaction: reactionForSend,
@@ -603,18 +715,30 @@ async function getMessageSendData({
   };
 }
 
-async function uploadSingleAttachment(
-  message: MessageModel,
-  attachment: AttachmentType
-): Promise<UploadedAttachmentType> {
+async function uploadSingleAttachment({
+  attachment,
+  log,
+  message,
+  targetTimestamp,
+}: {
+  attachment: AttachmentType;
+  log: LoggerType;
+  message: MessageModel;
+  targetTimestamp: number;
+}): Promise<UploadedAttachmentType> {
   const { loadAttachmentData } = window.Signal.Migrations;
 
   const withData = await loadAttachmentData(attachment);
   const uploaded = await uploadAttachment(withData);
 
   // Add digest to the attachment
-  const logId = `uploadSingleAttachment(${message.idForLogging()}`;
-  const oldAttachments = message.get('attachments');
+  const logId = `uploadSingleAttachment(${getMessageIdForLogging(message.attributes)}`;
+  const oldAttachments = getPropForTimestamp({
+    log,
+    message: message.attributes,
+    prop: 'attachments',
+    targetTimestamp,
+  });
   strictAssert(
     oldAttachments !== undefined,
     `${logId}: Attachment was uploaded, but message doesn't ` +
@@ -628,26 +752,95 @@ async function uploadSingleAttachment(
   );
 
   const newAttachments = [...oldAttachments];
-  newAttachments[index].digest = Bytes.toBase64(uploaded.digest);
+  newAttachments[index] = {
+    ...newAttachments[index],
+    ...copyCdnFields(uploaded),
+  };
 
-  message.set('attachments', newAttachments);
+  const attributesToUpdate = getChangesForPropAtTimestamp({
+    log,
+    message: message.attributes,
+    prop: 'attachments',
+    targetTimestamp,
+    value: newAttachments,
+  });
+  if (attributesToUpdate) {
+    message.set(attributesToUpdate);
+  }
 
   return uploaded;
 }
 
-async function uploadMessageQuote(
-  message: MessageModel,
-  uploadQueue: PQueue
-): Promise<OutgoingQuoteType | undefined> {
+async function uploadLongMessageAttachment({
+  attachment,
+  log,
+  message,
+  targetTimestamp,
+}: {
+  attachment: AttachmentType;
+  log: LoggerType;
+  message: MessageModel;
+  targetTimestamp: number;
+}): Promise<UploadedAttachmentType> {
+  const { loadAttachmentData } = window.Signal.Migrations;
+
+  const withData = await loadAttachmentData(attachment);
+  const uploaded = await uploadAttachment(withData);
+
+  // Add digest to the attachment
+  const logId = `uploadLongMessageAttachment(${getMessageIdForLogging(message.attributes)}`;
+  const oldAttachment = getPropForTimestamp({
+    log,
+    message: message.attributes,
+    prop: 'bodyAttachment',
+    targetTimestamp,
+  });
+  strictAssert(
+    oldAttachment !== undefined,
+    `${logId}: Attachment was uploaded, but message doesn't ` +
+      'have long message attachment anymore'
+  );
+
+  const newBodyAttachment = { ...oldAttachment, ...copyCdnFields(uploaded) };
+
+  const attributesToUpdate = getChangesForPropAtTimestamp({
+    log,
+    message: message.attributes,
+    prop: 'bodyAttachment',
+    targetTimestamp,
+    value: newBodyAttachment,
+  });
+  if (attributesToUpdate) {
+    message.set(attributesToUpdate);
+  }
+
+  return uploaded;
+}
+
+async function uploadMessageQuote({
+  log,
+  message,
+  targetTimestamp,
+  uploadQueue,
+}: {
+  log: LoggerType;
+  message: MessageModel;
+  targetTimestamp: number;
+  uploadQueue: PQueue;
+}): Promise<OutgoingQuoteType | undefined> {
   const { loadQuoteData } = window.Signal.Migrations;
 
   // We don't update the caches here because (1) we expect the caches to be populated
   //   on initial send, so they should be there in the 99% case (2) if you're retrying
   //   a failed message across restarts, we don't touch the cache for simplicity. If
   //   sends are failing, let's not add the complication of a cache.
-  const loadedQuote =
-    message.cachedOutgoingQuoteData ||
-    (await loadQuoteData(message.get('quote')));
+  const startingQuote = getPropForTimestamp({
+    log,
+    message: message.attributes,
+    prop: 'quote',
+    targetTimestamp,
+  });
+  const loadedQuote = await loadQuoteData(startingQuote);
 
   if (!loadedQuote) {
     return undefined;
@@ -657,16 +850,20 @@ async function uploadMessageQuote(
     loadedQuote.attachments.map(
       attachment => async (): Promise<OutgoingQuoteAttachmentType> => {
         const { thumbnail } = attachment;
-        if (!thumbnail) {
+        if (!thumbnail || !thumbnail.data) {
           return {
             contentType: attachment.contentType,
+            fileName: attachment.fileName,
           };
         }
 
-        const uploaded = await uploadAttachment(thumbnail);
+        const uploaded = await uploadAttachment({
+          ...thumbnail,
+          data: thumbnail.data,
+        });
 
         return {
-          contentType: MIMETypeToString(thumbnail.contentType),
+          contentType: attachment.contentType,
           fileName: attachment.fileName,
           thumbnail: uploaded,
         };
@@ -675,8 +872,13 @@ async function uploadMessageQuote(
   );
 
   // Update message with attachment digests
-  const logId = `uploadMessageQuote(${message.idForLogging()}`;
-  const oldQuote = message.get('quote');
+  const logId = `uploadMessageQuote(${getMessageIdForLogging(message.attributes)}`;
+  const oldQuote = getPropForTimestamp({
+    log,
+    message: message.attributes,
+    prop: 'quote',
+    targetTimestamp,
+  });
   strictAssert(oldQuote, `${logId}: Quote is gone after upload`);
 
   const newQuote = {
@@ -687,34 +889,36 @@ async function uploadMessageQuote(
       }
 
       strictAssert(
-        attachment.path === loadedQuote.attachments.at(index)?.path,
+        attachment.thumbnail.path ===
+          loadedQuote.attachments.at(index)?.thumbnail?.path,
         `${logId}: Quote attachment ${index} was updated from under us`
-      );
-
-      strictAssert(
-        attachment.thumbnail,
-        `${logId}: Quote attachment ${index} no longer has a thumbnail`
       );
 
       const attachmentAfterThumbnailUpload =
         attachmentsAfterThumbnailUpload[index];
-      const digest = attachmentAfterThumbnailUpload.thumbnail
-        ? Bytes.toBase64(attachmentAfterThumbnailUpload.thumbnail.digest)
-        : undefined;
       return {
         ...attachment,
         thumbnail: {
           ...attachment.thumbnail,
-          digest,
+          ...copyCdnFields(attachmentAfterThumbnailUpload.thumbnail),
         },
       };
     }),
   };
-  message.set('quote', newQuote);
+  const attributesToUpdate = getChangesForPropAtTimestamp({
+    log,
+    message: message.attributes,
+    prop: 'quote',
+    targetTimestamp,
+    value: newQuote,
+  });
+  if (attributesToUpdate) {
+    message.set(attributesToUpdate);
+  }
 
   return {
     isGiftBadge: loadedQuote.isGiftBadge,
-    id: loadedQuote.id,
+    id: loadedQuote.id ?? undefined,
     authorAci: loadedQuote.authorAci
       ? normalizeAci(loadedQuote.authorAci, 'sendNormalMessage.quote.authorAci')
       : undefined,
@@ -724,17 +928,29 @@ async function uploadMessageQuote(
   };
 }
 
-async function uploadMessagePreviews(
-  message: MessageModel,
-  uploadQueue: PQueue
-): Promise<Array<OutgoingLinkPreviewType> | undefined> {
+async function uploadMessagePreviews({
+  log,
+  message,
+  targetTimestamp,
+  uploadQueue,
+}: {
+  log: LoggerType;
+  message: MessageModel;
+  targetTimestamp: number;
+  uploadQueue: PQueue;
+}): Promise<Array<OutgoingLinkPreviewType> | undefined> {
   const { loadPreviewData } = window.Signal.Migrations;
 
   // See uploadMessageQuote for comment on how we do caching for these
   // attachments.
-  const loadedPreviews =
-    message.cachedOutgoingPreviewData ||
-    (await loadPreviewData(message.get('preview')));
+  const startingPreview = getPropForTimestamp({
+    log,
+    message: message.attributes,
+    prop: 'preview',
+    targetTimestamp,
+  });
+
+  const loadedPreviews = await loadPreviewData(startingPreview);
 
   if (!loadedPreviews) {
     return undefined;
@@ -764,8 +980,13 @@ async function uploadMessagePreviews(
   );
 
   // Update message with attachment digests
-  const logId = `uploadMessagePreviews(${message.idForLogging()}`;
-  const oldPreview = message.get('preview');
+  const logId = `uploadMessagePreviews(${getMessageIdForLogging(message.attributes)}`;
+  const oldPreview = getPropForTimestamp({
+    log,
+    message: message.attributes,
+    prop: 'preview',
+    targetTimestamp,
+  });
   strictAssert(oldPreview, `${logId}: Link preview is gone after upload`);
 
   const newPreview = oldPreview.map((preview, index) => {
@@ -783,11 +1004,21 @@ async function uploadMessagePreviews(
       ...preview,
       image: {
         ...preview.image,
-        digest: Bytes.toBase64(uploaded.image.digest),
+        ...copyCdnFields(uploaded.image),
       },
     };
   });
-  message.set('preview', newPreview);
+
+  const attributesToUpdate = getChangesForPropAtTimestamp({
+    log,
+    message: message.attributes,
+    prop: 'preview',
+    targetTimestamp,
+    value: newPreview,
+  });
+  if (attributesToUpdate) {
+    message.set(attributesToUpdate);
+  }
 
   return uploadedPreviews;
 }
@@ -801,9 +1032,7 @@ async function uploadMessageSticker(
   // See uploadMessageQuote for comment on how we do caching for these
   // attachments.
   const startingSticker = message.get('sticker');
-  const stickerWithData =
-    message.cachedOutgoingStickerData ||
-    (await loadStickerData(startingSticker));
+  const stickerWithData = await loadStickerData(startingSticker);
 
   if (!stickerWithData) {
     return undefined;
@@ -814,7 +1043,7 @@ async function uploadMessageSticker(
   );
 
   // Add digest to the attachment
-  const logId = `uploadMessageSticker(${message.idForLogging()}`;
+  const logId = `uploadMessageSticker(${getMessageIdForLogging(message.attributes)}`;
   const existingSticker = message.get('sticker');
   strictAssert(
     existingSticker?.data !== undefined,
@@ -825,11 +1054,13 @@ async function uploadMessageSticker(
     existingSticker.data.path === startingSticker?.data?.path,
     `${logId}: Sticker was uploaded, but message has a different sticker`
   );
-  message.set('sticker', {
-    ...existingSticker,
-    data: {
-      ...existingSticker.data,
-      digest: Bytes.toBase64(uploaded.digest),
+  message.set({
+    sticker: {
+      ...existingSticker,
+      data: {
+        ...existingSticker.data,
+        ...copyCdnFields(uploaded),
+      },
     },
   });
 
@@ -847,9 +1078,7 @@ async function uploadMessageContacts(
 
   // See uploadMessageQuote for comment on how we do caching for these
   // attachments.
-  const contacts =
-    message.cachedOutgoingContactData ||
-    (await loadContactData(message.get('contact')));
+  const contacts = await loadContactData(message.get('contact'));
 
   if (!contacts) {
     return undefined;
@@ -884,13 +1113,12 @@ async function uploadMessageContacts(
   );
 
   // Add digest to the attachment
-  const logId = `uploadMessageContacts(${message.idForLogging()}`;
+  const logId = `uploadMessageContacts(${getMessageIdForLogging(message.attributes)}`;
   const oldContact = message.get('contact');
   strictAssert(oldContact, `${logId}: Contacts are gone after upload`);
 
   const newContact = oldContact.map((contact, index) => {
-    const loaded: EmbeddedContactWithHydratedAvatar | undefined =
-      contacts.at(index);
+    const loaded = contacts.at(index);
     if (!contact.avatar) {
       strictAssert(
         loaded?.avatar === undefined,
@@ -917,30 +1145,47 @@ async function uploadMessageContacts(
         ...contact.avatar,
         avatar: {
           ...contact.avatar.avatar,
-          digest: Bytes.toBase64(uploaded.avatar.avatar.digest),
+          ...copyCdnFields(uploaded.avatar.avatar),
         },
       },
     };
   });
-  message.set('contact', newContact);
+  message.set({ contact: newContact });
 
   return uploadedContacts;
 }
 
-async function markMessageFailed(
-  message: MessageModel,
-  errors: Array<Error>
-): Promise<void> {
-  message.markFailed();
-  void message.saveErrors(errors, { skipSave: true });
-  await window.Signal.Data.saveMessage(message.attributes, {
-    ourAci: window.textsecure.storage.user.getCheckedAci(),
+async function markMessageFailed({
+  errors,
+  message,
+  targetTimestamp,
+}: {
+  errors: Array<Error>;
+  message: MessageModel;
+  targetTimestamp: number;
+}): Promise<void> {
+  markFailed(message, targetTimestamp);
+  await saveErrorsOnMessage(message, errors, {
+    skipSave: false,
   });
 }
 
-function didSendToEveryone(message: Readonly<MessageModel>): boolean {
+function didSendToEveryone({
+  log,
+  message,
+  targetTimestamp,
+}: {
+  log: LoggerType;
+  message: MessageModel;
+  targetTimestamp: number;
+}): boolean {
   const sendStateByConversationId =
-    message.get('sendStateByConversationId') || {};
+    getPropForTimestamp({
+      log,
+      message: message.attributes,
+      prop: 'sendStateByConversationId',
+      targetTimestamp,
+    }) || {};
   return Object.values(sendStateByConversationId).every(sendState =>
     isSent(sendState.status)
   );

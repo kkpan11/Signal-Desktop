@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import { blobToArrayBuffer } from 'blob-util';
+import { v4 as generateUuid } from 'uuid';
 
-import * as log from '../logging/log';
 import { makeVideoScreenshot } from '../types/VisualAttachment';
 import { IMAGE_PNG, stringToMIMEType } from '../types/MIME';
 import type { InMemoryAttachmentDraftType } from '../types/Attachment';
@@ -11,7 +11,7 @@ import { fileToBytes } from './fileToBytes';
 
 export async function handleVideoAttachment(
   file: File,
-  options?: { generateScreenshot: boolean }
+  options?: { generateScreenshot: boolean; flags: number | null }
 ): Promise<InMemoryAttachmentDraftType> {
   const objectUrl = URL.createObjectURL(file);
   if (!objectUrl) {
@@ -21,6 +21,7 @@ export async function handleVideoAttachment(
     const data = await fileToBytes(file);
     const attachment: InMemoryAttachmentDraftType = {
       contentType: stringToMIMEType(file.type),
+      clientUuid: generateUuid(),
       data,
       fileName: file.name,
       path: file.name,
@@ -34,12 +35,15 @@ export async function handleVideoAttachment(
       const screenshotBlob = await makeVideoScreenshot({
         objectUrl,
         contentType: screenshotContentType,
-        logger: log,
       });
       attachment.screenshotData = new Uint8Array(
         await blobToArrayBuffer(screenshotBlob)
       );
       attachment.screenshotContentType = screenshotContentType;
+    }
+
+    if (options?.flags != null) {
+      attachment.flags = options.flags;
     }
 
     return attachment;

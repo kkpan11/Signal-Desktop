@@ -8,7 +8,6 @@ import {
   SystemTraySetting,
 } from '../ts/types/SystemTraySetting';
 import { isSystemTraySupported } from '../ts/types/Settings';
-import type { MainSQL } from '../ts/sql/main';
 import type { ConfigType } from './base_config';
 
 /**
@@ -16,31 +15,28 @@ import type { ConfigType } from './base_config';
  * process.
  */
 export class SystemTraySettingCache {
-  private cachedValue: undefined | SystemTraySetting;
-
-  private getPromise: undefined | Promise<SystemTraySetting>;
+  #cachedValue: undefined | SystemTraySetting;
+  #getPromise: undefined | Promise<SystemTraySetting>;
 
   constructor(
-    private readonly sql: Pick<MainSQL, 'sqlCall'>,
     private readonly ephemeralConfig: Pick<ConfigType, 'get' | 'set'>,
-    private readonly argv: Array<string>,
-    private readonly appVersion: string
+    private readonly argv: Array<string>
   ) {}
 
   async get(): Promise<SystemTraySetting> {
-    if (this.cachedValue !== undefined) {
-      return this.cachedValue;
+    if (this.#cachedValue !== undefined) {
+      return this.#cachedValue;
     }
 
-    this.getPromise = this.getPromise || this.doFirstGet();
-    return this.getPromise;
+    this.#getPromise = this.#getPromise || this.#doFirstGet();
+    return this.#getPromise;
   }
 
   set(value: SystemTraySetting): void {
-    this.cachedValue = value;
+    this.#cachedValue = value;
   }
 
-  private async doFirstGet(): Promise<SystemTraySetting> {
+  async #doFirstGet(): Promise<SystemTraySetting> {
     let result: SystemTraySetting;
 
     // These command line flags are not officially supported, but many users rely on them.
@@ -55,15 +51,11 @@ export class SystemTraySettingCache {
       log.info(
         `getSystemTraySetting saw --use-tray-icon flag. Returning ${result}`
       );
-    } else if (isSystemTraySupported(OS, this.appVersion)) {
-      const fastValue = this.ephemeralConfig.get('system-tray-setting');
-      if (fastValue !== undefined) {
-        log.info('getSystemTraySetting got fast value', fastValue);
+    } else if (isSystemTraySupported(OS)) {
+      const value = this.ephemeralConfig.get('system-tray-setting');
+      if (value !== undefined) {
+        log.info('getSystemTraySetting got value', value);
       }
-
-      const value =
-        fastValue ??
-        (await this.sql.sqlCall('getItemById', 'system-tray-setting'))?.value;
 
       if (value !== undefined) {
         result = parseSystemTraySetting(value);
@@ -73,7 +65,7 @@ export class SystemTraySettingCache {
         log.info(`getSystemTraySetting got no value, returning ${result}`);
       }
 
-      if (result !== fastValue) {
+      if (result !== value) {
         this.ephemeralConfig.set('system-tray-setting', result);
       }
     } else {
@@ -83,15 +75,15 @@ export class SystemTraySettingCache {
       );
     }
 
-    return this.updateCachedValue(result);
+    return this.#updateCachedValue(result);
   }
 
-  private updateCachedValue(value: SystemTraySetting): SystemTraySetting {
+  #updateCachedValue(value: SystemTraySetting): SystemTraySetting {
     // If there's a value in the cache, someone has updated the value "out from under us",
     //   so we should return that because it's newer.
-    this.cachedValue =
-      this.cachedValue === undefined ? value : this.cachedValue;
+    this.#cachedValue =
+      this.#cachedValue === undefined ? value : this.#cachedValue;
 
-    return this.cachedValue;
+    return this.#cachedValue;
   }
 }

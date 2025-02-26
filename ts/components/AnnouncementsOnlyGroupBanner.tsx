@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, { useState } from 'react';
+import { noop } from 'lodash';
 import type {
   ConversationType,
   ShowConversationType,
 } from '../state/ducks/conversations';
-import { Intl } from './Intl';
+import { I18n } from './I18n';
 import type { LocalizerType, ThemeType } from '../types/Util';
 import { Modal } from './Modal';
 import { ConversationListItem } from './conversationList/ConversationListItem';
@@ -45,13 +46,14 @@ export function AnnouncementsOnlyGroupBanner({
               onClick={() => {
                 showConversation({ conversationId: admin.id });
               }}
+              onMouseDown={noop}
               theme={theme}
             />
           ))}
         </Modal>
       )}
       <div className="AnnouncementsOnlyGroupBanner__banner">
-        <Intl
+        <I18n
           i18n={i18n}
           id="icu:AnnouncementsOnlyGroupBanner--announcements-only"
           components={{

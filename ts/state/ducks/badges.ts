@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import type { ThunkAction } from 'redux-thunk';
-import { mapValues } from 'lodash';
+import { isEqual, mapValues } from 'lodash';
 import type { ReadonlyDeep } from 'type-fest';
+import { DataWriter } from '../../sql/Client';
 import type { StateType as RootStateType } from '../reducer';
 import type { BadgeType, BadgeImageType } from '../../badges/types';
 import { getOwn } from '../../util/getOwn';
@@ -70,7 +71,7 @@ function updateOrCreate(
     //   check (e.g., due to a crash), we won't download its image files. In the unlikely
     //   event that this happens, we'll repair it the next time we check for undownloaded
     //   image files.
-    await window.Signal.Data.updateOrCreateBadges(badges);
+    await DataWriter.updateOrCreateBadges(badges);
 
     dispatch({
       type: UPDATE_OR_CREATE,
@@ -147,6 +148,9 @@ export function reducer(
         }
       });
 
+      if (isEqual(state.byId, newById)) {
+        return state;
+      }
       return {
         ...state,
         byId: newById,

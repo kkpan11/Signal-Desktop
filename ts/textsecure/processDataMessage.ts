@@ -31,6 +31,10 @@ import { PaymentEventKind } from '../types/Payment';
 import { filterAndClean } from '../types/BodyRange';
 import { isAciString } from '../util/isAciString';
 import { normalizeAci } from '../util/normalizeAci';
+import { bytesToUuid } from '../util/uuidToBytes';
+import { createName } from '../util/attachmentPath';
+import { partitionBodyAndNormalAttachments } from '../types/Attachment';
+import { isNotNil } from '../util/isNotNil';
 
 const FLAGS = Proto.DataMessage.Flags;
 export const ATTACHMENT_MAX = 32;
@@ -52,7 +56,8 @@ export function processAttachment(
   const { cdnId } = attachment;
   const hasCdnId = Long.isLong(cdnId) ? !cdnId.isZero() : Boolean(cdnId);
 
-  const { contentType, digest, key, size } = attachment;
+  const { clientUuid, contentType, digest, incrementalMac, key, size } =
+    attachment;
   if (!isNumber(size)) {
     throw new Error('Missing size on incoming attachment!');
   }
@@ -61,11 +66,17 @@ export function processAttachment(
     ...shallowDropNull(attachment),
 
     cdnId: hasCdnId ? String(cdnId) : undefined,
+    clientUuid: Bytes.isNotEmpty(clientUuid)
+      ? bytesToUuid(clientUuid)
+      : undefined,
     contentType: contentType
       ? stringToMIMEType(contentType)
       : APPLICATION_OCTET_STREAM,
-    digest: digest ? Bytes.toBase64(digest) : undefined,
-    key: key ? Bytes.toBase64(key) : undefined,
+    digest: Bytes.isNotEmpty(digest) ? Bytes.toBase64(digest) : undefined,
+    incrementalMac: Bytes.isNotEmpty(incrementalMac)
+      ? Bytes.toBase64(incrementalMac)
+      : undefined,
+    key: Bytes.isNotEmpty(key) ? Bytes.toBase64(key) : undefined,
     size,
   };
 }
@@ -142,7 +153,9 @@ export function processQuote(
     text: dropNull(quote.text),
     attachments: (quote.attachments ?? []).map(attachment => {
       return {
-        contentType: dropNull(attachment.contentType),
+        contentType: attachment.contentType
+          ? stringToMIMEType(attachment.contentType)
+          : APPLICATION_OCTET_STREAM,
         fileName: dropNull(attachment.fileName),
         thumbnail: processAttachment(attachment.thumbnail),
       };
@@ -187,7 +200,7 @@ function cleanLinkPreviewDate(value?: Long | null): number | undefined {
 }
 
 export function processPreview(
-  preview?: ReadonlyArray<Proto.DataMessage.IPreview> | null
+  preview?: ReadonlyArray<Proto.IPreview> | null
 ): ReadonlyArray<ProcessedPreview> | undefined {
   if (!preview) {
     return undefined;
@@ -236,7 +249,7 @@ export function processReaction(
     emoji: dropNull(reaction.emoji),
     remove: Boolean(reaction.remove),
     targetAuthorAci: normalizeAci(targetAuthorAci, 'Reaction.targetAuthorAci'),
-    targetTimestamp: reaction.targetTimestamp?.toNumber(),
+    targetTimestamp: reaction.targetSentTimestamp?.toNumber(),
   };
 }
 
@@ -280,7 +293,10 @@ export function processGiftBadge(
 
 export function processDataMessage(
   message: Proto.IDataMessage,
-  envelopeTimestamp: number
+  envelopeTimestamp: number,
+
+  // Only for testing
+  { _createName: doCreateName = createName } = {}
 ): ProcessedDataMessage {
   /* eslint-disable no-bitwise */
 
@@ -302,14 +318,26 @@ export function processDataMessage(
     );
   }
 
+  const processedAttachments = message.attachments
+    ?.map((attachment: Proto.IAttachmentPointer) => ({
+      ...processAttachment(attachment),
+      downloadPath: doCreateName(),
+    }))
+    .filter(isNotNil);
+
+  const { bodyAttachment, attachments } = partitionBodyAndNormalAttachments(
+    { attachments: processedAttachments ?? [] },
+    { logId: `processDataMessage(${timestamp})` }
+  );
+
   const result: ProcessedDataMessage = {
     body: dropNull(message.body),
-    attachments: (message.attachments ?? []).map(
-      (attachment: Proto.IAttachmentPointer) => processAttachment(attachment)
-    ),
+    bodyAttachment,
+    attachments,
     groupV2: processGroupV2Context(message.groupV2),
     flags: message.flags ?? 0,
     expireTimer: DurationInSeconds.fromSeconds(message.expireTimer ?? 0),
+    expireTimerVersion: message.expireTimerVersion ?? 0,
     profileKey:
       message.profileKey && message.profileKey.length > 0
         ? Bytes.toBase64(message.profileKey)

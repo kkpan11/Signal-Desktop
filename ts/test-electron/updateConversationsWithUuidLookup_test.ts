@@ -6,6 +6,7 @@
 import { assert } from 'chai';
 import { v4 as generateUuid } from 'uuid';
 import sinon from 'sinon';
+import { DataWriter } from '../sql/Client';
 import { ConversationModel } from '../models/conversations';
 import type { ConversationAttributesType } from '../model-types.d';
 import type { WebAPIType } from '../textsecure/WebAPI';
@@ -138,6 +139,7 @@ describe('updateConversationsWithUuidLookup', () => {
       sentMessageCount: 0,
       type: 'private' as const,
       version: 0,
+      expireTimerVersion: 2,
       ...attributes,
     });
   }
@@ -151,9 +153,11 @@ describe('updateConversationsWithUuidLookup', () => {
   beforeEach(() => {
     sinonSandbox = sinon.createSandbox();
 
-    sinonSandbox.stub(window.Signal.Data, 'updateConversation');
+    sinonSandbox.stub(DataWriter, 'updateConversation');
 
-    fakeCdsLookup = sinonSandbox.stub().resolves(new Map());
+    fakeCdsLookup = sinonSandbox.stub().resolves({
+      entries: new Map(),
+    });
     fakeCheckAccountExistence = sinonSandbox.stub().resolves(false);
     fakeServer = {
       cdsLookup: fakeCdsLookup,
@@ -198,12 +202,12 @@ describe('updateConversationsWithUuidLookup', () => {
     const aci1 = generateAci();
     const aci2 = generateAci();
 
-    fakeCdsLookup.resolves(
-      new Map([
+    fakeCdsLookup.resolves({
+      entries: new Map([
         ['+13215559876', { aci: aci1, pni: undefined }],
         ['+16545559876', { aci: aci2, pni: undefined }],
-      ])
-    );
+      ]),
+    });
 
     await updateConversationsWithUuidLookup({
       conversationController: new FakeConversationController([

@@ -1,7 +1,9 @@
 // Copyright 2018 Signal Messenger, LLC
 // SPDX-License-Identifier: AGPL-3.0-only
+import { z } from 'zod';
 
-export type MIMEType = string & { _mimeTypeBrand: never };
+export const MIMETypeSchema = z.string().brand('mimeType');
+export type MIMEType = z.infer<typeof MIMETypeSchema>;
 
 export const stringToMIMEType = (value: string): MIMEType => {
   return value as MIMEType;
@@ -30,8 +32,8 @@ export const TEXT_ATTACHMENT = stringToMIMEType('text/x-signal-story');
 export const isHeic = (value: string, fileName: string): boolean =>
   value === 'image/heic' ||
   value === 'image/heif' ||
-  fileName.endsWith('.heic') ||
-  fileName.endsWith('.heif');
+  fileName.toLowerCase().endsWith('.heic') ||
+  fileName.toLowerCase().endsWith('.heif');
 export const isGif = (value: string): value is MIMEType =>
   value === 'image/gif';
 export const isJPEG = (value: string): value is MIMEType =>
@@ -44,5 +46,8 @@ export const isVideo = (value: string): value is MIMEType =>
 // recognize them as file attachments.
 export const isAudio = (value: string): value is MIMEType =>
   Boolean(value) && value.startsWith('audio/') && !value.endsWith('aiff');
-export const isLongMessage = (value: unknown): value is MIMEType =>
+export const isLongMessage = (value: string): value is MIMEType =>
   value === LONG_MESSAGE;
+export const supportsIncrementalMac = (value: string): boolean => {
+  return value === VIDEO_MP4;
+};

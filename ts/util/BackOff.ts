@@ -3,6 +3,8 @@
 
 const SECOND = 1000;
 
+export const FIBONACCI: ReadonlyArray<number> = [1, 2, 3, 5, 8, 13, 21, 34, 55];
+
 export const FIBONACCI_TIMEOUTS: ReadonlyArray<number> = [
   1 * SECOND,
   2 * SECOND,
@@ -15,6 +17,17 @@ export const FIBONACCI_TIMEOUTS: ReadonlyArray<number> = [
   55 * SECOND,
 ];
 
+export const EXTENDED_FIBONACCI_TIMEOUTS: ReadonlyArray<number> = [
+  ...FIBONACCI_TIMEOUTS,
+  89 * SECOND,
+  144 * SECOND,
+  233 * SECOND,
+  377 * SECOND,
+  610 * SECOND,
+  987 * SECOND,
+  1597 * SECOND, // ~26 minutes
+];
+
 export type BackOffOptionsType = Readonly<{
   jitter?: number;
 
@@ -25,15 +38,15 @@ export type BackOffOptionsType = Readonly<{
 const DEFAULT_RANDOM = () => Math.random();
 
 export class BackOff {
-  private count = 0;
+  #count = 0;
 
   constructor(
-    private readonly timeouts: ReadonlyArray<number>,
+    private timeouts: ReadonlyArray<number>,
     private readonly options: BackOffOptionsType = {}
   ) {}
 
   public get(): number {
-    let result = this.timeouts[this.count];
+    let result = this.timeouts[this.#count];
     const { jitter = 0, random = DEFAULT_RANDOM } = this.options;
 
     // Do not apply jitter larger than the timeout value. It is supposed to be
@@ -47,21 +60,24 @@ export class BackOff {
   public getAndIncrement(): number {
     const result = this.get();
     if (!this.isFull()) {
-      this.count += 1;
+      this.#count += 1;
     }
 
     return result;
   }
 
-  public reset(): void {
-    this.count = 0;
+  public reset(newTimeouts?: ReadonlyArray<number>): void {
+    if (newTimeouts !== undefined) {
+      this.timeouts = newTimeouts;
+    }
+    this.#count = 0;
   }
 
   public isFull(): boolean {
-    return this.count === this.timeouts.length - 1;
+    return this.#count === this.timeouts.length - 1;
   }
 
   public getIndex(): number {
-    return this.count;
+    return this.#count;
   }
 }

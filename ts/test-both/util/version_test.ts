@@ -6,8 +6,10 @@ import { useFakeTimers } from 'sinon';
 import * as semver from 'semver';
 
 import {
-  generateAlphaVersion,
+  generateTaggedVersion,
   isAlpha,
+  isAxolotl,
+  isNightly,
   isBeta,
   isProduction,
   isStaging,
@@ -57,6 +59,34 @@ describe('version utilities', () => {
     });
   });
 
+  describe('isAxolotl', () => {
+    it('returns false for non-axolotl version strings', () => {
+      assert.isFalse(isAxolotl('1.2.3'));
+      assert.isFalse(isAxolotl('1.2.3-staging.1'));
+      assert.isFalse(isAxolotl('1.2.3-beta'));
+      assert.isFalse(isAxolotl('1.2.3-beta.1'));
+      assert.isFalse(isAxolotl('1.2.3-rc.1'));
+    });
+
+    it('returns true for Axolotl version strings', () => {
+      assert.isTrue(isAxolotl('1.2.3-axolotl'));
+      assert.isTrue(isAxolotl('1.2.3-axolotl.1'));
+    });
+  });
+
+  describe('isNightly', () => {
+    it('returns false for non-nightly version strings', () => {
+      assert.isFalse(isNightly('1.2.3'));
+      assert.isFalse(isNightly('1.2.3-beta.1'));
+      assert.isFalse(isNightly('1.2.3-staging.1'));
+    });
+
+    it('returns true for nightly version strings', () => {
+      assert.isTrue(isNightly('1.2.3-alpha.1'));
+      assert.isTrue(isNightly('1.2.3-axolotl.1'));
+    });
+  });
+
   describe('isStaging', () => {
     it('returns false for non-staging version strings', () => {
       assert.isFalse(isStaging('1.2.3'));
@@ -73,71 +103,98 @@ describe('version utilities', () => {
     });
   });
 
-  describe('generateAlphaVersion', () => {
-    beforeEach(function beforeEach() {
+  describe('generateTaggedVersion', () => {
+    beforeEach(function (this: Mocha.Context) {
       // This isn't a hook.
-      // eslint-disable-next-line react-hooks/rules-of-hooks
       this.clock = useFakeTimers();
     });
 
-    afterEach(function afterEach() {
+    afterEach(function (this: Mocha.Context) {
       this.clock.restore();
     });
 
-    it('uses the current date and provided shortSha', function test() {
+    it('uses the current date and provided shortSha', function (this: Mocha.Context) {
       this.clock.setSystemTime(new Date('2021-07-23T01:22:55.692Z').getTime());
 
       const currentVersion = '5.12.0-beta.1';
       const shortSha = '07f0efc45';
 
       const expected = '5.12.0-alpha.20210723.01-07f0efc45';
-      const actual = generateAlphaVersion({ currentVersion, shortSha });
+      const actual = generateTaggedVersion({
+        release: 'alpha',
+        currentVersion,
+        shortSha,
+      });
 
       assert.strictEqual(expected, actual);
     });
 
-    it('same production version is semver.gt', function test() {
+    it('same production version is semver.gt', function (this: Mocha.Context) {
       const currentVersion = '5.12.0-beta.1';
       const shortSha = '07f0efc45';
 
       this.clock.setSystemTime(new Date('2021-07-23T01:22:55.692Z').getTime());
-      const actual = generateAlphaVersion({ currentVersion, shortSha });
+      const actual = generateTaggedVersion({
+        release: 'alpha',
+        currentVersion,
+        shortSha,
+      });
 
       assert.isTrue(semver.gt('5.12.0', actual));
     });
 
-    it('same beta version is semver.gt', function test() {
+    it('same beta version is semver.gt', function (this: Mocha.Context) {
       const currentVersion = '5.12.0-beta.1';
       const shortSha = '07f0efc45';
 
       this.clock.setSystemTime(new Date('2021-07-23T01:22:55.692Z').getTime());
-      const actual = generateAlphaVersion({ currentVersion, shortSha });
+      const actual = generateTaggedVersion({
+        release: 'alpha',
+        currentVersion,
+        shortSha,
+      });
 
       assert.isTrue(semver.gt(currentVersion, actual));
     });
 
-    it('build earlier same day is semver.lt', function test() {
+    it('build earlier same day is semver.lt', function (this: Mocha.Context) {
       const currentVersion = '5.12.0-beta.1';
       const shortSha = '07f0efc45';
 
       this.clock.setSystemTime(new Date('2021-07-23T00:22:55.692Z').getTime());
-      const actualEarlier = generateAlphaVersion({ currentVersion, shortSha });
+      const actualEarlier = generateTaggedVersion({
+        release: 'alpha',
+        currentVersion,
+        shortSha,
+      });
 
       this.clock.setSystemTime(new Date('2021-07-23T01:22:55.692Z').getTime());
-      const actualLater = generateAlphaVersion({ currentVersion, shortSha });
+      const actualLater = generateTaggedVersion({
+        release: 'alpha',
+        currentVersion,
+        shortSha,
+      });
 
       assert.isTrue(semver.lt(actualEarlier, actualLater));
     });
 
-    it('build previous day is semver.lt', function test() {
+    it('build previous day is semver.lt', function (this: Mocha.Context) {
       const currentVersion = '5.12.0-beta.1';
       const shortSha = '07f0efc45';
 
       this.clock.setSystemTime(new Date('2021-07-22T01:22:55.692Z').getTime());
-      const actualEarlier = generateAlphaVersion({ currentVersion, shortSha });
+      const actualEarlier = generateTaggedVersion({
+        release: 'alpha',
+        currentVersion,
+        shortSha,
+      });
 
       this.clock.setSystemTime(new Date('2021-07-23T01:22:55.692Z').getTime());
-      const actualLater = generateAlphaVersion({ currentVersion, shortSha });
+      const actualLater = generateTaggedVersion({
+        release: 'alpha',
+        currentVersion,
+        shortSha,
+      });
 
       assert.isTrue(semver.lt(actualEarlier, actualLater));
     });

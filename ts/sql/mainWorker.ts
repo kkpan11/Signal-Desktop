@@ -4,13 +4,14 @@
 import { parentPort } from 'worker_threads';
 
 import type { LoggerType } from '../types/Logging';
-import * as Errors from '../types/errors';
 import type {
   WrappedWorkerRequest,
   WrappedWorkerResponse,
   WrappedWorkerLogEntry,
 } from './main';
-import db from './Server';
+import type { WritableDB } from './Interface';
+import { initialize, DataReader, DataWriter, removeDB } from './Server';
+import { SqliteErrorKind, parseSqliteError } from './errors';
 
 if (!parentPort) {
   throw new Error('Must run as a worker thread');
@@ -19,11 +20,12 @@ if (!parentPort) {
 const port = parentPort;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function respond(seq: number, error: Error | undefined, response?: any) {
+function respond(seq: number, response?: any) {
   const wrappedResponse: WrappedWorkerResponse = {
     type: 'response',
     seq,
-    error: error === undefined ? undefined : Errors.toLogFormat(error),
+    error: undefined,
+    errorKind: undefined,
     response,
   };
   port.postMessage(wrappedResponse);
@@ -62,49 +64,123 @@ const logger: LoggerType = {
   },
 };
 
-port.on('message', async ({ seq, request }: WrappedWorkerRequest) => {
+let db: WritableDB | undefined;
+let isPrimary = false;
+let isRemoved = false;
+
+const onMessage = (
+  { seq, request }: WrappedWorkerRequest,
+  isRetrying = false
+): void => {
   try {
     if (request.type === 'init') {
-      await db.initialize({
+      isPrimary = request.isPrimary;
+      isRemoved = false;
+      db = initialize({
         ...request.options,
+        isPrimary,
         logger,
       });
 
-      respond(seq, undefined, undefined);
+      respond(seq, undefined);
       return;
     }
 
-    if (request.type === 'close') {
-      await db.close();
-
-      respond(seq, undefined, undefined);
+    // 'close' is sent on shutdown, but we already removed the database.
+    if (isRemoved && request.type === 'close') {
+      respond(seq, undefined);
       process.exit(0);
       return;
     }
 
+    // Removing database does not require active connection.
     if (request.type === 'removeDB') {
-      await db.removeDB();
+      try {
+        if (db) {
+          if (isPrimary) {
+            DataWriter.close(db);
+          } else {
+            DataReader.close(db);
+          }
+          db = undefined;
+        }
+      } catch (error) {
+        logger.error('Failed to close database before removal');
+      }
 
-      respond(seq, undefined, undefined);
+      if (isPrimary) {
+        removeDB();
+      }
+
+      isRemoved = true;
+
+      respond(seq, undefined);
       return;
     }
 
-    if (request.type === 'sqlCall') {
+    if (!db) {
+      throw new Error('Not initialized');
+    }
+
+    if (request.type === 'close') {
+      if (isPrimary) {
+        DataWriter.close(db);
+      } else {
+        DataReader.close(db);
+      }
+      db = undefined;
+
+      respond(seq, undefined);
+      process.exit(0);
+      return;
+    }
+
+    if (request.type === 'sqlCall:read' || request.type === 'sqlCall:write') {
+      const DataInterface =
+        request.type === 'sqlCall:read' ? DataReader : DataWriter;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const method = (db as any)[request.method];
+      const method = (DataInterface as any)[request.method];
       if (typeof method !== 'function') {
-        throw new Error(`Invalid sql method: ${method}`);
+        throw new Error(`Invalid sql method: ${request.method} ${method}`);
       }
 
       const start = performance.now();
-      const result = await method.apply(db, request.args);
+      const result = method(db, ...request.args);
       const end = performance.now();
 
-      respond(seq, undefined, { result, duration: end - start });
+      respond(seq, { result, duration: end - start });
     } else {
       throw new Error('Unexpected request type');
     }
   } catch (error) {
-    respond(seq, error, undefined);
+    const errorKind = parseSqliteError(error);
+
+    if (errorKind === SqliteErrorKind.Corrupted && db != null) {
+      const wasRecovered = DataWriter.runCorruptionChecks(db);
+      if (
+        wasRecovered &&
+        !isRetrying &&
+        // Don't retry 'init'/'close'/'removeDB' automatically and notify user
+        // about the database error (even on successful recovery).
+        (request.type === 'sqlCall:read' || request.type === 'sqlCall:write')
+      ) {
+        logger.error(`Retrying request: ${request.type}`);
+        return onMessage({ seq, request }, true);
+      }
+    }
+
+    const wrappedResponse: WrappedWorkerResponse = {
+      type: 'response',
+      seq,
+      error: {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+      },
+      errorKind,
+      response: undefined,
+    };
+    port.postMessage(wrappedResponse);
   }
-});
+};
+port.on('message', (message: WrappedWorkerRequest) => onMessage(message));

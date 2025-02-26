@@ -3,7 +3,7 @@
 
 const esbuild = require('esbuild');
 const path = require('path');
-const glob = require('glob');
+const fastGlob = require('fast-glob');
 
 const ROOT_DIR = path.join(__dirname, '..');
 const BUNDLES_DIR = 'bundles';
@@ -13,8 +13,9 @@ const isProd = process.argv.some(argv => argv === '-prod' || argv === '--prod');
 
 const nodeDefaults = {
   platform: 'node',
-  target: 'esnext',
-  sourcemap: isProd ? false : 'inline',
+  target: 'es2023',
+  // Disabled even in dev because the debugger is broken
+  sourcemap: false,
   // Otherwise React components get renamed
   // See: https://github.com/evanw/esbuild/issues/1147
   keepNames: true,
@@ -34,6 +35,7 @@ const bundleDefaults = {
     '@signalapp/libsignal-client/zkgroup',
     '@signalapp/ringrtc',
     '@signalapp/better-sqlite3',
+    '@indutny/mac-screen-share',
     'electron',
     'fs-xattr',
     'fsevents',
@@ -102,12 +104,15 @@ async function main() {
       ...nodeDefaults,
       format: 'cjs',
       mainFields: ['browser', 'main'],
-      entryPoints: glob
-        .sync('{app,ts}/**/*.{ts,tsx}', {
-          nodir: true,
-          root: ROOT_DIR,
-        })
-        .filter(file => !file.endsWith('.d.ts')),
+      entryPoints: [
+        'preload.wrapper.ts',
+        ...fastGlob
+          .sync('{app,ts}/**/*.{ts,tsx}', {
+            onlyFiles: true,
+            cwd: ROOT_DIR,
+          })
+          .filter(file => !file.endsWith('.d.ts')),
+      ],
       outdir: path.join(ROOT_DIR),
     },
     preloadConfig: {
@@ -131,6 +136,13 @@ async function sandboxedEnv() {
         path.join(ROOT_DIR, 'ts', 'windows', 'permissions', 'app.tsx'),
         path.join(ROOT_DIR, 'ts', 'windows', 'screenShare', 'app.tsx'),
         path.join(ROOT_DIR, 'ts', 'windows', 'settings', 'app.tsx'),
+        path.join(
+          ROOT_DIR,
+          'ts',
+          'windows',
+          'calling-tools',
+          'webrtc_internals.ts'
+        ),
       ],
     },
     preloadConfig: {
@@ -141,6 +153,7 @@ async function sandboxedEnv() {
         path.join(ROOT_DIR, 'ts', 'windows', 'debuglog', 'preload.ts'),
         path.join(ROOT_DIR, 'ts', 'windows', 'loading', 'preload.ts'),
         path.join(ROOT_DIR, 'ts', 'windows', 'permissions', 'preload.ts'),
+        path.join(ROOT_DIR, 'ts', 'windows', 'calling-tools', 'preload.ts'),
         path.join(ROOT_DIR, 'ts', 'windows', 'screenShare', 'preload.ts'),
         path.join(ROOT_DIR, 'ts', 'windows', 'settings', 'preload.ts'),
       ],

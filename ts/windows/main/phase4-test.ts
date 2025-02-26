@@ -17,5 +17,8 @@ if (config.ciMode) {
     `Importing CI infrastructure; enabled in config, mode: ${config.ciMode}`
   );
   const { getCI } = require('../../CI');
-  window.SignalCI = getCI(window.getTitle());
+  window.SignalCI = getCI({
+    deviceName: window.getTitle(),
+    forceUnprocessed: config.ciForceUnprocessed,
+  });
 }

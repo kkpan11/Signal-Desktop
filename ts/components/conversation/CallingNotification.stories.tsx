@@ -3,10 +3,16 @@
 
 import * as React from 'react';
 import { action } from '@storybook/addon-actions';
-
+import type { Meta } from '@storybook/react';
 import { setupI18n } from '../../util/setupI18n';
 import enMessages from '../../../_locales/en/messages.json';
-import { CallMode } from '../../types/Calling';
+import {
+  CallMode,
+  CallType,
+  CallDirection,
+  GroupCallStatus,
+  DirectCallStatus,
+} from '../../types/CallDisposition';
 import { generateAci } from '../../types/ServiceId';
 import { CallingNotification, type PropsType } from './CallingNotification';
 import {
@@ -14,21 +20,16 @@ import {
   getDefaultGroup,
 } from '../../test-both/helpers/getDefaultConversation';
 import type { CallStatus } from '../../types/CallDisposition';
-import {
-  CallType,
-  CallDirection,
-  GroupCallStatus,
-  DirectCallStatus,
-} from '../../types/CallDisposition';
 import type { ConversationType } from '../../state/ducks/conversations';
 
 const i18n = setupI18n('en', enMessages);
 
 export default {
   title: 'Components/Conversation/CallingNotification',
-};
+} satisfies Meta<PropsType>;
 
 const getCommonProps = (options: {
+  activeConversationId?: string;
   mode: CallMode;
   type?: CallType;
   direction?: CallDirection;
@@ -58,8 +59,10 @@ const getCommonProps = (options: {
     mode === CallMode.Group ? getDefaultGroup() : getDefaultConversation();
 
   return {
+    id: 'message-id',
     conversationId: conversation.id,
     i18n,
+    interactionMode: 'mouse',
     isNextItemCallingNotification: false,
     onOutgoingAudioCallInConversation: action(
       'onOutgoingAudioCallInConversation'
@@ -67,22 +70,27 @@ const getCommonProps = (options: {
     onOutgoingVideoCallInConversation: action(
       'onOutgoingVideoCallInConversation'
     ),
+    toggleDeleteMessagesModal: action('toggleDeleteMessagesModal'),
     returnToActiveCall: action('returnToActiveCall'),
     callHistory: {
       callId: '123',
       peerId: conversation.id,
       ringerId: callCreator?.serviceId ?? null,
+      startedById: null,
       mode,
       type,
       direction,
       timestamp: Date.now(),
       status,
+      endedTimestamp: null,
     },
     callCreator,
-    activeConversationId: null,
+    activeConversationId: options.activeConversationId ?? null,
     groupCallEnded,
     maxDevices,
     deviceCount,
+    isSelectMode: false,
+    isTargeted: false,
   };
 };
 
@@ -110,6 +118,42 @@ export function AcceptedIncomingAudioCall(): JSX.Element {
         deviceCount: 0,
         maxDevices: Infinity,
       })}
+    />
+  );
+}
+
+export function AcceptedIncomingAudioCallWithActiveCall(): JSX.Element {
+  return (
+    <CallingNotification
+      {...getCommonProps({
+        mode: CallMode.Direct,
+        type: CallType.Audio,
+        direction: CallDirection.Incoming,
+        status: DirectCallStatus.Accepted,
+        groupCallEnded: null,
+        deviceCount: 0,
+        maxDevices: Infinity,
+        activeConversationId: 'someOtherConversation',
+      })}
+    />
+  );
+}
+
+export function AcceptedIncomingAudioCallInCurrentCall(): JSX.Element {
+  const props = getCommonProps({
+    mode: CallMode.Direct,
+    type: CallType.Audio,
+    direction: CallDirection.Incoming,
+    status: DirectCallStatus.Accepted,
+    groupCallEnded: null,
+    deviceCount: 0,
+    maxDevices: Infinity,
+  });
+
+  return (
+    <CallingNotification
+      {...props}
+      activeConversationId={props.conversationId}
     />
   );
 }
@@ -256,10 +300,6 @@ export function TwoIncomingDirectCallsBackToBack(): JSX.Element {
   );
 }
 
-TwoIncomingDirectCallsBackToBack.story = {
-  name: 'Two incoming direct calls back-to-back',
-};
-
 export function TwoOutgoingDirectCallsBackToBack(): JSX.Element {
   return (
     <>
@@ -289,10 +329,6 @@ export function TwoOutgoingDirectCallsBackToBack(): JSX.Element {
     </>
   );
 }
-
-TwoOutgoingDirectCallsBackToBack.story = {
-  name: 'Two outgoing direct calls back-to-back',
-};
 
 export function GroupCallByUnknown(): JSX.Element {
   return (
@@ -362,10 +398,6 @@ export function GroupCallStartedBySomeoneWithALongName(): JSX.Element {
   );
 }
 
-GroupCallStartedBySomeoneWithALongName.story = {
-  name: 'Group call: started by someone with a long name',
-};
-
 export function GroupCallActiveCallFull(): JSX.Element {
   return (
     <CallingNotification
@@ -382,9 +414,41 @@ export function GroupCallActiveCallFull(): JSX.Element {
   );
 }
 
-GroupCallActiveCallFull.story = {
-  name: 'Group call: active, call full',
-};
+export function GroupCallActiveInAnotherCall(): JSX.Element {
+  return (
+    <CallingNotification
+      {...getCommonProps({
+        mode: CallMode.Group,
+        type: CallType.Group,
+        direction: CallDirection.Incoming,
+        status: GroupCallStatus.GenericGroupCall,
+        groupCallEnded: false,
+        deviceCount: 8,
+        maxDevices: 10,
+        activeConversationId: 'someOtherId',
+      })}
+    />
+  );
+}
+
+export function GroupCallActiveInCurrentCall(): JSX.Element {
+  const props = getCommonProps({
+    mode: CallMode.Group,
+    type: CallType.Group,
+    direction: CallDirection.Incoming,
+    status: GroupCallStatus.GenericGroupCall,
+    groupCallEnded: false,
+    deviceCount: 8,
+    maxDevices: 10,
+  });
+
+  return (
+    <CallingNotification
+      {...props}
+      activeConversationId={props.conversationId}
+    />
+  );
+}
 
 export function GroupCallEnded(): JSX.Element {
   return (
@@ -401,7 +465,3 @@ export function GroupCallEnded(): JSX.Element {
     />
   );
 }
-
-GroupCallEnded.story = {
-  name: 'Group call: ended',
-};

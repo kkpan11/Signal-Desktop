@@ -41,16 +41,16 @@ export class UpdateKeysListener {
     }
 
     clearTimeoutIfNecessary(this.timeout);
-    this.timeout = setTimeout(() => this.runWhenOnline(), waitTime);
+    this.timeout = setTimeout(() => this.#runWhenOnline(), waitTime);
   }
 
-  private scheduleNextUpdate(): void {
+  #scheduleNextUpdate(): void {
     const now = Date.now();
     const nextTime = now + UPDATE_INTERVAL;
     void window.textsecure.storage.put(UPDATE_TIME_STORAGE_KEY, nextTime);
   }
 
-  private async run(): Promise<void> {
+  async #run(): Promise<void> {
     log.info('UpdateKeysListener: Updating keys...');
     try {
       const accountManager = window.getAccountManager();
@@ -79,7 +79,7 @@ export class UpdateKeysListener {
         }
       }
 
-      this.scheduleNextUpdate();
+      this.#scheduleNextUpdate();
       this.setTimeoutForNextRun();
     } catch (error) {
       const errorString =
@@ -93,18 +93,18 @@ export class UpdateKeysListener {
     }
   }
 
-  private runWhenOnline() {
-    if (window.navigator.onLine) {
-      void this.run();
+  #runWhenOnline() {
+    if (window.textsecure.server?.isOnline()) {
+      void this.#run();
     } else {
       log.info(
         'UpdateKeysListener: We are offline; will update keys when we are next online'
       );
       const listener = () => {
-        window.removeEventListener('online', listener);
+        window.Whisper.events.off('online', listener);
         this.setTimeoutForNextRun();
       };
-      window.addEventListener('online', listener);
+      window.Whisper.events.on('online', listener);
     }
   }
 

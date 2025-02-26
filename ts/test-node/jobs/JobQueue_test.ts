@@ -16,9 +16,11 @@ import { missingCaseError } from '../../util/missingCaseError';
 import { drop } from '../../util/drop';
 import type { LoggerType } from '../../types/Logging';
 
+import type { JOB_STATUS } from '../../jobs/JobQueue';
 import { JobQueue } from '../../jobs/JobQueue';
 import type { ParsedJob, StoredJob, JobQueueStore } from '../../jobs/types';
 import { sleep } from '../../util/sleep';
+import { parseUnknown } from '../../util/schemas';
 
 describe('JobQueue', () => {
   describe('end-to-end tests', () => {
@@ -35,11 +37,16 @@ describe('JobQueue', () => {
 
       class Queue extends JobQueue<TestJobData> {
         parseData(data: unknown): TestJobData {
-          return testJobSchema.parse(data);
+          return parseUnknown(testJobSchema, data);
         }
 
-        async run({ data }: ParsedJob<TestJobData>): Promise<void> {
+        async run({
+          data,
+        }: ParsedJob<TestJobData>): Promise<
+          typeof JOB_STATUS.NEEDS_RETRY | undefined
+        > {
           results.add(data.a + data.b);
+          return undefined;
         }
       }
 
@@ -80,16 +87,18 @@ describe('JobQueue', () => {
 
       class Queue extends JobQueue<number> {
         parseData(data: unknown): number {
-          return z.number().parse(data);
+          return parseUnknown(z.number(), data);
         }
 
-        async run(): Promise<void> {
+        async run(): Promise<typeof JOB_STATUS.NEEDS_RETRY | undefined> {
           try {
             updateActiveJobCount(1);
             await sleep(1);
           } finally {
             updateActiveJobCount(-1);
           }
+
+          return undefined;
         }
       }
 
@@ -129,7 +138,7 @@ describe('JobQueue', () => {
 
       class Queue extends JobQueue<number> {
         parseData(data: unknown): number {
-          return z.number().parse(data);
+          return parseUnknown(z.number(), data);
         }
 
         protected override getInMemoryQueue(
@@ -142,8 +151,8 @@ describe('JobQueue', () => {
           return testQueue;
         }
 
-        run(): Promise<void> {
-          return Promise.resolve();
+        run(): Promise<typeof JOB_STATUS.NEEDS_RETRY | undefined> {
+          return Promise.resolve(undefined);
         }
       }
 
@@ -172,11 +181,11 @@ describe('JobQueue', () => {
 
       class TestQueue extends JobQueue<string> {
         parseData(data: unknown): string {
-          return z.string().parse(data);
+          return parseUnknown(z.string(), data);
         }
 
-        async run(): Promise<void> {
-          return Promise.resolve();
+        async run(): Promise<typeof JOB_STATUS.NEEDS_RETRY | undefined> {
+          return Promise.resolve(undefined);
         }
       }
 
@@ -240,11 +249,11 @@ describe('JobQueue', () => {
 
       class TestQueue extends JobQueue<string> {
         parseData(data: unknown): string {
-          return z.string().parse(data);
+          return parseUnknown(z.string(), data);
         }
 
-        async run(): Promise<void> {
-          return Promise.resolve();
+        async run(): Promise<typeof JOB_STATUS.NEEDS_RETRY | undefined> {
+          return Promise.resolve(undefined);
         }
       }
 
@@ -291,7 +300,11 @@ describe('JobQueue', () => {
           return data;
         }
 
-        async run({ data }: ParsedJob<TestJobData>): Promise<void> {
+        async run({
+          data,
+        }: ParsedJob<TestJobData>): Promise<
+          typeof JOB_STATUS.NEEDS_RETRY | undefined
+        > {
           switch (data) {
             case 'foo':
               fooAttempts += 1;
@@ -308,6 +321,7 @@ describe('JobQueue', () => {
             default:
               throw missingCaseError(data);
           }
+          return undefined;
         }
       }
 
@@ -340,7 +354,6 @@ describe('JobQueue', () => {
       // Chai's `assert.instanceOf` doesn't tell TypeScript anything, so we do it here.
       if (!(booErr instanceof JobError)) {
         assert.fail('Expected error to be a JobError');
-        return;
       }
       assert.include(booErr.message, 'bar job always fails in this test');
 
@@ -354,13 +367,13 @@ describe('JobQueue', () => {
 
       class TestQueue extends JobQueue<string> {
         parseData(data: unknown): string {
-          return z.string().parse(data);
+          return parseUnknown(z.string(), data);
         }
 
         async run(
           _: unknown,
           { attempt }: Readonly<{ attempt: number }>
-        ): Promise<void> {
+        ): Promise<typeof JOB_STATUS.NEEDS_RETRY | undefined> {
           attempts.push(attempt);
           throw new Error('this job always fails');
         }
@@ -399,16 +412,18 @@ describe('JobQueue', () => {
 
       class TestQueue extends JobQueue<number> {
         parseData(data: unknown): number {
-          return z.number().parse(data);
+          return parseUnknown(z.number(), data);
         }
 
         async run(
           _: unknown,
           { log }: Readonly<{ log: LoggerType }>
-        ): Promise<void> {
+        ): Promise<typeof JOB_STATUS.NEEDS_RETRY | undefined> {
           log.info(uniqueString);
           log.warn(uniqueString);
           log.error(uniqueString);
+
+          return undefined;
         }
       }
 
@@ -450,8 +465,8 @@ describe('JobQueue', () => {
           throw new Error('uh oh');
         }
 
-        async run(): Promise<void> {
-          return Promise.resolve();
+        async run(): Promise<typeof JOB_STATUS.NEEDS_RETRY | undefined> {
+          return Promise.resolve(undefined);
         }
       }
 
@@ -475,7 +490,6 @@ describe('JobQueue', () => {
       // Chai's `assert.instanceOf` doesn't tell TypeScript anything, so we do it here.
       if (!(jobError instanceof JobError)) {
         assert.fail('Expected error to be a JobError');
-        return;
       }
       assert.include(
         jobError.message,
@@ -494,7 +508,9 @@ describe('JobQueue', () => {
           throw new Error('invalid data!');
         }
 
-        run(job: { data: string }): Promise<void> {
+        run(job: {
+          data: string;
+        }): Promise<typeof JOB_STATUS.NEEDS_RETRY | undefined> {
           return run(job);
         }
       }
@@ -528,8 +544,8 @@ describe('JobQueue', () => {
           throw new Error('invalid data!');
         }
 
-        async run(): Promise<void> {
-          return Promise.resolve();
+        async run(): Promise<typeof JOB_STATUS.NEEDS_RETRY | undefined> {
+          return Promise.resolve(undefined);
         }
       }
 
@@ -562,8 +578,8 @@ describe('JobQueue', () => {
           return undefined;
         }
 
-        async run(): Promise<void> {
-          return Promise.resolve();
+        async run(): Promise<typeof JOB_STATUS.NEEDS_RETRY | undefined> {
+          return Promise.resolve(undefined);
         }
       }
 
@@ -596,8 +612,9 @@ describe('JobQueue', () => {
           return data;
         }
 
-        async run(): Promise<void> {
+        async run(): Promise<typeof JOB_STATUS.NEEDS_RETRY | undefined> {
           events.push('running');
+          return undefined;
         }
       }
 
@@ -629,8 +646,8 @@ describe('JobQueue', () => {
           return undefined;
         }
 
-        async run(): Promise<void> {
-          return Promise.resolve();
+        async run(): Promise<typeof JOB_STATUS.NEEDS_RETRY | undefined> {
+          return Promise.resolve(undefined);
         }
       }
 
@@ -670,7 +687,7 @@ describe('JobQueue', () => {
           return undefined;
         }
 
-        async run(): Promise<void> {
+        async run(): Promise<typeof JOB_STATUS.NEEDS_RETRY | undefined> {
           events.push('running');
           throw new Error('uh oh');
         }
@@ -716,18 +733,18 @@ describe('JobQueue', () => {
     });
 
     class FakeStream implements AsyncIterable<StoredJob> {
-      private eventEmitter = new EventEmitter();
+      #eventEmitter = new EventEmitter();
 
       async *[Symbol.asyncIterator]() {
         while (true) {
           // eslint-disable-next-line no-await-in-loop
-          const [job] = await once(this.eventEmitter, 'drip');
-          yield storedJobSchema.parse(job);
+          const [job] = await once(this.#eventEmitter, 'drip');
+          yield parseUnknown(storedJobSchema, job as unknown);
         }
       }
 
       drip(job: Readonly<StoredJob>): void {
-        this.eventEmitter.emit('drip', job);
+        this.#eventEmitter.emit('drip', job);
       }
     }
 
@@ -748,11 +765,16 @@ describe('JobQueue', () => {
 
       class TestQueue extends JobQueue<number> {
         parseData(data: unknown): number {
-          return z.number().parse(data);
+          return parseUnknown(z.number(), data);
         }
 
-        async run({ data }: Readonly<{ data: number }>): Promise<void> {
+        async run({
+          data,
+        }: Readonly<{ data: number }>): Promise<
+          typeof JOB_STATUS.NEEDS_RETRY | undefined
+        > {
           eventEmitter.emit('run', data);
+          return undefined;
         }
       }
 
@@ -794,8 +816,8 @@ describe('JobQueue', () => {
           return data;
         }
 
-        async run(): Promise<void> {
-          return Promise.resolve();
+        async run(): Promise<typeof JOB_STATUS.NEEDS_RETRY | undefined> {
+          return Promise.resolve(undefined);
         }
       }
 
@@ -815,7 +837,7 @@ describe('JobQueue', () => {
   });
 
   describe('add', () => {
-    it('rejects if the job queue has not started streaming', async () => {
+    it('adds even if the job queue has not started streaming', async () => {
       const fakeStore = {
         insert: sinon.stub().resolves(),
         delete: sinon.stub().resolves(),
@@ -827,8 +849,8 @@ describe('JobQueue', () => {
           return undefined;
         }
 
-        async run(): Promise<void> {
-          return Promise.resolve();
+        async run(): Promise<typeof JOB_STATUS.NEEDS_RETRY | undefined> {
+          return Promise.resolve(undefined);
         }
       }
 
@@ -838,7 +860,7 @@ describe('JobQueue', () => {
         maxAttempts: 99,
       });
 
-      await assert.isRejected(noopQueue.add(undefined));
+      await noopQueue.add(undefined);
 
       sinon.assert.notCalled(fakeStore.stream as sinon.SinonStub);
     });

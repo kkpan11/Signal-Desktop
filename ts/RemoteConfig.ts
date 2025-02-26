@@ -7,58 +7,51 @@ import type { WebAPIType } from './textsecure/WebAPI';
 import * as log from './logging/log';
 import type { AciString } from './types/ServiceId';
 import { parseIntOrThrow } from './util/parseIntOrThrow';
-import { SECOND, HOUR } from './util/durations';
+import { HOUR } from './util/durations';
 import * as Bytes from './Bytes';
 import { uuidToBytes } from './util/uuidToBytes';
+import { dropNull } from './util/dropNull';
 import { HashType } from './types/Crypto';
 import { getCountryCode } from './types/PhoneNumber';
+import { parseRemoteClientExpiration } from './util/parseRemoteClientExpiration';
 
 export type ConfigKeyType =
-  | 'cds.disableCompatibilityMode'
-  | 'desktop.announcementGroup'
-  | 'desktop.calling.audioLevelForSpeaking'
-  | 'desktop.cdsi.returnAcisWithoutUaks'
+  | 'desktop.calling.ringrtcAdmFull.2'
+  | 'desktop.calling.ringrtcAdmInternal'
+  | 'desktop.calling.ringrtcAdmPreStable'
   | 'desktop.clientExpiration'
-  | 'desktop.editMessageSend'
-  | 'desktop.contactManagement.beta'
-  | 'desktop.contactManagement'
-  | 'desktop.groupCallOutboundRing2.beta'
-  | 'desktop.groupCallOutboundRing2'
-  | 'desktop.groupMultiTypingIndicators'
+  | 'desktop.backup.credentialFetch'
   | 'desktop.internalUser'
-  | 'desktop.mandatoryProfileSharing'
   | 'desktop.mediaQuality.levels'
   | 'desktop.messageCleanup'
-  | 'desktop.messageRequests'
-  | 'desktop.pnp'
-  | 'desktop.pnp.accountE164Deprecation'
   | 'desktop.retryRespondMaxAge'
-  | 'desktop.safetyNumberAci'
-  | 'desktop.safetyNumberAci.beta'
   | 'desktop.senderKey.retry'
-  | 'desktop.senderKey.send'
   | 'desktop.senderKeyMaxAge'
-  | 'desktop.sendSenderKey3'
-  | 'desktop.showUserBadges.beta'
-  | 'desktop.showUserBadges2'
-  | 'desktop.stories2.beta'
-  | 'desktop.stories2'
-  | 'desktop.textFormatting.spoilerSend'
-  | 'desktop.textFormatting'
-  | 'desktop.usernames'
+  | 'desktop.experimentalTransport.enableAuth'
+  | 'desktop.experimentalTransportEnabled.alpha'
+  | 'desktop.experimentalTransportEnabled.beta'
+  | 'desktop.experimentalTransportEnabled.prod'
+  | 'desktop.cdsiViaLibsignal'
+  | 'desktop.cdsiViaLibsignal.libsignalRouteBasedCDSILookup'
+  | 'desktop.funPicker'
+  | 'desktop.releaseNotes'
+  | 'desktop.releaseNotes.beta'
+  | 'desktop.releaseNotes.dev'
   | 'global.attachments.maxBytes'
+  | 'global.attachments.maxReceiveBytes'
   | 'global.calling.maxGroupCallRingSize'
   | 'global.groupsv2.groupSizeHardLimit'
   | 'global.groupsv2.maxGroupSize'
+  | 'global.messageQueueTimeInSeconds'
   | 'global.nicknames.max'
   | 'global.nicknames.min'
-  | 'global.safetyNumberAci';
+  | 'global.textAttachmentLimitBytes';
 
 type ConfigValueType = {
   name: ConfigKeyType;
   enabled: boolean;
   enabledAt?: number;
-  value?: unknown;
+  value?: string;
 };
 export type ConfigMapType = {
   [key in ConfigKeyType]?: ConfigValueType;
@@ -71,9 +64,8 @@ type ConfigListenersMapType = {
 let config: ConfigMapType = {};
 const listeners: ConfigListenersMapType = {};
 
-export async function initRemoteConfig(server: WebAPIType): Promise<void> {
+export function restoreRemoteConfigFromStorage(): void {
   config = window.storage.get('remoteConfig') || {};
-  await maybeRefreshRemoteConfig(server);
 }
 
 export function onChange(
@@ -89,17 +81,18 @@ export function onChange(
   };
 }
 
-export const refreshRemoteConfig = async (
+export const _refreshRemoteConfig = async (
   server: WebAPIType
 ): Promise<void> => {
   const now = Date.now();
-  const { config: newConfig, serverEpochTime } = await server.getConfig();
-  const serverTimeSkew = serverEpochTime * SECOND - now;
+  const { config: newConfig, serverTimestamp } = await server.getConfig();
+
+  const serverTimeSkew = serverTimestamp - now;
 
   if (Math.abs(serverTimeSkew) > HOUR) {
     log.warn(
-      'Remote Config: sever clock skew detected. ' +
-        `Server time ${serverEpochTime * SECOND}, local time ${now}`
+      'Remote Config: severe clock skew detected. ' +
+        `Server time ${serverTimestamp}, local time ${now}`
     );
   }
 
@@ -109,7 +102,11 @@ export const refreshRemoteConfig = async (
   const oldConfig = config;
   config = newConfig.reduce((acc, { name, enabled, value }) => {
     const previouslyEnabled: boolean = get(oldConfig, [name, 'enabled'], false);
-    const previousValue: unknown = get(oldConfig, [name, 'value'], undefined);
+    const previousValue: string | undefined = get(
+      oldConfig,
+      [name, 'value'],
+      undefined
+    );
     // If a flag was previously not enabled and is now enabled,
     // record the time it was enabled
     const enabledAt: number | undefined =
@@ -119,7 +116,7 @@ export const refreshRemoteConfig = async (
       name: name as ConfigKeyType,
       enabled,
       enabledAt,
-      value,
+      value: dropNull(value),
     };
 
     const hasChanged =
@@ -141,16 +138,44 @@ export const refreshRemoteConfig = async (
     };
   }, {});
 
+  const remoteExpirationValue = getValue('desktop.clientExpiration');
+  if (!remoteExpirationValue) {
+    // If remote configuration fetch worked - we are not expired anymore.
+    if (window.storage.get('remoteBuildExpiration') != null) {
+      log.warn('Remote Config: clearing remote expiration on successful fetch');
+    }
+    await window.storage.remove('remoteBuildExpiration');
+  } else {
+    const remoteBuildExpirationTimestamp = parseRemoteClientExpiration(
+      remoteExpirationValue
+    );
+    if (remoteBuildExpirationTimestamp) {
+      await window.storage.put(
+        'remoteBuildExpiration',
+        remoteBuildExpirationTimestamp
+      );
+    }
+  }
+
   await window.storage.put('remoteConfig', config);
   await window.storage.put('serverTimeSkew', serverTimeSkew);
 };
 
 export const maybeRefreshRemoteConfig = throttle(
-  refreshRemoteConfig,
+  _refreshRemoteConfig,
   // Only fetch remote configuration if the last fetch was more than two hours ago
   2 * 60 * 60 * 1000,
   { trailing: false }
 );
+
+export async function forceRefreshRemoteConfig(
+  server: WebAPIType,
+  reason: string
+): Promise<void> {
+  log.info(`forceRefreshRemoteConfig: ${reason}`);
+  maybeRefreshRemoteConfig.cancel();
+  await _refreshRemoteConfig(server);
+}
 
 export function isEnabled(name: ConfigKeyType): boolean {
   return get(config, [name, 'enabled'], false);

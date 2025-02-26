@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import emojiRegex from 'emoji-regex';
-import Delta from 'quill-delta';
-import type { LeafBlot, DeltaOperation, AttributeMap } from 'quill';
-import type Op from 'quill-delta/dist/Op';
+import { Delta } from '@signalapp/quill-cjs';
+import type { AttributeMap, Op, Parchment } from '@signalapp/quill-cjs';
 
 import type {
   DisplayNode,
@@ -13,10 +12,19 @@ import type {
 } from '../types/BodyRange';
 import { BodyRange } from '../types/BodyRange';
 import type { MentionBlot } from './mentions/blot';
+import type { EmojiBlot } from './emoji/blot';
 import { isNewlineOnlyOp, QuillFormattingStyle } from './formatting/menu';
 import { isNotNil } from '../util/isNotNil';
 import type { AciString } from '../types/ServiceId';
 import { emojiToData } from '../components/emoji/lib';
+
+export type Matcher = (
+  node: HTMLElement,
+  delta: Delta,
+  _scroll: Record<string, unknown>,
+  // Note: this field is added in our fork
+  attributes: AttributeMap
+) => Delta;
 
 export type MentionBlotValue = {
   aci: AciString;
@@ -27,17 +35,23 @@ export type FormattingBlotValue = {
   style: BodyRange.Style;
 };
 
-export const isMentionBlot = (blot: LeafBlot): blot is MentionBlot =>
+export const isEmojiBlot = (blot: Parchment.LeafBlot): blot is EmojiBlot =>
+  blot.value() && blot.value().emoji;
+
+export const isMentionBlot = (blot: Parchment.LeafBlot): blot is MentionBlot =>
   blot.value() && blot.value().mention;
 
-export const isFormatting = (blot: LeafBlot): blot is MentionBlot =>
+export const isFormatting = (blot: Parchment.LeafBlot): blot is MentionBlot =>
   blot.value() && blot.value().style;
 
 export type RetainOp = Op & { retain: number };
 export type InsertOp<K extends string, T> = Op & { insert: { [V in K]: T } };
 
 export type InsertMentionOp = InsertOp<'mention', MentionBlotValue>;
-export type InsertEmojiOp = InsertOp<'emoji', string>;
+export type InsertEmojiOp = InsertOp<
+  'emoji',
+  { value: string; source?: string }
+>;
 
 export const isRetainOp = (op?: Op): op is RetainOp =>
   op !== undefined && op.retain !== undefined;
@@ -56,7 +70,7 @@ export const isInsertEmojiOp = (op: Op): op is InsertEmojiOp =>
 export const isInsertMentionOp = (op: Op): op is InsertMentionOp =>
   isSpecificInsertOp(op, 'mention');
 
-export const getTextFromOps = (ops: Array<DeltaOperation>): string =>
+export const getTextFromOps = (ops: Array<Op>): string =>
   ops
     .reduce((acc, op) => {
       if (typeof op.insert === 'string') {
@@ -64,7 +78,7 @@ export const getTextFromOps = (ops: Array<DeltaOperation>): string =>
       }
 
       if (isInsertEmojiOp(op)) {
-        return acc + op.insert.emoji;
+        return acc + op.insert.emoji.value;
       }
 
       if (isInsertMentionOp(op)) {
@@ -123,31 +137,31 @@ function extractAllFormats(
     ...params,
     style: BOLD,
     previousData: result[BOLD],
-    hasStyle: op?.attributes?.[QuillFormattingStyle.bold],
+    hasStyle: Boolean(op?.attributes?.[QuillFormattingStyle.bold]),
   });
   result[ITALIC] = extractFormatRange({
     ...params,
     style: ITALIC,
     previousData: result[ITALIC],
-    hasStyle: op?.attributes?.[QuillFormattingStyle.italic],
+    hasStyle: Boolean(op?.attributes?.[QuillFormattingStyle.italic]),
   });
   result[MONOSPACE] = extractFormatRange({
     ...params,
     style: MONOSPACE,
     previousData: result[MONOSPACE],
-    hasStyle: op?.attributes?.[QuillFormattingStyle.monospace],
+    hasStyle: Boolean(op?.attributes?.[QuillFormattingStyle.monospace]),
   });
   result[SPOILER] = extractFormatRange({
     ...params,
     style: SPOILER,
     previousData: result[SPOILER],
-    hasStyle: op?.attributes?.[QuillFormattingStyle.spoiler],
+    hasStyle: Boolean(op?.attributes?.[QuillFormattingStyle.spoiler]),
   });
   result[STRIKETHROUGH] = extractFormatRange({
     ...params,
     style: STRIKETHROUGH,
     previousData: result[STRIKETHROUGH],
-    hasStyle: op?.attributes?.[QuillFormattingStyle.strike],
+    hasStyle: Boolean(op?.attributes?.[QuillFormattingStyle.strike]),
   });
 
   return result;
@@ -157,6 +171,7 @@ export const getTextAndRangesFromOps = (
   ops: Array<Op>
 ): { text: string; bodyRanges: DraftBodyRanges } => {
   const startingBodyRanges: Array<DraftBodyRange> = [];
+  let earliestMonospaceIndex = Number.MAX_SAFE_INTEGER;
   let formats: Record<BodyRange.Style, { start: number } | undefined> = {
     [BOLD]: undefined,
     [ITALIC]: undefined,
@@ -175,12 +190,18 @@ export const getTextAndRangesFromOps = (
     // Start or finish format sections as needed
     formats = extractAllFormats(startingBodyRanges, formats, acc.length, op);
 
+    const newMonospaceStart =
+      formats[MONOSPACE]?.start ?? earliestMonospaceIndex;
+    if (newMonospaceStart < earliestMonospaceIndex) {
+      earliestMonospaceIndex = newMonospaceStart;
+    }
+
     if (typeof op.insert === 'string') {
       return acc + op.insert;
     }
 
     if (isInsertEmojiOp(op)) {
-      return acc + op.insert.emoji;
+      return acc + op.insert.emoji.value;
     }
 
     if (isInsertMentionOp(op)) {
@@ -201,8 +222,15 @@ export const getTextAndRangesFromOps = (
   extractAllFormats(startingBodyRanges, formats, preTrimText.length);
 
   // Now repair bodyRanges after trimming
-  const trimStart = preTrimText.trimStart();
-  const trimmedFromStart = preTrimText.length - trimStart.length;
+  let trimStart = preTrimText.trimStart();
+  let trimmedFromStart = preTrimText.length - trimStart.length;
+
+  // We don't want to trim leading monospace text
+  if (earliestMonospaceIndex < trimmedFromStart) {
+    trimStart = preTrimText.slice(earliestMonospaceIndex);
+    trimmedFromStart = earliestMonospaceIndex;
+  }
+
   const text = trimStart.trimEnd();
   const textLength = text.length;
 
@@ -259,12 +287,18 @@ export const getBlotTextPartitions = (
 };
 
 export const matchBlotTextPartitions = (
-  blot: LeafBlot,
+  blot: Parchment.LeafBlot | null,
   index: number,
   leftRegExp: RegExp,
   rightRegExp?: RegExp
 ): Array<RegExpMatchArray | null> => {
-  const [leftText, rightText] = getBlotTextPartitions(blot.text, index);
+  const text = blot?.value();
+  if (text && typeof text !== 'string') {
+    // This can be an EmojiBlot, for example
+    return [];
+  }
+
+  const [leftText, rightText] = getBlotTextPartitions(text, index);
 
   const leftMatch = leftRegExp.exec(leftText);
   let rightMatch = null;
@@ -287,6 +321,27 @@ export const getDeltaToRestartMention = (ops: Array<Op>): Delta => {
   }, Array<Op>());
   changes.push({ delete: 1 });
   changes.push({ insert: '@' });
+  return new Delta(changes);
+};
+
+export const getDeltaToRestartEmoji = (ops: Array<Op>): Delta => {
+  const changes = new Array<Op>();
+  for (const op of ops.slice(0, -1)) {
+    if (op.insert && typeof op.insert === 'string') {
+      changes.push({ retain: op.insert.length });
+    } else {
+      changes.push({ retain: 1 });
+    }
+  }
+  const last = ops.at(-1);
+  if (!last || !last.insert) {
+    throw new Error('No emoji to delete');
+  }
+
+  changes.push({ delete: 1 });
+  if ((last as InsertEmojiOp).insert.emoji?.source) {
+    changes.push({ insert: (last as InsertEmojiOp).insert.emoji?.source });
+  }
   return new Delta(changes);
 };
 
@@ -408,7 +463,7 @@ export const insertEmojiOps = (
         if (emojiData) {
           ops.push({ insert: text.slice(index, match.index), attributes });
           ops.push({
-            insert: { emoji },
+            insert: { emoji: { value: emoji } },
             attributes: { ...existingAttributes, ...attributes },
           });
           index = match.index + emoji.length;
